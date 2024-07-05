@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import * as THREE from "three";
 import { resizeRendererToDisplaySize, Simulator } from "./Simulator";
 import { Ball } from "./Ball";
@@ -7,6 +8,7 @@ import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 import { JugglingEvent } from "./Timeline";
 import { Hand } from "./Hand";
 import * as Tone from "tone";
+import { MyVisitor, pier, tree } from "./ParserLexerPattern";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -14,11 +16,6 @@ import * as Tone from "tone";
 //TODO : Add option to mute a juggler/some balls ?
 //TODO : Camlecase or underscores ?
 //TODO Bugged buffer load if not await in main code.
-
-import { lexer } from "./parser/parser";
-const inputText = "5 0 0 3^4 ((441)^3 3^7)^3 441 441 4010 0 0";
-const lexingResult = lexer.tokenize(inputText);
-console.log(lexingResult);
 
 const transport = Tone.getTransport();
 // const transport = new TransportPlayback();
@@ -106,7 +103,7 @@ const music_tone = context.createMediaElementSource(music);
 const music_gain = new Tone.Gain().toDestination();
 Tone.connect(music_tone, music_gain);
 const sfx_gain = new Tone.Gain().toDestination();
-// sfx_gain.gain.value = 0;
+sfx_gain.gain.value = 0;
 music_gain.gain.value = 0;
 
 // await Tone.loaded();
@@ -167,33 +164,33 @@ function lance(
 }
 
 // Petite Fleur
-const left = vincent.left_hand;
-const right = vincent.right_hand;
-let ball0 = simulator.balls[0];
-let ball1 = simulator.balls[1];
-let ball2 = simulator.balls[2];
-const u = 60 / 265;
-const d = u / 3;
-// const t = 56.153;
+// const left = vincent.left_hand;
+// const right = vincent.right_hand;
+// let ball0 = simulator.balls[0];
+// let ball1 = simulator.balls[1];
+// let ball2 = simulator.balls[2];
+// const u = 60 / 265;
+// const d = u / 3;
+// // const t = 56.153;
 
-let t = 0;
-for (let i = 0; i < 10; i++) {
-    lance(ball0, t + 0 * u, 3.5 * u - d, left, left, u, heavy_hit);
-    lance(ball1, t + 1 * u, 4 * u - d, right, left, u, heavy_hit);
-    lance(ball2, t + 2 * u, 1 * u - d, left, right, u, heavy_hit);
-    lance(ball2, t + 3 * u, 3 * u - d, right, left, u, normal_hit);
-    lance(ball0, t + 3.5 * u, 0.5 * u - d, left, right, u, heavy_hit);
-    // lance(ball0, t + 4 * u, 1.5 * u - d, right, right, u);
-    lance(ball1, t + 5 * u, 2 * u - d, left, right, u, normal_hit);
-    lance(ball0, t + 5.5 * u, 3.5 * u - d, right, right, u, normal_hit);
-    lance(ball2, t + 6 * u, 4 * u - d, left, left, u, normal_hit);
-    lance(ball1, t + 7 * u, 1 * u - d, right, left, u, heavy_hit);
-    const tmp = ball0;
-    ball0 = ball1;
-    ball1 = tmp;
-    ball2 = ball2;
-    t = t + 8 * u;
-}
+// let t = 0;
+// for (let i = 0; i < 10; i++) {
+//     lance(ball0, t + 0 * u, 3.5 * u - d, left, left, u, heavy_hit);
+//     lance(ball1, t + 1 * u, 4 * u - d, right, left, u, heavy_hit);
+//     lance(ball2, t + 2 * u, 1 * u - d, left, right, u, heavy_hit);
+//     lance(ball2, t + 3 * u, 3 * u - d, right, left, u, normal_hit);
+//     lance(ball0, t + 3.5 * u, 0.5 * u - d, left, right, u, heavy_hit);
+//     // lance(ball0, t + 4 * u, 1.5 * u - d, right, right, u);
+//     lance(ball1, t + 5 * u, 2 * u - d, left, right, u, normal_hit);
+//     lance(ball0, t + 5.5 * u, 3.5 * u - d, right, right, u, normal_hit);
+//     lance(ball2, t + 6 * u, 4 * u - d, left, left, u, normal_hit);
+//     lance(ball1, t + 7 * u, 1 * u - d, right, left, u, heavy_hit);
+//     const tmp = ball0;
+//     ball0 = ball1;
+//     ball1 = tmp;
+//     ball2 = ball2;
+//     t = t + 8 * u;
+// }
 
 // for (let i = 0; i < 100; i++) {
 //     lance(
@@ -210,34 +207,272 @@ for (let i = 0; i < 10; i++) {
 //////////////////////////////////////////////////////////////////////////////
 // Edit here
 //////////////////////////////////////////////////////////////////////////////
+function conv_siteswap_to_pattern(siteswap: string): number[][] {
+    const pattern: number[][] = [[], []];
+    if (!siteswap.includes("(")) {
+        if (siteswap.length % 2 === 1) {
+            siteswap = siteswap + siteswap;
+        }
+        for (let i = 0; i < siteswap.length; i++) {
+            pattern[i % 2][i] = parseInt(siteswap.substring(i, i + 1));
+            pattern[(i + 1) % 2][i] = 0;
+        }
+    } else {
+        let c = 0;
+        //for (let i = 0; i != -1; i = siteswap.indexOf(")", i))
+
+        while (c < siteswap.length) {
+            if (siteswap.includes("(", c)) {
+                const synchro = siteswap.substring(
+                    siteswap.indexOf("(", c) + 1,
+                    siteswap.indexOf(")", c)
+                );
+                for (let i = 0; i < synchro.length; i++) {
+                    pattern[i % 2][pattern[i % 2].length] = parseInt(synchro.substring(i, i + 1)); //We add to the last box the throw
+                    pattern[i % 2][pattern[i % 2].length] = 0; //We add zero to the last box
+                }
+                c = siteswap.indexOf(")", c) + 1;
+            } else {
+                break;
+            }
+        }
+    }
+    //console.log(pattern);
+    return pattern;
+}
+
+function lance_pattern(pattern: number[][], colors: string[], u: number, d: number): void {
+    function pre_lancer(pattern: number[][], size: number, held_balls: Ball[]): void {
+        /// May be convert to boolean to handle errors
+        const thrown_max = Math.max(...pattern.flat());
+        function known_all_positions(pier: number[][]): boolean {
+            for (let i = 0; i < thrown_max - 1; i++) {
+                for (const subArray of pier) {
+                    if (!(subArray[i] === 0 || subArray[i] === 1)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        //const pier: number[][] = [];
+        const pier: number[][] = Array.from(pattern, () => Array<number>(thrown_max));
+        // for (const item of pattern) {
+        //     pier.push([]); // Ajoutez un nouveau sous-tableau vide
+        //}
+        while (!known_all_positions(pier)) {
+            for (let i = 0; i < size; i++) {
+                if (i % pattern.length === 0) {
+                    for (let i2 = 0; i2 < pattern.length; i2++) {
+                        pier[i2].splice(0, 1);
+                        pier[i2][thrown_max - 1] = 0;
+                    }
+                }
+                if (pattern[i % pattern.length][~~(i / pattern.length)] != 0) {
+                    pier[
+                        ((i % pattern.length) +
+                            pattern[i % pattern.length][~~(i / pattern.length)]) %
+                            2
+                    ][pattern[i % pattern.length][~~(i / pattern.length)] - 1] = 1;
+                }
+            }
+        }
+        // Execute pier in time -u
+        const spattern: number[][] = [[], []]; // All pier execute at time -u with hand i (spattern[i])
+        const totale_size = pier.reduce((total, subArray) => total + subArray.length, 0);
+
+        // Make spattern and execute it
+        for (let i = 0; i < totale_size; i++) {
+            if (pier[i % pier.length][~~(i / pier.length)] === 1) {
+                const last_spattern_position = spattern.flat().length;
+                spattern[i % pier.length][last_spattern_position] = ~~(i / pier.length) + 1;
+                copyBalls(held_balls[last_spattern_position], held_balls_hand, i, pier.length);
+                lance(
+                    held_balls[last_spattern_position],
+                    -u,
+                    u * (~~(i / pier.length) + 1) - d,
+                    vincent.hands[i % 2],
+                    vincent.hands[i % 2],
+                    u
+                );
+            }
+        }
+        //console.log(spattern);
+    }
+    function thrown_from_0(held_balls: Ball[], held_balls_hand: Ball[][][], i: number): void {
+        if (held_balls_hand[i % 2][~~(i / pattern.length)] != undefined) {
+            for (let i2 = 0; i2 < held_balls_hand[i % 2][~~(i / pattern.length)].length; i2++) {
+                let new_position: number;
+                if (held_balls_hand[i2 % 2][~~(i / pattern.length) + 1] != undefined) {
+                    new_position = held_balls_hand[i2 % 2][~~(i / pattern.length) + 1].length;
+                } else {
+                    new_position = 0;
+                    held_balls_hand[i2 % 2][~~(i / pattern.length) + 1] = [];
+                }
+                held_balls_hand[i2 % 2][~~(i / pattern.length) + 1][new_position] =
+                    held_balls_hand[i2 % 2][~~(i / pattern.length)][i2];
+            }
+        }
+        //Normalement inutile
+        // if (held_balls[i] != undefined) {
+        //     held_balls.splice(i, 0, undefined);
+        //     //console.log(held_balls, i);
+        // }
+    }
+    function copyBalls(ball: Ball, held_balls_hand: Ball[][][], i: number, length: number): void {
+        const table: Ball[] = [];
+        held_balls_hand[i % 2][~~(i / length)] = table;
+        held_balls_hand[i % 2][~~(i / length)][0] = ball;
+    }
+
+    // Count the balls needed and check if it is_Parallel
+    let n_balls = 0;
+    for (const subArray of pattern) {
+        n_balls += subArray.reduce((p, c) => p + c, 0) / subArray.length;
+    }
+
+    // Build the balls
+    for (let i = 0; i < Math.round(n_balls); i++) {
+        simulator.balls[i] = new Ball(colors[i], 0.04);
+    }
+
+    // Add balls to scene
+    simulator.balls.forEach((ball) => {
+        scene.add(ball.mesh);
+    });
+
+    // Build the sequence of throws
+    const total_size = pattern.reduce((total, subArray) => total + subArray.length, 0);
+    const N = total_size * 50;
+    const held_balls: Ball[] = Array<Ball>(N); // TODO replace to juste balls to take.
+    const held_balls_hand: Ball[][][] = [[], []];
+    for (let i = 0; i < simulator.balls.length; i++) {
+        held_balls[i] = simulator.balls[i];
+    }
+
+    pre_lancer(pattern, total_size, held_balls);
+    main(N, held_balls, held_balls_hand, pattern);
+    function main(N: number, held_balls: Ball[], held_balls_hand: Ball[][][], pattern: number[][]) {
+        for (let i = 0; i < N - total_size; i++) {
+            //const h = pattern.flat()[i % total_size];
+            const h =
+                pattern[i % pattern.length][
+                    ~~(i / pattern.length) % pattern[i % pattern.length].length
+                ]; //[select each table one by one][select each i frome 0 to pattern[subarray].length, this for each subarray]
+            if (h === 0) {
+                thrown_from_0(held_balls, held_balls_hand, i);
+            } else {
+                console.assert(held_balls_hand[i % 2][~~(i / pattern.length)] != undefined);
+                // if (held_balls_hand[i % 2][~~(i / pattern.length)] == undefined) {
+                //     //Impossible, but juste for verify
+                //     if (held_balls[i] != undefined) {
+                //         copyBalls(held_balls[i], held_balls_hand, i, pattern.length);
+                //     } else {
+                //         console.log(
+                //             "held_balls_hand[",
+                //             i % 2,
+                //             "][",
+                //             ~~(i / pattern.length),
+                //             "] et held_balls[",
+                //             i,
+                //             "] sont undefined.",
+                //             held_balls,
+                //             held_balls_hand
+                //         );
+                //         //     deleteEmptyBox([], held_balls_hand, i, pattern.length);
+                //         //     //held_balls_hand[i % 2].splice(~~(i / pattern.length), 1);
+                //     }
+                // }
+                if (held_balls_hand[(i + h) % 2][~~(i / pattern.length) + h] == undefined) {
+                    held_balls_hand[(i + h) % 2][~~(i / pattern.length) + h] = [];
+                }
+                held_balls_hand[(i + h) % 2][~~(i / pattern.length) + h][
+                    held_balls_hand[(i + h) % 2][~~(i / pattern.length) + h].length
+                ] = held_balls[i] = held_balls_hand[i % 2][~~(i / pattern.length)][0];
+                //held_balls[i] = held_balls_hand[i % 2][~~(i / pattern.length)][0];
+                if (held_balls_hand[i % 2][~~(i / pattern.length)].length > 1) {
+                    if (held_balls_hand[i % 2][~~(i / pattern.length) + 1] != undefined) {
+                        held_balls_hand[i % 2][~~(i / pattern.length) + 1] = [
+                            ...held_balls_hand[i % 2][~~(i / pattern.length)].slice(1),
+                            ...held_balls_hand[i % 2][~~(i / pattern.length) + 1]
+                        ];
+                    } else {
+                        held_balls_hand[i % 2][~~(i / pattern.length) + 1] = [];
+                        held_balls_hand[i % 2][~~(i / pattern.length) + 1] = [
+                            ...held_balls_hand[i % 2][~~(i / pattern.length)].slice(1)
+                        ];
+                    }
+                }
+                const time: number = ~~(i / pattern.length) * u;
+                const flight_time: number = h * u - d;
+                lance(
+                    held_balls[i],
+                    time, //~~(i / pattern.length) * u,
+                    flight_time, //h * u - d,
+                    vincent.hands[i % 2],
+                    vincent.hands[(i + h) % 2],
+                    u
+                );
+            }
+        }
+
+        console.log(held_balls_hand);
+    }
+
+    simulator.balls = simulator.balls.filter((ball) => {
+        return ball.timeline.length !== 0;
+    });
+}
+
+// Configuration
+const colors = ["red", "green", "blue", "purple", "yellow", "orange", "pink"];
+const u2 = 0.25;
+const d2 = u2 / 2;
+
+//Construiction pour tweakpane /////////////////////////////////////////
+const tweakpane_container = document.querySelector(".tp-dfwv");
+if (!(tweakpane_container instanceof HTMLElement)) {
+    throw new Error();
+}
+const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
+////////////////////////////////////////////////////////////////////////
+
+//Default value of siteswap in siteswap_blade
+const PARAMS = {
+    Siteswap: "(66)(20)(40)"
+};
+//TODO: Handle pattern errors
+//Build siteswap_blade and check change
+const siteswap_blade = pane.addBinding(PARAMS, "Siteswap");
+siteswap_blade.on("change", (ev) => {
+    if (ev.value != "") {
+        simulator.reset_pattern();
+        lance_pattern(conv_siteswap_to_pattern(ev.value), colors, u2, d2);
+    }
+});
+
+const visitor = new MyVisitor<pier[]>();
+const result = visitor.visit(tree);
+
+console.log(result);
 
 // Pattern
-//const pattern = [5];
-// const pattern = [3,3,4,5,1,5,1,4,1];
 
-// // Configuration
-// const colors = ["red", "green", "blue", "purple", "yellow"];
-// const u = 0.25;
-// const d = u / 2;
+//Const pattern with default value
+const pattern = conv_siteswap_to_pattern(PARAMS.Siteswap);
 
-// // Build the balls
-// const n_balls = pattern.reduce( ( p, c ) => p + c, 0 ) / pattern.length;
-// simulator.balls = Array(n_balls);
-// for (let i=0; i < simulator.balls.length; i++)
-//     simulator.balls[i] = new Ball(colors[i], 0.04)
+//const pattern = [[5]];
+//const pattern = [[3, 0, 3]];
+//const pattern = [
+//     [4, 4, 0, 0],
+//     [4, 0, 0, 0]
+// ];
+//const pattern = [
+//     [6, 0, 0, 0, 1, 4], //Each sub-array represents a line of action, each index happens at the same time
+//     [6, 0, 0, 0, 1, 4]
+// ];
 
-// // Build the sequence of throws
-// const N = pattern.length * 50;
-// const held_balls = Array(N);
-// for (let i = 0; i < simulator.balls.length; i++) {
-//     held_balls[i] = simulator.balls[i];
-// }
-// for (let i = 0; i < N - pattern.length; i++) {
-//     let h = pattern[i % pattern.length];
-//     held_balls[i+h] = held_balls[i];
-//     lance(held_balls[i], i * u, h * u - d, vincent.hands[i % 2], vincent.hands[(i + h) % 2], u);
-// }
-//console.log(held_balls);
+lance_pattern(pattern, colors, u2, d2);
 
 //////////////////////////////////////////////////////////////////////////////
 // End edit here
@@ -266,11 +501,13 @@ for (let i = 0; i < 10; i++) {
 // lance(ball0, 1, 1, right_hand, left_hand, 0.5);
 // lance(ball0, 1, 1, right_hand, left_hand, 0.5);
 
-const tweakpane_container = document.querySelector(".tp-dfwv");
-if (!(tweakpane_container instanceof HTMLElement)) {
-    throw new Error();
-}
-const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
+//  To ~ Ligne 212
+// const tweakpane_container = document.querySelector(".tp-dfwv");
+// if (!(tweakpane_container instanceof HTMLElement)) {
+//     throw new Error();
+// }
+// const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
+
 pane.registerPlugin(EssentialsPlugin);
 const fpsGraph = pane.addBlade({
     view: "fpsgraph",

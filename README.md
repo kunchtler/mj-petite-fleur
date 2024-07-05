@@ -23,7 +23,7 @@ Simply fork this repository, and then use :
 pnpm install
 ```
 
-ADDITIONAL STEP : 
+ADDITIONAL STEP :
 Go to node_modules/antlr4/package.json and modify the following (as found in [this issue](https://github.com/antlr/antlr4/issues/4218#issuecomment-1973086978)):
 
 ```JSON
@@ -70,7 +70,7 @@ pnpm build
 
 The siteswap parser uses ANTLR to generate parsers in many languages (namely Typescript in our case, but also python), but also as a runtime package to parse expressions for that grammar.
 
-To install ANTLR : 
+To install ANTLR :
 
 ## TODO
 
