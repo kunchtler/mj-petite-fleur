@@ -2,14 +2,11 @@
 import * as THREE from "three";
 import { resizeRendererToDisplaySize, Simulator } from "./Simulator";
 import { Ball } from "./Ball";
-import { create_juggler_mesh, Juggler } from "./Juggler";
+import { Juggler } from "./Juggler";
 import * as TWEAKPANE from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
-import { JugglingEvent } from "./Timeline";
-import { Hand } from "./Hand";
 import * as Tone from "tone";
-import { MyVisitor, pier, tree } from "./ParserLexerPattern";
-import { lance, lance_pattern, conv_siteswap_to_pattern } from "./Interactive_siteswap_player";
+import { lance } from "./Interactive_siteswap_player";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -22,6 +19,8 @@ import { lance, lance_pattern, conv_siteswap_to_pattern } from "./Interactive_si
 //TODO : Cap Hand movement
 //TODO : Implement juggler model
 //TODO : Merge juggler geometries
+//TODO : Fixer le décalage musique / image quand on utilise le slider temporel (demanderait de passer par web audio api avec controle manuel du temps ?) ou alors juste en étandant Player de Tonejs ?
+//TODO : Dans petite fleur, tester le u plus petit dans les fonctions.
 
 const transport = Tone.getTransport();
 // const transport = new TransportPlayback();
@@ -100,17 +99,13 @@ const sfx_buffers = {
     weak_hit_shaker: new Tone.ToneAudioBuffer("grelot_balls_sfx/weak_hit_shaker.mp3")
 };
 
-const weak_hit = ["weak_hit1", "weak_hit2"];
-const normal_hit = ["normal_hit1", "normal_hit2"];
-const heavy_hit = ["heavy_hit1", "heavy_hit2", "heavy_hit3"];
-
 const music = new Audio("petite_fleur_vincent.mp3");
 const music_tone = context.createMediaElementSource(music);
 const music_gain = new Tone.Gain().toDestination();
 Tone.connect(music_tone, music_gain);
 const sfx_gain = new Tone.Gain().toDestination();
-sfx_gain.gain.value = 0;
-music_gain.gain.value = 0;
+// sfx_gain.gain.value = 0;
+// music_gain.gain.value = 0;
 
 music.addEventListener("canplaythrough", handle_sounds_loaded, { once: true });
 
@@ -123,8 +118,8 @@ const camera = simulator.camera;
 
 simulator.jugglers = [new Juggler(2.0)];
 const vincent = simulator.jugglers[0];
-vincent.mesh.position.set(-1, 0, 1);
-vincent.mesh.rotateY(Math.PI / 2);
+// vincent.mesh.position.set(-1, 0, 1);
+// vincent.mesh.rotateY(Math.PI / 2);
 
 //TODO : Handle properly this await (by loading the sounds for the balls only when Tone has loaded the buffer.)
 await Tone.loaded();
@@ -144,62 +139,191 @@ const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
 
 //////////////// Petite Fleur ////////////////
 
-// Petite Fleur
-// const left = vincent.left_hand;
-// const right = vincent.right_hand;
-// let ball0 = simulator.balls[0];
-// let ball1 = simulator.balls[1];
-// let ball2 = simulator.balls[2];
-// const u = 60 / 265;
-// const d = u / 3;
-// // const t = 56.153;
+const weak_hit = ["weak_hit1", "weak_hit2"];
+const normal_hit = ["normal_hit1", "normal_hit2"];
+const heavy_hit = ["heavy_hit1", "heavy_hit2", "heavy_hit3"];
 
-// let t = 0;
+// Petite Fleur
+const left = vincent.left_hand;
+const right = vincent.right_hand;
+const ball0 = simulator.balls[0];
+const ball1 = simulator.balls[1];
+const ball2 = simulator.balls[2];
+let balls = [ball0, ball1, ball2];
+let hands = [right, left];
+let u = 60 / 264;
+let d = u / 3;
+let u2 = 60 / 277;
+// const t = 56.153;
+
+let t = 5.729 - 5 * u;
+
+function swap<T>(list: T[], order?: number[]): T[] {
+    if (list.length === 0) {
+        return [];
+    }
+    if (order === undefined) {
+        order = [];
+        for (let i = 0; i < list.length; i++) {
+            order.push((i + 1) % list.length);
+        }
+    }
+    const list2: T[] = [];
+    for (let i = 0; i < list.length; i++) {
+        list2.push(list[order[i]]);
+    }
+    return list2;
+}
+
+//1st section (video: 5:16)
+lance(balls[0], t + 0 * u, 5 * u - d, left, right, u, heavy_hit);
+lance(balls[1], t + 3 * u, 3 * u - d, right, left, u, weak_hit);
+lance(balls[2], t + 4 * u, 3 * u - d, left, right, u, weak_hit);
+lance(balls[0], t + 5 * u, 3 * u - d, right, left, u, weak_hit);
+lance(balls[1], t + 6 * u, 3 * u - d, left, right, u, weak_hit);
+t = t + 7 * u;
+for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+        lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
+        lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
+        lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
+        balls = swap(balls, [2, 0, 1]);
+        hands = swap(hands);
+        t = t + 3 * u;
+    }
+    lance(balls[2], t + 0 * u, 3 * u - d, left, right, u, weak_hit);
+    lance(balls[0], t + 1 * u, 3 * u - d, right, left, u, weak_hit);
+    lance(balls[1], t + 2 * u, 3 * u - d, left, right, u, weak_hit);
+    lance(balls[2], t + 3 * u, 3 * u - d, right, left, u, weak_hit);
+    lance(balls[0], t + 4 * u, 3 * u - d, left, right, u, weak_hit);
+    lance(balls[1], t + 5 * u, 3 * u - d, right, left, u, weak_hit);
+    lance(balls[2], t + 6 * u, 3 * u - d, left, right, u, weak_hit);
+    balls = swap(balls, [1, 2, 0]);
+    hands = [right, left];
+    t = t + 7 * u;
+}
+for (let j = 0; j < 2; j++) {
+    lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
+    lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
+    lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
+    balls = swap(balls, [2, 0, 1]);
+    hands = swap(hands);
+    t = t + 3 * u;
+}
+lance(balls[2], t + 0 * u, 4 * u - d, right, right, u, heavy_hit);
+lance(balls[1], t + 2 * u, 1 * u - d, right, left, u, heavy_hit);
+t = t + 5 * u;
+
+//2nd section (video: 5:31)
+//TODO : Besoin de resynchroniser t avec le temps de l'audio ?
+t = 21.426 - 8 * u;
+hands = [left, right];
+balls = [balls[0], balls[2], balls[1]];
+for (let i = 0; i < 5; i++) {
+    lance(balls[0], t + 0 * u, 3 * u - d, hands[0], hands[1], u, weak_hit);
+    balls = swap(balls);
+    hands = swap(hands);
+    t = t + 1 * u;
+}
+balls = [balls[1], balls[2], balls[0]];
+for (let j = 0; j < 3; j++) {
+    lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
+    lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
+    lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
+    balls = swap(balls, [2, 0, 1]);
+    hands = swap(hands);
+    t = t + 3 * u;
+}
+for (let i = 0; i < 7; i++) {
+    lance(balls[2], t + 0 * u, 3 * u - d, hands[0], hands[1], u, weak_hit);
+    balls = swap(balls);
+    hands = swap(hands);
+    t = t + 1 * u;
+}
+for (let j = 0; j < 3; j++) {
+    lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
+    lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
+    lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
+    balls = swap(balls, [2, 0, 1]);
+    hands = swap(hands);
+    t = t + 3 * u;
+}
+lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
+t = t + 1 * u;
+//TODO : The transition between u and u2 is a mess but since both values
+//are close, it is not noticable).
+lance(balls[0], t + 0 * u, 5 * u2 - d, hands[1], hands[0], u, heavy_hit);
+lance(balls[1], t + 1 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
+lance(balls[1], t + 2 * u, 5 * u2 - d, hands[1], hands[0], u, heavy_hit);
+lance(balls[2], t + 3 * u, 1 * u2 - d, hands[0], hands[1], u, heavy_hit);
+balls = swap(balls, [2, 0, 1]);
+t = t + 3 * u + u2;
+for (let i = 0; i < 16; i++) {
+    lance(balls[0], t + 0 * u2, 5 * u2 - d, hands[1], hands[0], u2, heavy_hit);
+    lance(balls[1], t + 1 * u2, 1 * u2 - d, hands[0], hands[1], u2, heavy_hit);
+    balls = swap(balls, [1, 2, 0]);
+    t = t + 2 * u2;
+}
+lance(balls[0], t + 0 * u2, 5 * u2 - d, right, left, u2, normal_hit);
+lance(balls[1], t + 1 * u2, 1 * u2 - d, left, right, u2, heavy_hit);
+lance(balls[1], t + 2 * u2, 4.5 * u2 - d, right, left, u2, heavy_hit);
+lance(balls[2], t + 3 * u2, 1 * u2 - d, left, right, u2, normal_hit);
+lance(balls[2], t + 4 * u2, 4 * u2 - d, right, left, u2, normal_hit);
+lance(balls[0], t + 5 * u2, 1 * u2 - d, left, right, u2, heavy_hit);
+lance(balls[0], t + 6 * u2, 3 * u2 - d, right, left, u2, normal_hit);
+lance(balls[1], t + 6.5 * u2, 0.5 * u2 - d, left, right, u2, heavy_hit);
+// lance(balls[1], t + 3.5 * u, 2.5 * u - d, left, right, u);
+lance(balls[2], t + 8 * u2, 2 * u2 - d, left, right, u2, normal_hit);
+lance(balls[1], t + 8.5 * u2, 3.5 * u2 - d, right, right, u2, "shaker");
+// lance(balls[1], t + 1 * u, 1 * u - d, right, left, u);
+lance(balls[2], t + 10 * u2, 1 * u2 - d, right, left, u2, heavy_hit);
+// lance(balls[1], t + 1 * u, 1 * u - d, right, left, u);
+
 // for (let i = 0; i < 10; i++) {
-//     lance(ball0, t + 0 * u, 3.5 * u - d, left, left, u, heavy_hit);
-//     lance(ball1, t + 1 * u, 4 * u - d, right, left, u, heavy_hit);
-//     lance(ball2, t + 2 * u, 1 * u - d, left, right, u, heavy_hit);
-//     lance(ball2, t + 3 * u, 3 * u - d, right, left, u, normal_hit);
-//     lance(ball0, t + 3.5 * u, 0.5 * u - d, left, right, u, heavy_hit);
-//     // lance(ball0, t + 4 * u, 1.5 * u - d, right, right, u);
-//     lance(ball1, t + 5 * u, 2 * u - d, left, right, u, normal_hit);
-//     lance(ball0, t + 5.5 * u, 3.5 * u - d, right, right, u, normal_hit);
-//     lance(ball2, t + 6 * u, 4 * u - d, left, left, u, normal_hit);
-//     lance(ball1, t + 7 * u, 1 * u - d, right, left, u, heavy_hit);
-//     const tmp = ball0;
-//     ball0 = ball1;
-//     ball1 = tmp;
-//     ball2 = ball2;
+//     lance(balls[0], t + 0 * u, 3.5 * u - d, left, left, u, heavy_hit);
+//     lance(balls[1], t + 1 * u, 4 * u - d, right, left, u, heavy_hit);
+//     lance(balls[2], t + 2 * u, 1 * u - d, left, right, u, heavy_hit);
+//     lance(balls[2], t + 3 * u, 3 * u - d, right, left, u, normal_hit);
+//     lance(balls[0], t + 3.5 * u, 0.5 * u - d, left, right, u, heavy_hit);
+//     // lance(balls[0], t + 4 * u, 1.5 * u - d, right, right, u);
+//     lance(balls[1], t + 5 * u, 2 * u - d, left, right, u, normal_hit);
+//     lance(balls[0], t + 5.5 * u, 3.5 * u - d, right, right, u, normal_hit);
+//     lance(balls[2], t + 6 * u, 4 * u - d, left, left, u, normal_hit);
+//     lance(balls[1], t + 7 * u, 1 * u - d, right, left, u, heavy_hit);
+//     const tmp = balls[0];
+//     balls[0] = balls[1];
+//     balls[1] = tmp;
+//     balls[2] = balls[2];
 //     t = t + 8 * u;
 // }
 
 //////////////// Editeur de patterns ////////////////
 
-// Configuration
-const colors = ["red", "green", "blue", "purple", "yellow", "orange", "pink"];
-const u2 = 0.25;
-const d2 = u2 / 2;
-//Default value of siteswap in siteswap_blade
-const PARAMS = {
-    Siteswap: "(66)(20)(40)"
-};
-//TODO: Handle pattern errors
-//Build siteswap_blade and check change
-const siteswap_blade = pane.addBinding(PARAMS, "Siteswap");
-siteswap_blade.on("change", (ev) => {
-    if (ev.value != "") {
-        simulator.reset_pattern();
-        lance_pattern(conv_siteswap_to_pattern(ev.value), colors, u2, d2, vincent, simulator);
-    }
-});
+// // Configuration
+// const colors = ["red", "green", "blue", "purple", "yellow", "orange", "pink"];
+// const u2 = 0.25;
+// const d2 = u2 / 2;
+// //Default value of siteswap in siteswap_blade
+// const PARAMS = {
+//     Siteswap: "(66)(20)(40)"
+// };
+// //TODO: Handle pattern errors
+// //Build siteswap_blade and check change
+// const siteswap_blade = pane.addBinding(PARAMS, "Siteswap");
+// siteswap_blade.on("change", (ev) => {
+//     if (ev.value != "") {
+//         simulator.reset_pattern();
+//         lance_pattern(conv_siteswap_to_pattern(ev.value), colors, u2, d2, vincent, simulator);
+//     }
+// });
 
-const visitor = new MyVisitor<pier[]>();
-const result = visitor.visit(tree);
-console.log(result);
-//Pattern
-//Const pattern with default value
-const pattern = conv_siteswap_to_pattern(PARAMS.Siteswap);
-lance_pattern(pattern, colors, u2, d2, vincent, simulator);
+// const visitor = new MyVisitor<pier[]>();
+// const result = visitor.visit(tree);
+// console.log(result);
+// //Pattern
+// //Const pattern with default value
+// const pattern = conv_siteswap_to_pattern(PARAMS.Siteswap);
+// lance_pattern(pattern, colors, u2, d2, vincent, simulator);
 
 //////////////// Editeur de patterns ////////////////
 
@@ -238,7 +362,9 @@ const monitor = {
     audio_control: 0,
     playback_rate: 1,
     transport_play: transport.state === "started",
-    music: music
+    music: music,
+    mute_music: music_gain.gain.value === 0,
+    mute_sfx: sfx_gain.gain.value === 0
 };
 pane.addBinding(monitor, "video_time", {
     readonly: true
@@ -284,6 +410,14 @@ play_blade.on("change", async (ev) => {
         await Tone.loaded();
         await music.play();
     }
+});
+const mute_music = pane.addBinding(monitor, "mute_music", { label: "Mute Music" });
+mute_music.on("change", (ev) => {
+    music_gain.gain.value = ev.value ? 0 : 1;
+});
+const mute_sfx = pane.addBinding(monitor, "mute_sfx", { label: "Mute Sounds" });
+mute_sfx.on("change", (ev) => {
+    sfx_gain.gain.value = ev.value ? 0 : 1;
 });
 
 function render(t: number) {
