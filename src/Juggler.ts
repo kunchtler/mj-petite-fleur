@@ -3,26 +3,157 @@ import { Hand, HandPhysicsHandling } from "./Hand";
 import { Object3DHelper } from "./Object3DHelper";
 import { find_elbow } from "./utils";
 
-type GeoMatMesh = {
-    geometry: THREE.BufferGeometry;
-    material: THREE.Material;
-    mesh: THREE.Mesh;
-};
+
 
 type JugglerMesh = {
-    head: GeoMatMesh;
-    chest: GeoMatMesh;
-    right_arm: GeoMatMesh;
-    right_elbow: GeoMatMesh;
-    right_forearm: GeoMatMesh;
-    right_hand: GeoMatMesh;
-    left_arm: GeoMatMesh;
-    left_elbow: GeoMatMesh;
-    left_forearm: GeoMatMesh;
-    left_hand: GeoMatMesh;
-    right_leg: GeoMatMesh;
-    left_leg: GeoMatMesh;
+    head: THREE.Mesh;
+    chest: THREE.Mesh;
+    right_shoulder: THREE.Mesh;
+    right_arm: THREE.Mesh;
+    right_elbow: THREE.Mesh;
+    right_forearm: THREE.Mesh;
+    right_hand: THREE.Mesh;
+    left_shoulder: THREE.Mesh;
+    left_arm: THREE.Mesh;
+    left_elbow: THREE.Mesh;
+    left_forearm: THREE.Mesh;
+    left_hand: THREE.Mesh;
+    right_leg: THREE.Mesh;
+    left_leg: THREE.Mesh;
 };
+
+//TODO : Split in two functions : one to create mesh, one to ass to scene ?
+//TODO : Change the way head side scales and arms beahve with different parameters.
+//TODO : Arm length as param ?
+export function create_juggler_mesh(
+    scene: THREE.Scene,
+    height: number,
+    width: number,
+    depth: number
+): JugglerMesh {
+    const top_chest_length = width;
+    const bottom_chest_length = (width * 2) / 3;
+    const chest_height = (19 / 50) * height;
+    const leg_height = (2 / 5) * height;
+    const head_height = (1 / 5) * height;
+    const head_chest_offset = (1 / 50) * height;
+    const arm_length = (2 / 3) * chest_height;
+    const arm_diameter = 0.05;
+    const shoulder_radius = 0.08;
+    const elbow_radius = 0.05;
+    const hand_length = 0.05;
+    const hand_width = 0.05 * 0.8;
+
+    //Chest
+    let chest_geometry: THREE.BufferGeometry = new THREE.CylinderGeometry(
+        top_chest_length * Math.SQRT1_2,
+        bottom_chest_length * Math.SQRT1_2,
+        chest_height,
+        4,
+        1
+    );
+    chest_geometry.rotateY(Math.PI / 4);
+    chest_geometry = chest_geometry.toNonIndexed();
+    chest_geometry.computeVertexNormals();
+    chest_geometry.scale(depth / top_chest_length, 1, 1);
+    const chest_material = new THREE.MeshPhongMaterial({ color: "green" });
+    const chest = new THREE.Mesh(chest_geometry, chest_material);
+    chest.position.set(0, leg_height + chest_height / 2, 0);
+    scene.add(chest);
+
+    //Head
+    const head_geometry = new THREE.SphereGeometry(head_height / 2);
+    head_geometry.scale(0.8, 1, 0.8);
+    const head = new THREE.Mesh(head_geometry, chest_material);
+    head.position.set(0, chest_height / 2 + head_height / 2 + head_chest_offset, 0);
+    chest.add(head);
+
+    //Shoulders
+    const shoulder_material = new THREE.MeshPhongMaterial({ color: "red" });
+    const shoulder_geometry = new THREE.SphereGeometry(shoulder_radius);
+    const right_shoulder = new THREE.Mesh(shoulder_geometry, shoulder_material);
+    right_shoulder.position.set(0, chest_height / 2, top_chest_length / 2);
+    //right_shoulder.material.visible = false;
+    right_shoulder.rotateZ(-Math.PI / 2);
+    right_shoulder.rotateY(-0.2);
+    chest.add(right_shoulder);
+    const left_shoulder = new THREE.Mesh(shoulder_geometry, shoulder_material);
+    left_shoulder.position.set(0, chest_height / 2, -top_chest_length / 2);
+    left_shoulder.rotateZ(-Math.PI / 2);
+    left_shoulder.rotateY(0.2);
+    chest.add(left_shoulder);
+
+    //Arms
+    const arm_material = new THREE.MeshPhongMaterial({ color: "white" });
+    const arm_geometry = new THREE.BoxGeometry(arm_length, arm_diameter, arm_diameter);
+    // const arm_geometry = new THREE.CylinderGeometry(0.03, 0.03, arm_length);
+    // arm_geometry.rotateZ(Math.PI / 2);
+    const right_arm = new THREE.Mesh(arm_geometry, arm_material);
+    right_arm.position.set(arm_length / 2, 0, 0);
+    right_shoulder.add(right_arm);
+    const left_arm = new THREE.Mesh(arm_geometry, arm_material);
+    left_arm.position.set(arm_length / 2, 0, 0);
+    left_shoulder.add(left_arm);
+
+    //Elbows
+    const elbow_geometry = new THREE.SphereGeometry(elbow_radius);
+    const right_elbow = new THREE.Mesh(elbow_geometry, shoulder_material);
+    right_elbow.position.set(arm_length / 2, 0, 0);
+    right_elbow.rotateZ(Math.PI / 2);
+    right_arm.add(right_elbow);
+    const left_elbow = new THREE.Mesh(elbow_geometry, shoulder_material);
+    left_elbow.position.set(arm_length / 2, 0, 0);
+    left_elbow.rotateZ(Math.PI / 2);
+    left_arm.add(left_elbow);
+
+    //Forearms
+    const right_forearm = new THREE.Mesh(arm_geometry, arm_material);
+    right_forearm.position.set(arm_length / 2, 0, 0);
+    right_elbow.add(right_forearm);
+    const left_forearm = new THREE.Mesh(arm_geometry, arm_material);
+    left_forearm.position.set(arm_length / 2, 0, 0);
+    left_elbow.add(left_forearm);
+
+    //Hands
+    const hand_geometry = new THREE.SphereGeometry(hand_length);
+    hand_geometry.scale(1, hand_width / hand_length, hand_width / hand_length);
+    const hand_material = new THREE.MeshPhongMaterial({ color: "black" });
+    const right_hand = new THREE.Mesh(hand_geometry, hand_material);
+    right_hand.position.set(arm_length / 2, 0, 0);
+    right_forearm.add(right_hand);
+    const left_hand = new THREE.Mesh(hand_geometry, hand_material);
+    left_hand.position.set(arm_length / 2, 0, 0);
+    left_forearm.add(left_hand);
+
+    //Legs
+    const leg_width = (3 / 7) * (bottom_chest_length / 2);
+    const leg_depth = ((3 / 4) * (bottom_chest_length * depth)) / top_chest_length;
+    const leg_geometry = new THREE.BoxGeometry(leg_depth, leg_height, leg_width);
+    leg_geometry.translate(0, -leg_height / 2, 0);
+    const right_leg = new THREE.Mesh(leg_geometry, chest_material);
+    right_leg.position.set(0, -chest_height / 2, bottom_chest_length / 2 - (5 / 8) * leg_width);
+    chest.add(right_leg);
+    const left_leg = new THREE.Mesh(leg_geometry, chest_material);
+    left_leg.position.set(0, -chest_height / 2, -(bottom_chest_length / 2 - (5 / 8) * leg_width));
+    chest.add(left_leg);
+
+    return {
+        head: head,
+        chest: chest,
+        right_shoulder: right_shoulder,
+        right_arm: right_arm,
+        right_elbow: right_elbow,
+        right_forearm: right_forearm,
+        right_hand: right_hand,
+        left_shoulder: left_shoulder,
+        left_arm: left_arm,
+        left_elbow: left_elbow,
+        left_forearm: left_forearm,
+        left_hand: left_hand,
+        right_leg: right_leg,
+        left_leg: left_leg
+    };
+}
 
 class Juggler {
     height: number;
