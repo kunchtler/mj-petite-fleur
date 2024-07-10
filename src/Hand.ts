@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { VECTOR3_STRUCTURE } from "./constants";
 import { createRBTree, RBTree } from "./RBTree";
-import { CubicHermiteSpline, QuinticHermiteSpline } from "./Spline";
+import { CubicHermiteSpline } from "./Spline";
 import { JugglingEvent } from "./Timeline";
 
 //TODO : Change the fact that all methods have get in front of them
@@ -180,11 +180,15 @@ class Hand {
     };
 
     /**
-     * Properly deletes the 3D resources. Call when instance is not needed anymore to free ressources.
+     * Properly deletes the resources. Call when instance is not needed anymore to free ressources.
      */
     dispose() {
+        if (this.mesh.parent !== null) {
+            this.mesh.parent.remove(this.mesh);
+        }
         this.geometry.dispose();
         this.material.dispose();
+        this.timeline = createRBTree();
     }
 }
 

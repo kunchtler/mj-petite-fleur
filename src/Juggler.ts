@@ -3,8 +3,6 @@ import { Hand, HandPhysicsHandling } from "./Hand";
 import { Object3DHelper } from "./Object3DHelper";
 import { find_elbow } from "./utils";
 
-
-
 type JugglerMesh = {
     head: THREE.Mesh;
     chest: THREE.Mesh;
@@ -230,6 +228,28 @@ class Juggler {
             )
         );
     };
+
+    /**
+     * Properly deletes the resources. Call when instance is not needed anymore to free ressources.
+     */
+    //TODO : Handle elbow, whole mesh, etc...
+    dispose() {
+        if (this.mesh.parent !== null) {
+            this.mesh.parent.remove(this.mesh);
+        }
+        this.geometry.dispose();
+        this.material.dispose();
+
+        // juggling_origin: THREE.Object3D;
+        // shoulder: THREE.Object3D;
+        // elbow: THREE.Object3D;
+        // arm_length: number;
+        // target: THREE.Object3D;
+
+        for (const hand of this.hands) {
+            hand.dispose();
+        }
+    }
 }
 
 export { Juggler };

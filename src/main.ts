@@ -21,6 +21,7 @@ import { lance } from "./Interactive_siteswap_player";
 //TODO : Merge juggler geometries
 //TODO : Fixer le décalage musique / image quand on utilise le slider temporel (demanderait de passer par web audio api avec controle manuel du temps ?) ou alors juste en étandant Player de Tonejs ?
 //TODO : Dans petite fleur, tester le u plus petit dans les fonctions.
+//TODO : Remake system to sync with tonejs transport ? (to allow for smooth bpm transitions for instance)
 
 const transport = Tone.getTransport();
 // const transport = new TransportPlayback();
@@ -158,9 +159,9 @@ let u2 = 60 / 277;
 
 let t = 5.729 - 5 * u;
 
-function swap<T>(list: T[], order?: number[]): T[] {
+function swap<T>(list: T[], order?: number[]): void {
     if (list.length === 0) {
-        return [];
+        return;
     }
     if (order === undefined) {
         order = [];
@@ -172,7 +173,9 @@ function swap<T>(list: T[], order?: number[]): T[] {
     for (let i = 0; i < list.length; i++) {
         list2.push(list[order[i]]);
     }
-    return list2;
+    for (let i = 0; i < list.length; i++) {
+        list[i] = list2[i];
+    }
 }
 
 //1st section (video: 5:16)
@@ -187,8 +190,8 @@ for (let i = 0; i < 3; i++) {
         lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
         lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
         lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
-        balls = swap(balls, [2, 0, 1]);
-        hands = swap(hands);
+        swap(balls, [2, 0, 1]);
+        swap(hands);
         t = t + 3 * u;
     }
     lance(balls[2], t + 0 * u, 3 * u - d, left, right, u, weak_hit);
@@ -198,7 +201,7 @@ for (let i = 0; i < 3; i++) {
     lance(balls[0], t + 4 * u, 3 * u - d, left, right, u, weak_hit);
     lance(balls[1], t + 5 * u, 3 * u - d, right, left, u, weak_hit);
     lance(balls[2], t + 6 * u, 3 * u - d, left, right, u, weak_hit);
-    balls = swap(balls, [1, 2, 0]);
+    swap(balls, [1, 2, 0]);
     hands = [right, left];
     t = t + 7 * u;
 }
@@ -206,8 +209,8 @@ for (let j = 0; j < 2; j++) {
     lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
     lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
     lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
-    balls = swap(balls, [2, 0, 1]);
-    hands = swap(hands);
+    swap(balls, [2, 0, 1]);
+    swap(hands);
     t = t + 3 * u;
 }
 lance(balls[2], t + 0 * u, 4 * u - d, right, right, u, heavy_hit);
@@ -221,8 +224,8 @@ hands = [left, right];
 balls = [balls[0], balls[2], balls[1]];
 for (let i = 0; i < 5; i++) {
     lance(balls[0], t + 0 * u, 3 * u - d, hands[0], hands[1], u, weak_hit);
-    balls = swap(balls);
-    hands = swap(hands);
+    swap(balls);
+    swap(hands);
     t = t + 1 * u;
 }
 balls = [balls[1], balls[2], balls[0]];
@@ -230,22 +233,22 @@ for (let j = 0; j < 3; j++) {
     lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
     lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
     lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
-    balls = swap(balls, [2, 0, 1]);
-    hands = swap(hands);
+    swap(balls, [2, 0, 1]);
+    swap(hands);
     t = t + 3 * u;
 }
 for (let i = 0; i < 7; i++) {
     lance(balls[2], t + 0 * u, 3 * u - d, hands[0], hands[1], u, weak_hit);
-    balls = swap(balls);
-    hands = swap(hands);
+    swap(balls);
+    swap(hands);
     t = t + 1 * u;
 }
 for (let j = 0; j < 3; j++) {
     lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
     lance(balls[0], t + 1 * u, 4 * u - d, hands[1], hands[1], u, normal_hit);
     lance(balls[1], t + 2 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
-    balls = swap(balls, [2, 0, 1]);
-    hands = swap(hands);
+    swap(balls, [2, 0, 1]);
+    swap(hands);
     t = t + 3 * u;
 }
 lance(balls[2], t + 0 * u, 4 * u - d, hands[0], hands[0], u, normal_hit);
@@ -256,12 +259,12 @@ lance(balls[0], t + 0 * u, 5 * u2 - d, hands[1], hands[0], u, heavy_hit);
 lance(balls[1], t + 1 * u, 1 * u - d, hands[0], hands[1], u, heavy_hit);
 lance(balls[1], t + 2 * u, 5 * u2 - d, hands[1], hands[0], u, heavy_hit);
 lance(balls[2], t + 3 * u, 1 * u2 - d, hands[0], hands[1], u, heavy_hit);
-balls = swap(balls, [2, 0, 1]);
+swap(balls, [2, 0, 1]);
 t = t + 3 * u + u2;
 for (let i = 0; i < 16; i++) {
     lance(balls[0], t + 0 * u2, 5 * u2 - d, hands[1], hands[0], u2, heavy_hit);
     lance(balls[1], t + 1 * u2, 1 * u2 - d, hands[0], hands[1], u2, heavy_hit);
-    balls = swap(balls, [1, 2, 0]);
+    swap(balls, [1, 2, 0]);
     t = t + 2 * u2;
 }
 lance(balls[0], t + 0 * u2, 5 * u2 - d, right, left, u2, normal_hit);
@@ -278,6 +281,19 @@ lance(balls[1], t + 8.5 * u2, 3.5 * u2 - d, right, right, u2, "shaker");
 // lance(balls[1], t + 1 * u, 1 * u - d, right, left, u);
 lance(balls[2], t + 10 * u2, 1 * u2 - d, right, left, u2, heavy_hit);
 // lance(balls[1], t + 1 * u, 1 * u - d, right, left, u);
+
+
+//3rd section (video 5:52)
+// lance(balls[0], t + 0*u, 5*u - d, left, right, u);
+// lance(balls)
+
+//4th section (video 6:07)
+
+//5th section (video 6:21)
+
+//6th section (video 6:38)
+
+//End (video 6:54)
 
 // for (let i = 0; i < 10; i++) {
 //     lance(balls[0], t + 0 * u, 3.5 * u - d, left, left, u, heavy_hit);

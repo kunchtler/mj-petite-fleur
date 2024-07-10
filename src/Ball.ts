@@ -204,12 +204,22 @@ class Ball {
     };
 
     /**
-     * Properly deletes the 3D resources. Call when instance is not needed anymore to free ressources.
+     * Properly deletes the resources. Call when instance is not needed anymore to free ressources. nullify all reference
      */
-    //TODO: Delete audio nodes too.
     dispose() {
+        if (this.mesh.parent !== null) {
+            this.mesh.parent.remove(this.mesh);
+        }
         this.geometry.dispose();
         this.material.dispose();
+        if (this.sound instanceof Tone.Player) {
+            this.sound.stop();
+        } else if (this.sound instanceof Tone.Players) {
+            this.sound.stopAll();
+        }
+        this.sound?.dispose();
+        this.panner3D?.dispose();
+        this.timeline = createRBTree();
     }
 }
 

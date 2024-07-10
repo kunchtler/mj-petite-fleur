@@ -104,7 +104,17 @@ class Simulator {
         requestAnimationFrame(this.render);
     };
 
-    reset_pattern(): void {
+    //TODO : SHouldn't hands / jugglers handle removal from scene ?
+    reset(): void {
+        for (const juggler of this.jugglers) {
+            juggler.dispose();
+        }
+        for (const ball of this.balls) {
+            ball.dispose();
+        }
+    }
+
+    soft_reset(): void {
         for (const ball of this.balls) {
             ball.timeline = createRBTree();
             this.scene.remove(ball.mesh);
