@@ -19,8 +19,14 @@ It is assumed you have pnpm installed on your machine. See the [installation pag
 
 Simply fork this repository, and then use :
 
-```
+```sh
 pnpm install
+```
+
+If using a too old node version (may happen on a Linux distro like Ubuntu), an error message will appear. A newer node version can be installed with :
+
+```sh
+pnpm env use --global lts
 ```
 
 ADDITIONAL STEP :
@@ -50,13 +56,13 @@ And _voilà_, all dependencies have been installed.
 
 Command shortcuts (specified in `package.json`) are available to start the project locally :
 
-```
+```sh
 pnpm dev
 ```
 
 and to build the project :
 
-```
+```sh
 pnpm build
 ```
 
