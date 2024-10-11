@@ -7,6 +7,7 @@ import * as TWEAKPANE from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 import * as Tone from "tone";
 import { lance } from "./Interactive_siteswap_player";
+import { AudioPlayer } from "./AudioPlayer";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -100,15 +101,17 @@ const sfx_buffers = {
     weak_hit_shaker: new Tone.ToneAudioBuffer("grelot_balls_sfx/weak_hit_shaker.mp3")
 };
 
-const music = new Audio("petite_fleur_vincent.mp3");
-const music_tone = context.createMediaElementSource(music);
+//TODO : CHange music_raw name
+const music_raw = new Audio("petite_fleur_vincent.mp3");
+const music = new AudioPlayer(music_raw);
+const music_tone = context.createMediaElementSource(music_raw);
 const music_gain = new Tone.Gain().toDestination();
 Tone.connect(music_tone, music_gain);
 const sfx_gain = new Tone.Gain().toDestination();
 // sfx_gain.gain.value = 0;
 // music_gain.gain.value = 0;
 
-music.addEventListener("canplaythrough", handle_sounds_loaded, { once: true });
+music_raw.addEventListener("canplaythrough", handle_sounds_loaded, { once: true });
 
 const simulator = new Simulator("#simulator_canvas");
 const scene = simulator.scene;
@@ -282,7 +285,6 @@ lance(balls[1], t + 8.5 * u2, 3.5 * u2 - d, right, right, u2, "shaker");
 lance(balls[2], t + 10 * u2, 1 * u2 - d, right, left, u2, heavy_hit);
 // lance(balls[1], t + 1 * u, 1 * u - d, right, left, u);
 
-
 //3rd section (video 5:52)
 // lance(balls[0], t + 0*u, 5*u - d, left, right, u);
 // lance(balls)
@@ -436,10 +438,28 @@ mute_sfx.on("change", (ev) => {
     sfx_gain.gain.value = ev.value ? 0 : 1;
 });
 
+let trigger = false;
+
 function render(t: number) {
     fpsGraph.begin();
     const time = t * 0.001; // convert time to seconds
     const audio_time = music.currentTime;
+    console.log(`music.currentTime: ${music.currentTime}`);
+    //console.log(`context.currentTime: ${context.currentTime}`);
+    //console.log(`performance.now(): ${performance.now().toPrecision(10)}`)
+
+    // if (!music.paused && !trigger) {
+    //     console.log(`music.currentTime: ${music.currentTime}`);
+    //     console.log(`context.currentTime: ${context.currentTime}`);
+    //     console.log(`performance.now(): ${performance.now().toPrecision(10)}`)
+    //     trigger = true;
+    // }
+    // if (music.paused && trigger) {
+    //     console.log(`music.currentTime: ${music.currentTime}`);
+    //     console.log(`context.currentTime: ${context.currentTime}`);
+    //     console.log(`performance.now(): ${performance.now().toPrecision(10)}`)
+    //     trigger = false;
+    // }
     monitor.video_time = time;
     monitor.audio_time = audio_time;
 
