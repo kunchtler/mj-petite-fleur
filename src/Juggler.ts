@@ -181,8 +181,10 @@ class Juggler {
         //this.mesh.translateY(height / 2);
         this.juggling_origin = new THREE.Object3D();
         const hand_physics_handling: HandPhysicsHandling = {
-            min_dist: 0.05,
-            max_dist: depth / 2,
+            // min_dist: 0.05,
+            center_rest_dist: (depth * 2) / 3,
+            rest_site_dist: depth / 4,
+            // max_dist: depth / 2,
             up_vector: new THREE.Vector3(0, 1, 0),
             right_vector: new THREE.Vector3(0, 0, 1),
             origin_object: this.juggling_origin

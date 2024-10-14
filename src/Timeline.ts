@@ -15,15 +15,15 @@ class JugglingEvent {
     time: number;
     unit_time: number;
     /**
-     * The sound the ball should make when caught.
+     * The sound the ball should make the event occurs.
      * The type of sound_name is in conjunction with the one of Ball.sound.
      * If Ball.sound is of type Tone.Players, then sound can be either a string
-     * specifying which sound to play, or an array of them to choose randomly front.
+     * specifying which sound to play, or an array of them to choose randomly from.
      * If Ball.sound if of type Tone.Player | undefined, sound should be undefined.
      */
     sound_name: string[] | string | undefined;
-    readonly ball_status: "AIRBORNE" | "HELD";
-    readonly hand_status: "CATCH" | "THROW";
+    readonly ball_status: "AIRBORNE" | "HELD" | "SET";
+    readonly hand_status: "CATCH" | "THROW" | "SWITCH";
     private _ball_ref?: CWeakRef<Ball>;
     private _hand_ref?: CWeakRef<Hand>;
     private _paired_event_ref?: CWeakRef<JugglingEvent>;
@@ -31,7 +31,7 @@ class JugglingEvent {
     constructor(
         time: number,
         unit_time: number,
-        status: "CATCH" | "THROW",
+        status: "CATCH" | "THROW" | "SWITCH",
         hand?: Hand,
         ball?: Ball,
         sound_name?: string[] | string
@@ -42,6 +42,13 @@ class JugglingEvent {
         this._ball_ref = ball !== undefined ? new CWeakRef<Ball>(ball) : undefined;
         this.ball_status = status === "THROW" ? "AIRBORNE" : "HELD";
         this.hand_status = status;
+        if (status === "THROW") {
+            this.ball_status = "AIRBORNE";
+        } else if (status === "CATCH") {
+            this.ball_status = "HELD";
+        } else {
+            this.ball_status = "SET";
+        }
         this.sound_name = sound_name;
     }
 
@@ -89,7 +96,7 @@ class JugglingEvent {
     //TODO: Offset the ball by its radius up ?
     //TODO: Telle what is local/global
     get_hand_global_position(): THREE.Vector3 {
-        const local_position = this.hand.get_site_position(this.unit_time, this.is_thrown);
+        const local_position = this.hand.get_site_position(this.is_thrown);
         return this.hand.origin_object.localToWorld(local_position);
     }
 

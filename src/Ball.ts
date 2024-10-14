@@ -65,6 +65,7 @@ class Ball {
         //TODO : Rather have timeline sanitized with +/- Infinity ?
         //But that way, more error prone.
         //Have start/end special events (to make clear when begin/end ?) NO
+
         if (prev_event === undefined && next_event === undefined) {
             throw new Error("No event in the timeline to determine where the ball is.");
         }
