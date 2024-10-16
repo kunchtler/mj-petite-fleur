@@ -8,6 +8,9 @@ import { JugglingEvent } from "./Timeline";
 
 const { multiply_by_scalar: V3SCA } = VECTOR3_STRUCTURE;
 
+// This variable serves to make hand movements more circular.
+const power = 1;
+
 export type HandPhysicsHandling = {
     rest_site_dist: number;
     center_rest_dist: number;
@@ -114,11 +117,51 @@ class Hand {
         return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
     }
 
+    hand_position_correction(pos: THREE.Vector3): THREE.Vector3 {
+        const dist = pos.distanceTo(this.rest_pos);
+        if (dist <= 1e-8) {
+            return pos.clone();
+        }
+        return pos
+            .clone()
+            .sub(this.rest_pos)
+            .multiplyScalar((this.rest_site_dist / dist) ** (1 - power))
+            .add(this.rest_pos);
+    }
+
+    hand_velocity_jacobian(pos: THREE.Vector3): THREE.Matrix3 {
+        const dist = pos.distanceTo(this.rest_pos);
+        // TODO? : if (dist == 0) {
+        //     return
+        // }
+        const correction_jacobian = new THREE.Matrix3(
+            dist ** 2 / power + pos.x * (pos.x - this.rest_pos.x),
+            pos.x * (pos.y - this.rest_pos.y),
+            pos.x * (pos.z - this.rest_pos.z),
+            pos.y * (pos.x - this.rest_pos.x),
+            dist ** 2 / power + pos.y * (pos.y - this.rest_pos.y),
+            pos.y * (pos.z - this.rest_pos.z),
+            pos.z * (pos.x - this.rest_pos.x),
+            pos.z * (pos.y - this.rest_pos.y),
+            dist ** 2 / power + pos.z * (pos.z - this.rest_pos.z)
+        );
+        correction_jacobian.multiplyScalar(
+            dist ** (power - 2) * this.rest_site_dist ** -power * power
+        );
+        return correction_jacobian;
+    }
+
     get_local_position(time: number): THREE.Vector3 {
         const prev_event = this.timeline.le(time).value;
         const next_event = this.timeline.gt(time).value;
         const spline = this.get_spline(prev_event, next_event);
-        return spline.interpolate(time);
+        const pos = spline.interpolate(time);
+        return this.hand_position_correction(pos);
+
+        // const prev_event = this.timeline.le(time).value;
+        // const next_event = this.timeline.gt(time).value;
+        // const spline = this.get_spline(prev_event, next_event);
+        // return spline.interpolate(time);
     }
 
     //TODO : Pas ouf que _origin_object soit utilisé ici. Changer la classe ?
@@ -132,7 +175,14 @@ class Hand {
         const prev_event = this.timeline.le(time).value;
         const next_event = this.timeline.gt(time).value;
         const spline = this.get_spline(prev_event, next_event);
-        return spline.velocity(time);
+        const vel = spline.velocity(time);
+        const pos = spline.interpolate(time);
+        return vel.applyMatrix3(this.hand_velocity_jacobian(pos));
+
+        // const prev_event = this.timeline.le(time).value;
+        // const next_event = this.timeline.gt(time).value;
+        // const spline = this.get_spline(prev_event, next_event);
+        // return spline.velocity(time);
     }
 
     get_global_velocity(time: number): THREE.Vector3 {
