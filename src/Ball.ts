@@ -16,6 +16,7 @@ class Ball {
     geometry: THREE.BufferGeometry;
     material: THREE.Material;
     mesh: THREE.Mesh;
+    name: string;
     sound: Tone.Players | Tone.Player | undefined;
     panner3D: Tone.Panner3D | undefined;
     timeline: RBTree<number, JugglingEvent>;
@@ -24,6 +25,7 @@ class Ball {
     constructor(
         color: number | string,
         radius: number,
+        name?: string,
         sound?: Tone.Players | Tone.Player | string,
         panner3D?: Tone.Panner3D,
         timeline?: RBTree<number, JugglingEvent>
@@ -47,6 +49,7 @@ class Ball {
         }
         this.sound = sound;
         this.panner3D = panner3D;
+        this.name = name !== undefined ? name : "None";
     }
 
     /**
@@ -78,8 +81,12 @@ class Ball {
         if (next_event === undefined) {
             if (prev_event.is_thrown) {
                 throw new Error("Ball is thrown at the end without being caught.");
+            } else if (prev_event.is_caught) {
+                return prev_event.hand.get_global_position(time);
+            } else {
+                //return prev_event.t;
+                return new THREE.Vector3(0, 0, 0);
             }
-            return prev_event.hand.get_global_position(time);
         }
 
         // Cases where both events exist.

@@ -133,7 +133,7 @@ for (const color of ["red", "green", "blue"]) {
     const panner = new Tone.Panner3D({ panningModel: "HRTF", rolloffFactor: 1 });
     player.connect(panner);
     panner.connect(sfx_gain);
-    simulator.balls.push(new Ball(color, 0.08, player, panner));
+    simulator.balls.push(new Ball(color, 0.08, undefined, player, panner, undefined));
 }
 
 const tweakpane_container = document.querySelector(".tp-dfwv");
@@ -443,32 +443,17 @@ mute_sfx.on("change", (ev) => {
     sfx_gain.gain.value = ev.value ? 0 : 1;
 });
 
-let trigger = false;
+// const init_tan_fov = Math.tan(((Math.PI / 180) * camera.fov) / 2);
+// const init_window_height = window.innerHeight;
 
 function render(t: number) {
     fpsGraph.begin();
     const time = t * 0.001; // convert time to seconds
     const audio_time = music.currentTime;
-    //console.log(`music.currentTime: ${music.currentTime}`);
-    //console.log(`context.currentTime: ${context.currentTime}`);
-    //console.log(`performance.now(): ${performance.now().toPrecision(10)}`)
-
-    // if (!music.paused && !trigger) {
-    //     console.log(`music.currentTime: ${music.currentTime}`);
-    //     console.log(`context.currentTime: ${context.currentTime}`);
-    //     console.log(`performance.now(): ${performance.now().toPrecision(10)}`)
-    //     trigger = true;
-    // }
-    // if (music.paused && trigger) {
-    //     console.log(`music.currentTime: ${music.currentTime}`);
-    //     console.log(`context.currentTime: ${context.currentTime}`);
-    //     console.log(`performance.now(): ${performance.now().toPrecision(10)}`)
-    //     trigger = false;
-    // }
     monitor.video_time = time;
     monitor.audio_time = audio_time;
 
-    resizeRendererToDisplaySize(renderer, camera);
+    resizeRendererToDisplaySize(renderer, camera /*, init_tan_fov, init_window_height*/);
 
     simulator.balls.forEach((ball) => {
         ball.render(audio_time);

@@ -22,8 +22,8 @@ class JugglingEvent {
      * If Ball.sound if of type Tone.Player | undefined, sound should be undefined.
      */
     sound_name: string[] | string | undefined;
-    readonly ball_status: "AIRBORNE" | "HELD" | "SET";
-    readonly hand_status: "CATCH" | "THROW" | "SWITCH";
+    readonly ball_status: "AIRBORNE" | "HELD" | "TABLE";
+    readonly hand_status: "CATCH" | "THROW" | "TABLE";
     private _ball_ref?: CWeakRef<Ball>;
     private _hand_ref?: CWeakRef<Hand>;
     private _paired_event_ref?: CWeakRef<JugglingEvent>;
@@ -31,7 +31,7 @@ class JugglingEvent {
     constructor(
         time: number,
         unit_time: number,
-        status: "CATCH" | "THROW" | "SWITCH",
+        status: "CATCH" | "THROW" | "TABLE",
         hand?: Hand,
         ball?: Ball,
         sound_name?: string[] | string
@@ -47,7 +47,7 @@ class JugglingEvent {
         } else if (status === "CATCH") {
             this.ball_status = "HELD";
         } else {
-            this.ball_status = "SET";
+            this.ball_status = "TABLE";
         }
         this.sound_name = sound_name;
     }
@@ -107,8 +107,10 @@ class JugglingEvent {
         const t1 = this.paired_event.time;
         if (this.is_thrown) {
             return Ball.get_velocity_at_event(pos0, t0, pos1, t1, this.is_thrown);
-        } else {
+        } else if (this.is_caught) {
             return Ball.get_velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
+        } else {
+            throw Error("Not implemented");
         }
     }
 
@@ -118,6 +120,10 @@ class JugglingEvent {
 
     get is_caught(): boolean {
         return this.hand_status === "CATCH";
+    }
+
+    get is_on_table(): boolean {
+        return this.hand_status === "TABLE";
     }
 
     random_sound_name(): string {
@@ -215,5 +221,11 @@ class JugglingEvent {
 //         super(time, unit_time, hand, ball);
 //     }
 // }
+
+export interface FollowableTargetInterface {
+    tmp(time: number, ball: Ball): THREE.Vector3;
+    // get_global_position(time: number): THREE.Vector3;
+    // get_global_velocity(time: number): THREE.Vector3;
+}
 
 export { JugglingEvent };

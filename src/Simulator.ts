@@ -5,9 +5,13 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/Addons.js";
 import createRBTree from "functional-red-black-tree";
 
+
+
 function resizeRendererToDisplaySize(
     renderer: THREE.WebGLRenderer,
     camera: THREE.PerspectiveCamera
+    // init_tan_fov: number,
+    // init_window_height: number
 ) {
     const canvas = renderer.domElement;
     const pixelRatio = window.devicePixelRatio;
@@ -16,6 +20,8 @@ function resizeRendererToDisplaySize(
     if (canvas.width !== width || canvas.height !== height) {
         renderer.setSize(width, height, false);
         camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        // camera.fov =
+        //     (360 / Math.PI) * Math.atan(init_tan_fov * (window.innerHeight / init_window_height));
         camera.updateProjectionMatrix();
     }
 }
@@ -124,6 +130,14 @@ class Simulator {
             juggler.left_hand.timeline = createRBTree();
         }
     }
+
+    /*
+    TODO : Add methods to easily use simulator class.
+    Expose playBackRate, gravity
+    Make time system adaptable to audio / no audio.
+    Handle adding / removing juggler / patterns + sanitizing
+    All aesthetic things (color, ground)
+    */
 }
 
 // function create_juggler_mesh() {

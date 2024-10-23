@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { VECTOR3_STRUCTURE } from "./constants";
 import { createRBTree, RBTree } from "./RBTree";
 import { CubicHermiteSpline } from "./Spline";
-import { JugglingEvent } from "./Timeline";
+import { FollowableTargetInterface, JugglingEvent } from "./Timeline";
 
 //TODO : Change the fact that all methods have get in front of them
 
@@ -19,7 +19,7 @@ export type HandPhysicsHandling = {
     origin_object: THREE.Object3D;
 };
 
-class Hand {
+class Hand /*implements FollowableTargetInterface*/ {
     //juggler: Juggler;
     geometry: THREE.BufferGeometry;
     material: THREE.Material;
@@ -197,7 +197,7 @@ class Hand {
     /**
      * Properly deletes the resources. Call when instance is not needed anymore to free ressources.
      */
-    dispose() {
+    dispose(): void {
         if (this.mesh.parent !== null) {
             this.mesh.parent.remove(this.mesh);
         }
