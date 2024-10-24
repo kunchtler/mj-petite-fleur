@@ -27,6 +27,13 @@ import { MediaPlayer } from "./AudioPlayer";
 
 //TODO : Controles fonctionnent bien sur firefox, à voire sur chrome et tel.
 
+/// URL Parameters (temp) ///
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const mute_simulator = urlParams.get("mute-simulator") === "1";
+const mute_video = urlParams.get("mute-video") === "1";
+
+
 const video_html_elem = document.getElementById("video_player");
 const play_pause_button = document.getElementById("play_button");
 const seek_bar = document.getElementById("time_slider");
@@ -198,9 +205,9 @@ const sfx_buffers = {
 // const music_raw = new Audio("petite_fleur_mid.mp4");
 // const music = new MediaPlayer(video_html_elem);
 const music_tone = context.createMediaElementSource(video_html_elem);
-const music_gain = new Tone.Gain(3).toDestination();
+const music_gain = new Tone.Gain(mute_video ? 0 : 3).toDestination();
 Tone.connect(music_tone, music_gain);
-const sfx_gain = new Tone.Gain(2).toDestination();
+const sfx_gain = new Tone.Gain(mute_simulator ? 0 : 2).toDestination();
 // sfx_gain.gain.value = 0;
 // music_gain.gain.value = 0;
 
