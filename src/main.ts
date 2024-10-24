@@ -479,96 +479,96 @@ lance(balls[2], t + 10 * u2 + d21, 1 * u2 - d21, right, left, u2, heavy_hit);
 // lance(ball0, 1, 1, right_hand, left_hand, 0.5);
 // lance(ball0, 1, 1, right_hand, left_hand, 0.5);
 
-pane.registerPlugin(EssentialsPlugin);
-const fpsGraph = pane.addBlade({
-    view: "fpsgraph",
-    label: "FPS",
-    rows: 2
-}) as EssentialsPlugin.FpsGraphBladeApi;
-const monitor = {
-    video_time: 0,
-    audio_time: 0,
-    audio_control: 0,
-    playback_rate: 1,
-    transport_play: transport.state === "started",
-    music: video,
-    mute_music: music_gain.gain.value === 0,
-    mute_sfx: sfx_gain.gain.value === 0
-};
-pane.addBinding(monitor, "video_time", {
-    readonly: true
-});
-pane.addBinding(monitor, "audio_time", {
-    readonly: true
-});
-const blade = pane.addBinding(monitor, "audio_time", {
-    min: 0,
-    max: 100,
-    step: 0.1
-});
-blade.on("change", (ev) => {
-    if (ev.last) {
-        video.currentTime = ev.value;
-        if (monitor.transport_play && video.paused) {
-            video.play().catch(() => {
-                throw new Error("Problem");
-            });
-        }
-    }
-});
+// pane.registerPlugin(EssentialsPlugin);
+// const fpsGraph = pane.addBlade({
+//     view: "fpsgraph",
+//     label: "FPS",
+//     rows: 2
+// }) as EssentialsPlugin.FpsGraphBladeApi;
+// const monitor = {
+//     video_time: 0,
+//     audio_time: 0,
+//     audio_control: 0,
+//     playback_rate: 1,
+//     transport_play: transport.state === "started",
+//     music: video,
+//     mute_music: music_gain.gain.value === 0,
+//     mute_sfx: sfx_gain.gain.value === 0
+// };
+// pane.addBinding(monitor, "video_time", {
+//     readonly: true
+// });
+// pane.addBinding(monitor, "audio_time", {
+//     readonly: true
+// });
+// const blade = pane.addBinding(monitor, "audio_time", {
+//     min: 0,
+//     max: 100,
+//     step: 0.1
+// });
+// blade.on("change", (ev) => {
+//     if (ev.last) {
+//         video.currentTime = ev.value;
+//         if (monitor.transport_play && video.paused) {
+//             video.play().catch(() => {
+//                 throw new Error("Problem");
+//             });
+//         }
+//     }
+// });
 
-const blade_playback_rate = pane.addBinding(monitor, "playback_rate", {
-    min: 0.5,
-    max: 2,
-    step: 0.1
-});
-blade_playback_rate.on("change", (ev) => {
-    if (ev.last) {
-        video.playbackRate = ev.value;
-    }
-});
-const play_blade = pane.addBinding(monitor, "transport_play", { label: "Play" });
-play_blade.on("change", async (ev) => {
-    if (!ev.value) {
-        // transport.pause();
-        video.pause();
-    } else {
-        if (Tone.getContext().state === "suspended") {
-            await Tone.start();
-        }
-        await Tone.loaded();
-        await video.play();
-    }
-});
-const mute_music = pane.addBinding(monitor, "mute_music", { label: "Mute Music" });
-mute_music.on("change", (ev) => {
-    music_gain.gain.value = ev.value ? 0 : 1;
-});
-const mute_sfx = pane.addBinding(monitor, "mute_sfx", { label: "Mute Sounds" });
-mute_sfx.on("change", (ev) => {
-    sfx_gain.gain.value = ev.value ? 0 : 1;
-});
+// const blade_playback_rate = pane.addBinding(monitor, "playback_rate", {
+//     min: 0.5,
+//     max: 2,
+//     step: 0.1
+// });
+// blade_playback_rate.on("change", (ev) => {
+//     if (ev.last) {
+//         video.playbackRate = ev.value;
+//     }
+// });
+// const play_blade = pane.addBinding(monitor, "transport_play", { label: "Play" });
+// play_blade.on("change", async (ev) => {
+//     if (!ev.value) {
+//         // transport.pause();
+//         video.pause();
+//     } else {
+//         if (Tone.getContext().state === "suspended") {
+//             await Tone.start();
+//         }
+//         await Tone.loaded();
+//         await video.play();
+//     }
+// });
+// const mute_music = pane.addBinding(monitor, "mute_music", { label: "Mute Music" });
+// mute_music.on("change", (ev) => {
+//     music_gain.gain.value = ev.value ? 0 : 3;
+// });
+// const mute_sfx = pane.addBinding(monitor, "mute_sfx", { label: "Mute Sounds" });
+// mute_sfx.on("change", (ev) => {
+//     sfx_gain.gain.value = ev.value ? 0 : 2;
+// });
 
 // const init_tan_fov = Math.tan(((Math.PI / 180) * camera.fov) / 2);
 // const init_window_height = window.innerHeight;
 
 function render(t: number) {
-    fpsGraph.begin();
-    const time = t * 0.001; // convert time to seconds
-    const audio_time = video.currentTime;
-    monitor.video_time = time;
-    monitor.audio_time = audio_time;
+    // fpsGraph.begin();
+    // const time = t * 0.001; // convert time to seconds
+    const video_time = video.currentTime;
+    // monitor.video_time = time;
+    // monitor.audio_time = video_time;
 
     resizeRendererToDisplaySize(renderer, camera /*, init_tan_fov, init_window_height*/);
 
     simulator.balls.forEach((ball) => {
-        ball.render(audio_time);
+        ball.render(video_time);
         if (!video.paused) {
-            ball.play_on_catch(audio_time);
+            ball.play_on_catch(video_time);
         }
     });
     simulator.jugglers.forEach((juggler) => {
-        juggler.render(audio_time);
+        juggler.render(video_time);
     });
 
     const listener = Tone.getListener();
@@ -587,7 +587,7 @@ function render(t: number) {
 
     renderer.render(scene, camera);
 
-    fpsGraph.end();
+    // fpsGraph.end();
     requestAnimationFrame(render);
 }
 
