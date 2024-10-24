@@ -119,9 +119,9 @@ const transport = Tone.getTransport();
 // const transport = new TransportPlayback();
 const context = Tone.getContext();
 
-const handle_load_end = (function () {
+const handle_load_end = (() => {
     let load_ready = 0;
-    return function () {
+    return () => {
         load_ready++;
         if (load_ready === 2) {
             const wait_screen = document.querySelector("#wait_screen");
@@ -129,8 +129,9 @@ const handle_load_end = (function () {
                 throw new Error();
             }
             wait_screen.classList.add("fade_out");
-            wait_screen.addEventListener("animationend", () => {
+            wait_screen.addEventListener("animationend", async () => {
                 wait_screen.remove();
+                await video.play();
             });
         }
     };
