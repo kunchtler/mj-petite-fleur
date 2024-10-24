@@ -7,7 +7,7 @@ import * as TWEAKPANE from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 import * as Tone from "tone";
 import { lance } from "./Interactive_siteswap_player";
-import { AudioPlayer } from "./AudioPlayer";
+import { MediaPlayer } from "./AudioPlayer";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -24,6 +24,96 @@ import { AudioPlayer } from "./AudioPlayer";
 //TODO : Dans petite fleur, tester le u plus petit dans les fonctions.
 //TODO : Remake system to sync with tonejs transport ? (to allow for smooth bpm transitions for instance)
 //TODO : Change sfx playbackrate based on music playbackrate.
+
+//TODO : Controles fonctionnent bien sur firefox, à voire sur chrome et tel.
+
+const video_html_elem = document.getElementById("video_player");
+const play_pause_button = document.getElementById("play_button");
+const seek_bar = document.getElementById("time_slider");
+const play_icon = document.getElementById("play_icon");
+
+if (
+    !(
+        video_html_elem instanceof HTMLVideoElement &&
+        play_pause_button instanceof HTMLButtonElement &&
+        seek_bar instanceof HTMLInputElement &&
+        play_icon instanceof HTMLImageElement
+    )
+) {
+    throw Error("Couldn't grab all references from js.");
+}
+
+seek_bar.value = "0";
+
+const video = new MediaPlayer(video_html_elem);
+
+let had_ended = false;
+
+play_pause_button.addEventListener("click", async () => {
+    if (had_ended) {
+        video.currentTime = 0;
+    }
+    if (video.playing) {
+        video.pause();
+    } else {
+        if (Tone.getContext().state === "suspended") {
+            await Tone.start();
+        }
+        await video.play();
+    }
+});
+
+video_html_elem.addEventListener("play", () => {
+    had_ended = false;
+    play_icon.src = "icons/pause.svg";
+});
+
+video_html_elem.addEventListener("pause", () => {
+    had_ended = false;
+    play_icon.src = "icons/play.svg";
+});
+
+video_html_elem.addEventListener("ended", () => {
+    had_ended = true;
+    play_icon.src = "icons/loop.svg";
+});
+
+video_html_elem.addEventListener("timeupdate", () => {
+    seek_bar.value = video.currentTime.toString();
+});
+
+let resume_on_click: boolean | undefined = undefined;
+
+seek_bar.addEventListener("click", async () => {
+    if (resume_on_click) {
+        await video.play();
+    }
+    resume_on_click = undefined;
+});
+
+seek_bar.addEventListener("input", () => {
+    if (resume_on_click === undefined) {
+        resume_on_click = video.playing || play_icon.src === "icons/loop.svg";
+        if (video.playing) {
+            video.pause();
+        }
+    }
+});
+
+seek_bar.addEventListener("change", async () => {
+    video.currentTime = parseFloat(seek_bar.value);
+    if (had_ended) {
+        await video.play();
+    }
+});
+
+if (video.readyState >= 1) {
+    seek_bar.max = video.duration.toString();
+} else {
+    video_html_elem.addEventListener("loadedmetadata", () => {
+        seek_bar.max = video.duration.toString();
+    });
+}
 
 const transport = Tone.getTransport();
 // const transport = new TransportPlayback();
@@ -103,16 +193,21 @@ const sfx_buffers = {
 };
 
 //TODO : CHange music_raw name
-const music_raw = new Audio("petite_fleur_vincent.mp3");
-const music = new AudioPlayer(music_raw);
-const music_tone = context.createMediaElementSource(music_raw);
-const music_gain = new Tone.Gain().toDestination();
+// const music_raw = new Audio("petite_fleur_vincent.mp3");
+// const music_raw = new Audio("petite_fleur_mid.mp4");
+// const music = new MediaPlayer(video_html_elem);
+const music_tone = context.createMediaElementSource(video_html_elem);
+const music_gain = new Tone.Gain(3).toDestination();
 Tone.connect(music_tone, music_gain);
-const sfx_gain = new Tone.Gain().toDestination();
+const sfx_gain = new Tone.Gain(2).toDestination();
 // sfx_gain.gain.value = 0;
 // music_gain.gain.value = 0;
 
-music_raw.addEventListener("canplaythrough", handle_sounds_loaded, { once: true });
+if (video.readyState >= 3) {
+    await handle_sounds_loaded();
+} else {
+    video_html_elem.addEventListener("loadeddata", handle_sounds_loaded, { once: true });
+}
 
 const simulator = new Simulator("#simulator_canvas");
 const scene = simulator.scene;
@@ -164,7 +259,8 @@ let d2 = (u2 * 9) / 10;
 let d21 = u2 / 3;
 // const t = 56.153;
 
-let t = 5.729 - 5 * u;
+// let t = 5.729 - 5 * u;
+let t = 5.2 - 5 * u;
 
 function swap<T>(list: T[], order?: number[]): void {
     if (list.length === 0) {
@@ -227,7 +323,9 @@ t = t + 5 * u;
 
 //2nd section (video: 5:31)
 //TODO : Besoin de resynchroniser t avec le temps de l'audio ?
-t = 21.426 - 8 * u;
+// t = 21.426 - 8 * u;
+t = 20.897 - 8 * u;
+
 hands = [left, right];
 balls = [balls[0], balls[2], balls[1]];
 for (let i = 0; i < 5; i++) {
@@ -385,7 +483,7 @@ const monitor = {
     audio_control: 0,
     playback_rate: 1,
     transport_play: transport.state === "started",
-    music: music,
+    music: video,
     mute_music: music_gain.gain.value === 0,
     mute_sfx: sfx_gain.gain.value === 0
 };
@@ -402,9 +500,9 @@ const blade = pane.addBinding(monitor, "audio_time", {
 });
 blade.on("change", (ev) => {
     if (ev.last) {
-        music.currentTime = ev.value;
-        if (monitor.transport_play && music.paused) {
-            music.play().catch(() => {
+        video.currentTime = ev.value;
+        if (monitor.transport_play && video.paused) {
+            video.play().catch(() => {
                 throw new Error("Problem");
             });
         }
@@ -418,20 +516,20 @@ const blade_playback_rate = pane.addBinding(monitor, "playback_rate", {
 });
 blade_playback_rate.on("change", (ev) => {
     if (ev.last) {
-        music.playbackRate = ev.value;
+        video.playbackRate = ev.value;
     }
 });
 const play_blade = pane.addBinding(monitor, "transport_play", { label: "Play" });
 play_blade.on("change", async (ev) => {
     if (!ev.value) {
         // transport.pause();
-        music.pause();
+        video.pause();
     } else {
         if (Tone.getContext().state === "suspended") {
             await Tone.start();
         }
         await Tone.loaded();
-        await music.play();
+        await video.play();
     }
 });
 const mute_music = pane.addBinding(monitor, "mute_music", { label: "Mute Music" });
@@ -449,7 +547,7 @@ mute_sfx.on("change", (ev) => {
 function render(t: number) {
     fpsGraph.begin();
     const time = t * 0.001; // convert time to seconds
-    const audio_time = music.currentTime;
+    const audio_time = video.currentTime;
     monitor.video_time = time;
     monitor.audio_time = audio_time;
 
@@ -457,7 +555,7 @@ function render(t: number) {
 
     simulator.balls.forEach((ball) => {
         ball.render(audio_time);
-        if (!music.paused) {
+        if (!video.paused) {
             ball.play_on_catch(audio_time);
         }
     });
