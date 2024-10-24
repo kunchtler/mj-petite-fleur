@@ -1,5 +1,5 @@
 // Si on fait des play/pause constamment, this.media.currentTime n'aura pas forcément le temps de bien s'update.
-class AudioPlayer {
+class MediaPlayer {
     media: HTMLMediaElement;
     _last_update_time: number;
     _last_known_time: number;
@@ -56,6 +56,14 @@ class AudioPlayer {
     get playing(): boolean {
         return !this.media.paused;
     }
+
+    get duration(): number {
+        return this.media.duration;
+    }
+
+    get readyState(): number {
+        return this.media.readyState;
+    }
 }
 
-export { AudioPlayer };
+export { MediaPlayer };
