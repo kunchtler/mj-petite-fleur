@@ -9,10 +9,25 @@
         <title>Petite Fleur</title>
     </head>
     <body>
-        <div id="simulator">
-            <canvas id="simulator_canvas"></canvas>
-            <div class="tp-dfwv"></div>
+        <div id="flex_simu_vid">
+            <div id="simulator">
+                <canvas id="simulator_canvas"></canvas>
+                <div class="tp-dfwv"></div>
+            </div>
+            <div id="video_player_div">
+                <video id="video_player">
+                    <source src="petite_fleur_mid.mp4" type="video/mp4" />
+                </video>
+            </div>
         </div>
+
+        <div class="controls">
+            <button class="play-button" id="play_button">
+                <img src="icons/play.svg" class="icon" id="play_icon"/>
+            </button>
+            <input type="range" class="slider" id="time_slider" min="0" max="100" step="any"/>
+        </div>
+        
         <div id="wait_screen">
             <div>
                 <p id="wait_user">Waiting for user interaction ⌛</p>
