@@ -103,7 +103,10 @@ class Hand /*implements FollowableTargetInterface*/ {
         } else {
             const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
             const next_sca = next_event.is_thrown ? 1 : 1 / 3;
-            if (prev_event.time + prev_event.unit_time < next_event.time - next_event.unit_time) {
+            if (
+                prev_event.time + 1.5 * prev_event.unit_time <
+                next_event.time - 1.5 * next_event.unit_time
+            ) {
                 points = [
                     this.get_site_position(prev_event.is_thrown),
                     this.rest_pos, // Plutôt idem que la ligne au dessus ?
@@ -118,8 +121,8 @@ class Hand /*implements FollowableTargetInterface*/ {
                 ];
                 knots = [
                     prev_event.time,
-                    prev_event.time + prev_event.unit_time,
-                    next_event.time - next_event.unit_time,
+                    prev_event.time + 1.5 * prev_event.unit_time,
+                    next_event.time - 1.5 * next_event.unit_time,
                     next_event.time
                 ];
             } else {
