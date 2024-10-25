@@ -101,17 +101,38 @@ class Hand /*implements FollowableTargetInterface*/ {
             ];
             knots = [prev_event.time, prev_event.time + prev_event.unit_time];
         } else {
-            points = [
-                this.get_site_position(prev_event.is_thrown),
-                this.get_site_position(next_event.is_thrown)
-            ];
             const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
             const next_sca = next_event.is_thrown ? 1 : 1 / 3;
-            dpoints = [
-                V3SCA(prev_sca, this.world_to_local_velocity(prev_event.get_ball_velocity())),
-                V3SCA(next_sca, this.world_to_local_velocity(next_event.get_ball_velocity()))
-            ];
-            knots = [prev_event.time, next_event.time];
+            if (prev_event.time + prev_event.unit_time < next_event.time - next_event.unit_time) {
+                points = [
+                    this.get_site_position(prev_event.is_thrown),
+                    this.rest_pos, // Plutôt idem que la ligne au dessus ?
+                    this.rest_pos, // Plutôt idem que la ligne au dessus ?
+                    this.get_site_position(next_event.is_thrown)
+                ];
+                dpoints = [
+                    V3SCA(prev_sca, this.world_to_local_velocity(prev_event.get_ball_velocity())),
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, 0),
+                    V3SCA(next_sca, this.world_to_local_velocity(next_event.get_ball_velocity()))
+                ];
+                knots = [
+                    prev_event.time,
+                    prev_event.time + prev_event.unit_time,
+                    next_event.time - next_event.unit_time,
+                    next_event.time
+                ];
+            } else {
+                points = [
+                    this.get_site_position(prev_event.is_thrown),
+                    this.get_site_position(next_event.is_thrown)
+                ];
+                dpoints = [
+                    V3SCA(prev_sca, this.world_to_local_velocity(prev_event.get_ball_velocity())),
+                    V3SCA(next_sca, this.world_to_local_velocity(next_event.get_ball_velocity()))
+                ];
+                knots = [prev_event.time, next_event.time];
+            }
         }
         // TODO : Add a little bit of impact based on speed after throw / catch. Ou quand la ball sonne et qu'on la claque dans la main.
         return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
