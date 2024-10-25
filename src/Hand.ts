@@ -103,6 +103,8 @@ class Hand /*implements FollowableTargetInterface*/ {
         } else {
             const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
             const next_sca = next_event.is_thrown ? 1 : 1 / 3;
+            // const prev_sca = 1;
+            // const next_sca = 1;
             if (
                 prev_event.time + 1.5 * prev_event.unit_time <
                 next_event.time - 1.5 * next_event.unit_time
@@ -138,6 +140,10 @@ class Hand /*implements FollowableTargetInterface*/ {
             }
         }
         // TODO : Add a little bit of impact based on speed after throw / catch. Ou quand la ball sonne et qu'on la claque dans la main.
+        for (const dp of dpoints) {
+            dp.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
+        }
+        console.log(dpoints[0].z);
         return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
     }
 
