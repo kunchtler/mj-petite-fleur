@@ -141,7 +141,7 @@ const handle_load_end = (() => {
             wait_screen.classList.add("fade_out");
             wait_screen.addEventListener("animationend", async () => {
                 wait_screen.remove();
-                video.currentTime = 38;
+                video.currentTime = 53;
                 await video.play();
             });
         }
@@ -211,7 +211,7 @@ const sfx_buffers = {
 const music_tone = context.createMediaElementSource(video_html_elem);
 const music_gain = new Tone.Gain(mute_video ? 0 : 3).toDestination();
 Tone.connect(music_tone, music_gain);
-const sfx_gain = new Tone.Gain(mute_simulator ? 0 : 2).toDestination();
+const sfx_gain = new Tone.Gain(mute_simulator ? 0 : 4).toDestination();
 // sfx_gain.gain.value = 0;
 // music_gain.gain.value = 0;
 
@@ -266,6 +266,8 @@ let hands = [right, left];
 const u = 60 / 264;
 const u2 = 60 / 277; //275 ?
 const u3 = 60 / 271;
+const u4 = 60 / 284;
+const u5 = u3;
 // const t = 56.153;
 
 // let t = 5.729 - 5 * u;
@@ -479,6 +481,41 @@ lance(balls[2], t + 20 * u3, 4, right, right, u3, normal_hit);
 lance(balls[0], t + 21 * u3, 4, left, left, u3, normal_hit);
 lance(balls[1], t + 22 * u3, 1, right, left, u3, normal_hit);
 lance(balls[2], t + 24 * u3, 2, right, right, u3, normal_hit);
+
+//4eme partie
+t = 55.71 - 1 * u4;
+hands = [left, right];
+balls = [balls[2], balls[0], balls[1]];
+lance(balls[0], t + 0 * u4, 2.5, right, left, u4, normal_hit);
+lance(balls[1], t + 0.5 * u4, 0.5, left, right, u4, normal_hit);
+lance(balls[1], t + 1 * u4, 3, right, left, u4, normal_hit);
+lance(balls[2], t + 1.5 * u4, 0.5, left, right, u4, normal_hit);
+//Loopable
+lance(balls[2], t + 2 * u4, 3, right, left, u4, normal_hit);
+lance(balls[0], t + 2.5 * u4, 0.5, left, right, u4, normal_hit);
+lance(balls[1], t + 4 * u4, 2, left, right, u4, normal_hit);
+lance(balls[0], t + 4.5 * u4, 3.5, right, right, u4, normal_hit);
+lance(balls[2], t + 5 * u4, 4, left, left, u4, normal_hit);
+lance(balls[1], t + 6 * u4, 1, right, left, u4, normal_hit);
+balls = [balls[1], balls[0], balls[2]];
+hands = [left, right];
+t = t + 7 * u4;
+for (let i = 0; i < 5; i++) {
+    lance(balls[0], t + 0 * u4, 3.5, hands[0], hands[0], u4, normal_hit);
+    lance(balls[1], t + 1 * u4, 4, hands[1], hands[0], u4, normal_hit);
+    lance(balls[2], t + 2 * u4, 1, hands[0], hands[1], u4, normal_hit);
+    lance(balls[2], t + 3 * u4, 3, hands[1], hands[0], u4, normal_hit);
+    lance(balls[0], t + 3.5 * u4, 0.5, hands[0], hands[1], u4, normal_hit);
+    lance(balls[1], t + 5 * u4, 2, hands[0], hands[1], u4, normal_hit);
+    lance(balls[0], t + 5.5 * u4, 3.5, hands[1], hands[1], u4, normal_hit);
+    lance(balls[2], t + 6 * u4, 4, hands[0], hands[0], u4, i === 4 ? "shaker" : normal_hit);
+    lance(balls[1], t + 7 * u4, 1, hands[1], hands[0], u4, normal_hit);
+    swap(balls, [1, 0, 2]);
+    t = t + 8 * u4;
+}
+
+//5eme partie
+t = 70.783;
 
 // lance(balls[2], t + 0 * u3, 4, hands[0], hands[0], u3, normal_hit);
 // t = t + 1 * u3;
