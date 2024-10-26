@@ -10,9 +10,7 @@ import * as Tone from "tone";
 import { MediaPlayer } from "./AudioPlayer";
 import { Hand } from "./Hand";
 import { JugglingEvent } from "./Timeline";
-import { CubicHermiteSpline } from "./Spline";
-import { NUMBERS_STRUCTURE, VECTOR3_STRUCTURE } from "./constants";
-import { log } from "tone/build/esm/core/util/Debug";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -763,6 +761,44 @@ const monitor = {
 
 // const init_tan_fov = Math.tan(((Math.PI / 180) * camera.fov) / 2);
 // const init_window_height = window.innerHeight;
+// THREE.ColorManagement.enabled = true;
+const loader = new GLTFLoader();
+loader.load(
+    "bowling_pin.glb",
+    function (gltf) {
+        const pin = new THREE.Object3D();
+        scene.add(pin);
+        pin.add(gltf.scene);
+        gltf.scene.scale.multiplyScalar(5);
+        pin.position.set(0, 0, 0);
+        const circleGeometry = new THREE.CircleGeometry(0.27, 64);
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load("nicolas.jpg");
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const circleMaterial = new THREE.MeshBasicMaterial({
+            // color: 0xffffff,
+            map: texture,
+            toneMapped: false,
+            side: THREE.DoubleSide
+        }); // white color
+        const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+        pin.add(circle);
+        circle.rotateY(Math.PI / 2);
+        circle.position.set(0.17, 1.75, 0);
+
+        // Create a black outline
+        const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // black color
+        const outline = new THREE.LineLoop(edgeGeometry, edgeMaterial);
+        circle.add(outline); // Add outline as a child of the circle
+    },
+    undefined,
+    function (error) {
+        console.error(error);
+    }
+);
+
+
 
 function render(t: number) {
     const time = t * 0.001; // convert time to seconds

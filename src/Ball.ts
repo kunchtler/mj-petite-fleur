@@ -32,7 +32,7 @@ class Ball {
     ) {
         this.color = color;
         this.radius = radius;
-        this.geometry = new THREE.SphereGeometry(radius, 8, 4);
+        this.geometry = new THREE.SphereGeometry(radius, 8, 8);
         this.material = new THREE.MeshPhongMaterial({ color: this.color });
         //TODO: CHeck if destroying mesh detroys material and or geometry.
         this.mesh = new THREE.Mesh(this.geometry, this.material);
