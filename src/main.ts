@@ -157,7 +157,7 @@ const handle_load_end = (() => {
 })();
 
 // Handling of the first user input before playing audio.
-const first_interaction_event_types = ["mousedown", "keydown", "touchstart"];
+const first_interaction_event_types = ["mousedown" /*, "keydown"*/, "touchstart"];
 
 async function handle_first_interaction(event: Event) {
     for (const event_type of first_interaction_event_types) {
@@ -770,7 +770,11 @@ loader.load(
         scene.add(pin);
         pin.add(gltf.scene);
         gltf.scene.scale.multiplyScalar(5);
-        pin.position.set(0, 0, 0);
+        const pin_color =
+            gltf.scene.children[0].children[0].children[0].children[0].children[0].material.color;
+        gltf.scene.children[0].children[0].children[0].children[0].children[1].material.color =
+            pin_color;
+        pin.position.set(0.1, 0, 0);
         const circleGeometry = new THREE.CircleGeometry(0.27, 64);
         const textureLoader = new THREE.TextureLoader();
         const texture = textureLoader.load("nicolas.jpg");
@@ -784,7 +788,7 @@ loader.load(
         const circle = new THREE.Mesh(circleGeometry, circleMaterial);
         pin.add(circle);
         circle.rotateY(Math.PI / 2);
-        circle.position.set(0.17, 1.75, 0);
+        circle.position.set(0.17, 1.62, 0);
 
         // Create a black outline
         const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
