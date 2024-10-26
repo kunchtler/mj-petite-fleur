@@ -787,8 +787,10 @@ loader.load(
         scene.add(pin);
         pin.add(gltf.scene);
         gltf.scene.scale.multiplyScalar(5);
-        const pin_color =
+        // @ts-ignore
+        const pin_color = // @ts-ignore
             gltf.scene.children[0].children[0].children[0].children[0].children[0].material.color;
+        // @ts-ignore
         gltf.scene.children[0].children[0].children[0].children[0].children[1].material.color =
             pin_color;
         pin.position.set(0.1, 0, 0);
