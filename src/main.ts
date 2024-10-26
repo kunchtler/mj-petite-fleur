@@ -35,8 +35,14 @@ import { log } from "tone/build/esm/core/util/Debug";
 /// URL Parameters (temp) ///
 const queryString = window.location.search;
 const urlParams = new URLSearchParams(queryString);
-const mute_simulator = urlParams.get("mute-simulator") === "1";
-const mute_video = urlParams.get("mute-video") === "1";
+let mute_simulator = false;
+if (urlParams.has("mute-simulator")) {
+    mute_simulator = urlParams.get("mute-simulator") === "1";
+}
+let mute_video = true;
+if (urlParams.has("mute-video")) {
+    mute_video = urlParams.get("mute-video") === "1";
+}
 
 const video_html_elem = document.getElementById("video_player");
 const play_pause_button = document.getElementById("play_button");
