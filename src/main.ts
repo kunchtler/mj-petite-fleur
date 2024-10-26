@@ -795,21 +795,22 @@ loader.load(
         // @ts-ignore
         gltf.scene.children[0].children[0].children[0].children[0].children[1].material.color =
             pin_color;
-        pin.position.set(0.1, 0, 0);
-        const circleGeometry = new THREE.CircleGeometry(0.27, 64);
+        pin.position.set(0.1, 0.3, 0);
+        const circleGeometry = new THREE.CircleGeometry(0.35, 64);
         const textureLoader = new THREE.TextureLoader();
-        const texture = textureLoader.load("nicolas.jpg");
+        const texture = textureLoader.load("leo.jpg");
         texture.colorSpace = THREE.SRGBColorSpace;
         const circleMaterial = new THREE.MeshBasicMaterial({
             // color: 0xffffff,
             map: texture,
-            toneMapped: false,
+            // transparent: true,
+            // toneMapped: false,
             side: THREE.DoubleSide
         }); // white color
         const circle = new THREE.Mesh(circleGeometry, circleMaterial);
         pin.add(circle);
         circle.rotateY(Math.PI / 2);
-        circle.position.set(0.17, 1.62, 0);
+        circle.position.set(0.17, 1.55, 0);
 
         // Create a black outline
         const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
