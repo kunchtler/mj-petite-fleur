@@ -157,20 +157,22 @@ const handle_load_end = (() => {
 })();
 
 // Handling of the first user input before playing audio.
-const first_interaction_event_types = ["mousedown" /*, "keydown"*/, "touchstart"];
+const first_interaction_event_types = ["mousedown", "keydown", "touchstart"];
 
 async function handle_first_interaction(event: Event) {
+    await Tone.start();
     for (const event_type of first_interaction_event_types) {
         event.currentTarget?.removeEventListener(event_type, handle_first_interaction, true);
     }
     const text_element = document.querySelector("#wait_user");
     if (!(text_element instanceof HTMLParagraphElement)) {
-        throw new Error();
+        console.log("oups");
+        // throw new Error();
+    } else {
+        text_element.textContent = "User interaction detected ✔️";
+        console.log("Touch ok");
+        handle_load_end();
     }
-    text_element.textContent = "User interaction detected ✔️";
-    await Tone.start();
-    console.log("Touch ok");
-    handle_load_end();
     //We block the promise until resolved
     // await Tone.start()
     //     .then(() => {
