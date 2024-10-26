@@ -12,6 +12,7 @@ import { Hand } from "./Hand";
 import { JugglingEvent } from "./Timeline";
 import { CubicHermiteSpline } from "./Spline";
 import { NUMBERS_STRUCTURE, VECTOR3_STRUCTURE } from "./constants";
+import { log } from "tone/build/esm/core/util/Debug";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -133,13 +134,16 @@ const handle_load_end = (() => {
     let load_ready = 0;
     return () => {
         load_ready++;
-        if (load_ready === 2) {
+        console.log(`Load count : ${load_ready}/3`);
+        if (load_ready >= 3) {
             const wait_screen = document.querySelector("#wait_screen");
             if (!(wait_screen instanceof Element)) {
                 throw new Error();
             }
             wait_screen.classList.add("fade_out");
+            console.log("fade start");
             wait_screen.addEventListener("animationend", async () => {
+                console.log("fade end");
                 wait_screen.remove();
                 // video.currentTime = 69;
                 await video.play();
@@ -161,6 +165,7 @@ async function handle_first_interaction(event: Event) {
     }
     text_element.textContent = "User interaction detected ✔️";
     await Tone.start();
+    console.log("Touch ok");
     handle_load_end();
     //We block the promise until resolved
     // await Tone.start()
@@ -189,6 +194,7 @@ async function handle_sounds_loaded() {
         throw new Error();
     }
     text_element.textContent = "Sound loaded ✔️";
+    console.log("sound ok");
     handle_load_end();
 }
 
@@ -215,10 +221,12 @@ const sfx_gain = new Tone.Gain(mute_simulator ? 0 : 4).toDestination();
 // sfx_gain.gain.value = 0;
 // music_gain.gain.value = 0;
 
+await handle_sounds_loaded();
 if (video.readyState >= 3) {
+    console.log("video already ready to go");
     await handle_sounds_loaded();
 } else {
-    video_html_elem.addEventListener("loadeddata", handle_sounds_loaded, { once: true });
+    video_html_elem.addEventListener("loadeddata", handle_load_end, { once: true });
 }
 
 const simulator = new Simulator("#simulator_canvas");
@@ -243,11 +251,11 @@ for (const color of ["red", "green", "blue"]) {
     simulator.balls.push(new Ball(color, 0.08, undefined, player, panner, undefined));
 }
 
-const tweakpane_container = document.querySelector(".tp-dfwv");
-if (!(tweakpane_container instanceof HTMLElement)) {
-    throw new Error();
-}
-const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
+// const tweakpane_container = document.querySelector(".tp-dfwv");
+// if (!(tweakpane_container instanceof HTMLElement)) {
+//     throw new Error();
+// }
+// const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
 
 //////////////// Petite Fleur ////////////////
 
@@ -715,16 +723,16 @@ const monitor = {
 //     }
 // });
 
-const blade_playback_rate = pane.addBinding(monitor, "playback_rate", {
-    min: 0.5,
-    max: 2,
-    step: 0.1
-});
-blade_playback_rate.on("change", (ev) => {
-    if (ev.last) {
-        video.playbackRate = ev.value;
-    }
-});
+// const blade_playback_rate = pane.addBinding(monitor, "playback_rate", {
+//     min: 0.5,
+//     max: 2,
+//     step: 0.1
+// });
+// blade_playback_rate.on("change", (ev) => {
+//     if (ev.last) {
+//         video.playbackRate = ev.value;
+//     }
+// });
 // const play_blade = pane.addBinding(monitor, "transport_play", { label: "Play" });
 // play_blade.on("change", async (ev) => {
 //     if (!ev.value) {
@@ -738,14 +746,14 @@ blade_playback_rate.on("change", (ev) => {
 //         await video.play();
 //     }
 // });
-const mute_music = pane.addBinding(monitor, "mute_music", { label: "Mute Music" });
-mute_music.on("change", (ev) => {
-    music_gain.gain.value = ev.value ? 0 : 3;
-});
-const mute_sfx = pane.addBinding(monitor, "mute_sfx", { label: "Mute Sounds" });
-mute_sfx.on("change", (ev) => {
-    sfx_gain.gain.value = ev.value ? 0 : 2;
-});
+// const mute_music = pane.addBinding(monitor, "mute_music", { label: "Mute Music" });
+// mute_music.on("change", (ev) => {
+//     music_gain.gain.value = ev.value ? 0 : 3;
+// });
+// const mute_sfx = pane.addBinding(monitor, "mute_sfx", { label: "Mute Sounds" });
+// mute_sfx.on("change", (ev) => {
+//     sfx_gain.gain.value = ev.value ? 0 : 2;
+// });
 
 // const init_tan_fov = Math.tan(((Math.PI / 180) * camera.fov) / 2);
 // const init_window_height = window.innerHeight;

@@ -143,7 +143,7 @@ class Hand /*implements FollowableTargetInterface*/ {
         for (const dp of dpoints) {
             dp.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
         }
-        console.log(dpoints[0].z);
+        // console.log(dpoints[0].z);
         return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
     }
 
