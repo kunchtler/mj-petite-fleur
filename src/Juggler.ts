@@ -175,14 +175,20 @@ class Juggler {
         //this.material = new THREE.LineBasicMaterial({ color: "black", linewidth: 2 });
         basic_geometry.translate(0, height / 2, 0);
         this.geometry = basic_geometry;
-        this.material = new THREE.MeshPhongMaterial({ color: "yellow", wireframe: false });
+        this.material = new THREE.MeshPhongMaterial({
+            color: "yellow",
+            wireframe: false,
+            visible: false
+        });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         //this.wireframe = new THREE.LineSegments(this.geometry, this.material);
         //this.mesh.translateY(height / 2);
         this.juggling_origin = new THREE.Object3D();
         const hand_physics_handling: HandPhysicsHandling = {
-            min_dist: 0.05,
-            max_dist: depth / 2,
+            // min_dist: 0.05,
+            center_rest_dist: (depth * 2) / 3,
+            rest_site_dist: depth / 4,
+            // max_dist: depth / 2,
             up_vector: new THREE.Vector3(0, 1, 0),
             right_vector: new THREE.Vector3(0, 0, 1),
             origin_object: this.juggling_origin
@@ -191,7 +197,7 @@ class Juggler {
         this.left_hand = new Hand(hand_physics_handling, false);
         this.hands = [this.right_hand, this.left_hand];
 
-        this.juggling_origin.add(new Object3DHelper());
+        this.juggling_origin.add(new Object3DHelper(false, undefined, false));
         this.juggling_origin.position.set(arm_length, height - 0.4 - arm_length, 0);
 
         this.mesh.add(this.juggling_origin);
@@ -201,17 +207,17 @@ class Juggler {
         this.shoulder = new THREE.Object3D();
         this.shoulder.position.set(0, height - 0.4, depth / 2);
         this.mesh.add(this.shoulder);
-        this.shoulder.add(new Object3DHelper());
+        this.shoulder.add(new Object3DHelper(false, undefined, false));
 
         this.elbow = new THREE.Object3D();
         this.elbow.position.set(0, 0, 0);
         this.mesh.add(this.elbow);
-        this.elbow.add(new Object3DHelper());
+        this.elbow.add(new Object3DHelper(false, undefined, false));
 
         this.target = new THREE.Object3D();
         this.target.position.set(0, 0, depth / 2);
         this.mesh.add(this.target);
-        this.target.add(new Object3DHelper());
+        this.target.add(new Object3DHelper(false, undefined, false));
     }
 
     render = (time: number): void => {

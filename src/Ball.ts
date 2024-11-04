@@ -16,6 +16,7 @@ class Ball {
     geometry: THREE.BufferGeometry;
     material: THREE.Material;
     mesh: THREE.Mesh;
+    name: string;
     sound: Tone.Players | Tone.Player | undefined;
     panner3D: Tone.Panner3D | undefined;
     timeline: RBTree<number, JugglingEvent>;
@@ -24,13 +25,14 @@ class Ball {
     constructor(
         color: number | string,
         radius: number,
+        name?: string,
         sound?: Tone.Players | Tone.Player | string,
         panner3D?: Tone.Panner3D,
         timeline?: RBTree<number, JugglingEvent>
     ) {
         this.color = color;
         this.radius = radius;
-        this.geometry = new THREE.SphereGeometry(radius, 8, 4);
+        this.geometry = new THREE.SphereGeometry(radius, 8, 8);
         this.material = new THREE.MeshPhongMaterial({ color: this.color });
         //TODO: CHeck if destroying mesh detroys material and or geometry.
         this.mesh = new THREE.Mesh(this.geometry, this.material);
@@ -47,6 +49,7 @@ class Ball {
         }
         this.sound = sound;
         this.panner3D = panner3D;
+        this.name = name !== undefined ? name : "None";
     }
 
     /**
@@ -65,6 +68,7 @@ class Ball {
         //TODO : Rather have timeline sanitized with +/- Infinity ?
         //But that way, more error prone.
         //Have start/end special events (to make clear when begin/end ?) NO
+
         if (prev_event === undefined && next_event === undefined) {
             throw new Error("No event in the timeline to determine where the ball is.");
         }
@@ -77,8 +81,12 @@ class Ball {
         if (next_event === undefined) {
             if (prev_event.is_thrown) {
                 throw new Error("Ball is thrown at the end without being caught.");
+            } else if (prev_event.is_caught) {
+                return prev_event.hand.get_global_position(time);
+            } else {
+                //return prev_event.t;
+                return new THREE.Vector3(0, 0, 0);
             }
-            return prev_event.hand.get_global_position(time);
         }
 
         // Cases where both events exist.

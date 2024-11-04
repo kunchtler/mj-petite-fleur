@@ -5,9 +5,13 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/Addons.js";
 import createRBTree from "functional-red-black-tree";
 
+
+
 function resizeRendererToDisplaySize(
     renderer: THREE.WebGLRenderer,
     camera: THREE.PerspectiveCamera
+    // init_tan_fov: number,
+    // init_window_height: number
 ) {
     const canvas = renderer.domElement;
     const pixelRatio = window.devicePixelRatio;
@@ -16,6 +20,8 @@ function resizeRendererToDisplaySize(
     if (canvas.width !== width || canvas.height !== height) {
         renderer.setSize(width, height, false);
         camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        // camera.fov =
+        //     (360 / Math.PI) * Math.atan(init_tan_fov * (window.innerHeight / init_window_height));
         camera.updateProjectionMatrix();
     }
 }
@@ -56,8 +62,8 @@ class Simulator {
         const camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 50);
         const controls = new OrbitControls(camera, renderer.domElement);
         //camera.position.set(0.0796859236518283, 2.466905446060931, -0.003956106766785765);
-        camera.position.set(2, 2, 0.75);
-        controls.target.set(0, 1, 0);
+        camera.position.set(2.0, 1.5, 0);
+        controls.target.set(0, 1.4, 0);
         controls.update();
 
         const background_color = window.getComputedStyle(canvas).backgroundColor;
@@ -66,9 +72,9 @@ class Simulator {
         // Helpers
         const axes_helper = new THREE.AxesHelper(1.5);
         axes_helper.position.y = 0.001;
-        scene.add(axes_helper);
+        // scene.add(axes_helper);
         const grid_helper = new THREE.GridHelper(30, 30);
-        scene.add(grid_helper);
+        // scene.add(grid_helper);
 
         //Lighting
         const ambient_light = new THREE.AmbientLight(scene.background, 2);
@@ -124,6 +130,14 @@ class Simulator {
             juggler.left_hand.timeline = createRBTree();
         }
     }
+
+    /*
+    TODO : Add methods to easily use simulator class.
+    Expose playBackRate, gravity
+    Make time system adaptable to audio / no audio.
+    Handle adding / removing juggler / patterns + sanitizing
+    All aesthetic things (color, ground)
+    */
 }
 
 // function create_juggler_mesh() {
