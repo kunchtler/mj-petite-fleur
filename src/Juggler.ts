@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Hand, HandPhysicsHandling } from "./Hand";
 import { Object3DHelper } from "./Object3DHelper";
 import { find_elbow } from "./utils";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 type JugglerMesh = {
     head: THREE.Mesh;
@@ -153,6 +154,49 @@ export function create_juggler_mesh(
     };
 }
 
+// const loader = new GLTFLoader();
+// loader.load(
+//     "bowling_pin.glb",
+//     function (gltf) {
+//         const pin = new THREE.Object3D();
+//         // scene.add(pin);
+//         pin.add(gltf.scene);
+//         gltf.scene.scale.multiplyScalar(5);
+//         // @ts-ignore
+//         const pin_color = // @ts-ignore
+//             gltf.scene.children[0].children[0].children[0].children[0].children[0].material.color;
+//         // @ts-ignore
+//         gltf.scene.children[0].children[0].children[0].children[0].children[1].material.color =
+//             pin_color;
+//         pin.position.set(0.1, 0.3, 0);
+//         const circleGeometry = new THREE.CircleGeometry(0.35, 64);
+//         const textureLoader = new THREE.TextureLoader();
+//         const texture = textureLoader.load("leo.jpg");
+//         texture.colorSpace = THREE.SRGBColorSpace;
+//         const circleMaterial = new THREE.MeshBasicMaterial({
+//             // color: 0xffffff,
+//             map: texture,
+//             // transparent: true,
+//             // toneMapped: false,
+//             side: THREE.DoubleSide
+//         }); // white color
+//         const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+//         pin.add(circle);
+//         circle.rotateY(Math.PI / 2);
+//         circle.position.set(0.17, 1.55, 0);
+
+//         // Create a black outline
+//         const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
+//         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // black color
+//         const outline = new THREE.LineLoop(edgeGeometry, edgeMaterial);
+//         circle.add(outline); // Add outline as a child of the circle
+//     },
+//     undefined,
+//     function (error) {
+//         console.error(error);
+//     }
+// );
+
 class Juggler {
     height: number;
     geometry: THREE.BufferGeometry;
@@ -177,8 +221,8 @@ class Juggler {
         this.geometry = basic_geometry;
         this.material = new THREE.MeshPhongMaterial({
             color: "yellow",
-            wireframe: false,
-            visible: false
+            wireframe: false
+            // visible: false
         });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         //this.wireframe = new THREE.LineSegments(this.geometry, this.material);

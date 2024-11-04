@@ -72,9 +72,9 @@ class Simulator {
         // Helpers
         const axes_helper = new THREE.AxesHelper(1.5);
         axes_helper.position.y = 0.001;
-        // scene.add(axes_helper);
+        scene.add(axes_helper);
         const grid_helper = new THREE.GridHelper(30, 30);
-        // scene.add(grid_helper);
+        scene.add(grid_helper);
 
         //Lighting
         const ambient_light = new THREE.AmbientLight(scene.background, 2);
