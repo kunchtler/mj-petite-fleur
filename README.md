@@ -76,13 +76,4 @@ pnpm build
 
 The siteswap parser uses ANTLR to generate parsers in many languages (namely Typescript in our case, but also python), but also as a runtime package to parse expressions for that grammar.
 
-To install ANTLR :
-
-## TODO
-
--   [Git hooks ?](https://prettier.io/docs/en/install#git-hooks)
--   [Confifurer les règles pour prettier](https://prettier.io/)
--   [Experience with vite to compile project](https://vitejs.dev/guide/)
--   React at some point ?
-
-NB : There is an `index.html` file at root as Vite needs it as its main entry point. In that file, it also assumes the presence of /src/ before file imports, hence the weirdnesses. Find a better solution at some point ?
+To install ANTLR : TODO
