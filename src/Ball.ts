@@ -184,9 +184,10 @@ class Ball {
     }
 
     //TODO : make it so that event.sound if array or undefined in constructor ?
+    //TODO : method should rather be in simulator ?
     play_on_catch(time: number): void {
         const prev_event = this.timeline.le(time).value;
-        if (prev_event !== undefined && this.prev_time < prev_event.time) {
+        if (prev_event !== undefined && prev_event.is_caught && this.prev_time < prev_event.time) {
             // Play a sound
             if (this.sound instanceof Tone.Players) {
                 if (prev_event.sound_name !== undefined) {
