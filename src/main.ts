@@ -11,6 +11,7 @@ import { MediaPlayer, TimeConductor } from "./AudioPlayer";
 import { Hand } from "./Hand";
 import { JugglingEvent } from "./Timeline";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { Table } from "./Table";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -29,6 +30,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 //TODO : Change sfx playbackrate based on music playbackrate.
 
 //TODO : Controles fonctionnent bien sur firefox, à voire sur chrome et tel.
+//TODO : Make sfx sounds pause when simulator pauses.
 
 /// URL Parameters (temp) ///
 const queryString = window.location.search;
@@ -299,7 +301,36 @@ function lance(
 const u = 0.25;
 const t = 0;
 
+const balls_placement: Record<string, THREE.Vector2> = {
+    do: new THREE.Vector2(1, 0.5),
+    doD: new THREE.Vector2(1.5, 1.5),
+    re: new THREE.Vector2(2, 0.5),
+    reD: new THREE.Vector2(2.5, 1.5),
+    mi: new THREE.Vector2(3, 0.5),
+    fa: new THREE.Vector2(4, 0.5),
+    faD: new THREE.Vector2(4.5, 1.5),
+    sol: new THREE.Vector2(5, 0.5),
+    solD: new THREE.Vector2(7.5, 1.5),
+    la: new THREE.Vector2(6, 0.5),
+    laD: new THREE.Vector2(6.5, 1.5),
+    si: new THREE.Vector2(7, 0.5),
+    do2: new THREE.Vector2(8, 0.5)
+};
+
+const table = new Table({
+    height: 1,
+    surface_real_dimensions: [1.1, 0.5],
+    surface_internal_dimensions: [9, 2],
+    balls_placement: balls_placement
+});
+table.mesh.position.set(0.9, 0, 0);
+scene.add(table.mesh);
+
 lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
+lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
+lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
+
+
 
 //////////////// Editeur de patterns ////////////////
 
