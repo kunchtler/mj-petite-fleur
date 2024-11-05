@@ -154,33 +154,43 @@ class Ball {
         const next_event = this.timeline.gt(time).value;
 
         if (prev_event === undefined && next_event === undefined) {
+            //TODO : Change -> On table (but which one)
             throw new Error("No event in the timeline to determine where the ball is.");
         }
         if (prev_event === undefined) {
-            if (next_event!.is_caught) {
+            if (next_event!.hand_status === "CATCH") {
                 throw new Error("Ball is caught at the beginning without being thrown.");
             }
-            return next_event!.hand.get_global_velocity(time);
+            if (next_event!.hand_status === "THROW") {
+                return next_event!.hand.get_global_velocity(time);
+            }
+            return new THREE.Vector3(0, 0, 0);
         }
         if (next_event === undefined) {
-            if (prev_event.is_thrown) {
+            if (prev_event.hand_status === "THROW") {
                 throw new Error("Ball is thrown at the end without being caught.");
             }
-            return prev_event.hand.get_global_velocity(time);
+            if (prev_event.hand_status === "CATCH") {
+                return prev_event.hand.get_global_velocity(time);
+            }
+            return new THREE.Vector3(0, 0, 0);
         }
 
         // Cases where both events exist.
-        if (prev_event.is_thrown) {
+        if (prev_event.hand_status === "THROW") {
+            //TODO : Check next_event is not throw to catch errors early.
             return Ball.get_airborne_velocity(
-                prev_event.get_hand_global_position(),
+                prev_event.global_position(),
                 prev_event.time,
-                next_event.get_hand_global_position(),
+                next_event.global_position(),
                 next_event.time,
                 time
             );
-        } else {
-            return prev_event.hand.get_global_velocity(time);
         }
+        if (prev_event.hand_status === "CATCH") {
+            return prev_event.hand.global_velocity(time);
+        }
+        return prev_event.table.global_ball_position(this.name);
     }
 
     //TODO : make it so that event.sound if array or undefined in constructor ?
