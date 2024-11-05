@@ -42,7 +42,7 @@ class Hand /*implements FollowableTargetInterface*/ {
         timeline?: RBTree<number, JugglingEvent>
     ) {
         this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
-        this.material = new THREE.MeshPhongMaterial({ color: "black" });
+        this.material = new THREE.MeshPhongMaterial({ color: 0xffdbac });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         // this.mesh.visible = false;
         if (timeline === undefined) {

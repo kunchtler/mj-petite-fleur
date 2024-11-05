@@ -781,50 +781,67 @@ const monitor = {
 // const init_tan_fov = Math.tan(((Math.PI / 180) * camera.fov) / 2);
 // const init_window_height = window.innerHeight;
 // THREE.ColorManagement.enabled = true;
-const loader = new GLTFLoader();
-loader.load(
-    "bowling_pin.glb",
-    function (gltf) {
-        const pin = new THREE.Object3D();
-        scene.add(pin);
-        pin.add(gltf.scene);
-        gltf.scene.scale.multiplyScalar(5);
-        // @ts-ignore
-        const pin_color = // @ts-ignore
-            gltf.scene.children[0].children[0].children[0].children[0].children[0].material.color;
-        // @ts-ignore
-        gltf.scene.children[0].children[0].children[0].children[0].children[1].material.color =
-            pin_color;
-        pin.position.set(0.1, 0.3, 0);
-        const circleGeometry = new THREE.CircleGeometry(0.35, 64);
-        const textureLoader = new THREE.TextureLoader();
-        const texture = textureLoader.load("leo.jpg");
-        texture.colorSpace = THREE.SRGBColorSpace;
-        const circleMaterial = new THREE.MeshBasicMaterial({
-            // color: 0xffffff,
-            map: texture,
-            // transparent: true,
-            // toneMapped: false,
-            side: THREE.DoubleSide
-        }); // white color
-        const circle = new THREE.Mesh(circleGeometry, circleMaterial);
-        pin.add(circle);
-        circle.rotateY(Math.PI / 2);
-        circle.position.set(0.17, 1.55, 0);
+// const loader = new GLTFLoader();
+// loader.load(
+//     "bowling_pin.glb",
+//     function (gltf) {
+//         const pin = new THREE.Object3D();
+//         scene.add(pin);
+//         pin.add(gltf.scene);
+//         gltf.scene.scale.multiplyScalar(5);
+//         // @ts-ignore
+//         const pin_color = // @ts-ignore
+//             gltf.scene.children[0].children[0].children[0].children[0].children[0].material.color;
+//         // @ts-ignore
+//         gltf.scene.children[0].children[0].children[0].children[0].children[1].material.color =
+//             pin_color;
+//         pin.position.set(0.1, 0.3, 0);
+//         const circleGeometry = new THREE.CircleGeometry(0.35, 64);
+//         const textureLoader = new THREE.TextureLoader();
+//         const texture = textureLoader.load("leo.jpg");
+//         texture.colorSpace = THREE.SRGBColorSpace;
+//         const circleMaterial = new THREE.MeshBasicMaterial({
+//             // color: 0xffffff,
+//             map: texture,
+//             // transparent: true,
+//             // toneMapped: false,
+//             side: THREE.DoubleSide
+//         }); // white color
+//         const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+//         pin.add(circle);
+//         circle.rotateY(Math.PI / 2);
+//         circle.position.set(0.17, 1.55, 0);
 
-        // Create a black outline
-        const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
-        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // black color
-        const outline = new THREE.LineLoop(edgeGeometry, edgeMaterial);
-        circle.add(outline); // Add outline as a child of the circle
-    },
-    undefined,
-    function (error) {
-        console.error(error);
-    }
-);
-
-
+//         // Create a black outline
+//         const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
+//         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // black color
+//         const outline = new THREE.LineLoop(edgeGeometry, edgeMaterial);
+//         circle.add(outline); // Add outline as a child of the circle
+//     },
+//     undefined,
+//     function (error) {
+//         console.error(error);
+//     }
+// );
+const textureLoader = new THREE.TextureLoader();
+const circleGeometry = new THREE.PlaneGeometry(0.6, 0.6);
+const texture = textureLoader.load("vincent.jpg");
+texture.colorSpace = THREE.SRGBColorSpace;
+const circleMaterial = new THREE.MeshBasicMaterial({
+    // color: 0xffffff,
+    map: texture,
+    // transparent: true,
+    // toneMapped: false,
+    side: THREE.DoubleSide
+}); // white color
+const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+circle.rotateY(Math.PI / 2);
+circle.position.set(0.2, 1.75, 0);
+scene.add(circle);
+// const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
+// const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // black color
+// const outline = new THREE.LineLoop(edgeGeometry, edgeMaterial);
+// circle.add(outline); // Add outline as a child of the circle
 
 function render(t: number) {
     const time = t * 0.001; // convert time to seconds
