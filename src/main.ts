@@ -331,7 +331,6 @@ lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
 lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
 
 
-
 //////////////// Editeur de patterns ////////////////
 
 // // Configuration

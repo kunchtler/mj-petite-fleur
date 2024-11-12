@@ -76,13 +76,13 @@ class Ball {
             if (next_event!.is_caught) {
                 throw new Error("Ball is caught at the beginning without being thrown.");
             }
-            return next_event!.hand.get_global_position(time);
+            return next_event!.place.get_global_position(time);
         }
         if (next_event === undefined) {
             if (prev_event.is_thrown) {
                 throw new Error("Ball is thrown at the end without being caught.");
             } else if (prev_event.is_caught) {
-                return prev_event.hand.get_global_position(time);
+                return prev_event.place.get_global_position(time);
             } else {
                 //return prev_event.t;
                 return new THREE.Vector3(0, 0, 0);
@@ -93,14 +93,14 @@ class Ball {
         // Whatever the second is, we throw the ball looking at starting and ending sites.
         if (prev_event.is_thrown) {
             return Ball.get_airborne_position(
-                prev_event.get_hand_global_position(),
+                prev_event.get_global_position(),
                 prev_event.time,
-                next_event.get_hand_global_position(),
+                next_event.get_global_position(),
                 next_event.time,
                 time
             );
         } else {
-            return prev_event.hand.get_global_position(time);
+            return prev_event.place.get_global_position(time);
         }
     }
 
@@ -162,7 +162,7 @@ class Ball {
                 throw new Error("Ball is caught at the beginning without being thrown.");
             }
             if (next_event!.hand_status === "THROW") {
-                return next_event!.hand.get_global_velocity(time);
+                return next_event!.get_place_global_velocity(time);
             }
             return new THREE.Vector3(0, 0, 0);
         }
@@ -171,7 +171,7 @@ class Ball {
                 throw new Error("Ball is thrown at the end without being caught.");
             }
             if (prev_event.hand_status === "CATCH") {
-                return prev_event.hand.get_global_velocity(time);
+                return prev_event.get_place_global_velocity(time);
             }
             return new THREE.Vector3(0, 0, 0);
         }
@@ -188,7 +188,7 @@ class Ball {
             );
         }
         if (prev_event.hand_status === "CATCH") {
-            return prev_event.hand.global_velocity(time);
+            return prev_event.place.global_velocity(time);
         }
         return prev_event.table.global_ball_position(this.name);
     }

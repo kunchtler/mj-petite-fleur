@@ -1,8 +1,5 @@
-import { FollowableTargetInterface } from "./Timeline";
 import * as THREE from "three";
-import { Ball } from "./Ball";
 import { Object3DHelper } from "./Object3DHelper";
-import { theWindow } from "tone/build/esm/core/context/AudioContext";
 
 //TODO : Rename Ball_placement en balls_spot
 
@@ -50,13 +47,16 @@ class Table {
     }
 
     global_ball_position(ball_name: string): THREE.Vector3 {
+        let pos: THREE.Vector2;
         if (ball_name in this.balls_placement) {
-            const pos = this.balls_placement[ball_name];
-            return this._surface_internal.localToWorld(new THREE.Vector3(pos.x, 0, pos.y));
+            pos = this.balls_placement[ball_name];
+        } else {
+            pos = new THREE.Vector2(0, 0);
         }
-        return new THREE.Vector3(0, 0, 0);
+        return this._surface_internal.localToWorld(new THREE.Vector3(pos.x, 0, pos.y));
     }
 
+    //TODO
     dispose(): void {
         if (this.mesh.parent !== null) {
             this.mesh.parent.remove(this.mesh);

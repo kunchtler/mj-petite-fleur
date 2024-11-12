@@ -49,6 +49,7 @@ class Simulator {
     camera: THREE.PerspectiveCamera;
     balls: Ball[];
     jugglers: Juggler[];
+    // paused: boolean;
 
     constructor(canvas_id: string) {
         // Scene setup

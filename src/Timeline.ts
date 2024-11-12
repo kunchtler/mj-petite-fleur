@@ -2,16 +2,41 @@ import { Ball } from "./Ball";
 import { Hand } from "./Hand";
 import { CWeakRef } from "./CustomWeakRef";
 import * as THREE from "three";
+import { Table } from "./Table";
+import { instance } from "three/examples/jsm/nodes/Nodes.js";
 
 //TODO : Gestion des corrodonnées globales / locales
 //TODO : Pb d'avoir get_abll_position ici : pos de la main et de la balle ne sont pas les mêmes
 // (légérement au dessus par exemple)
 //TODO : Really needs references if can be gathered from the ball timeline ?
+//TODO : Dual condition (instanceof hand / table, and status). Create custom class instancing each other to fix this.
+//Generic class with only type instancing ?
 
 //TODO : Timeline fait intermédiaire entre main et balle. Balle ne peut pas accéder main, et inversement ?
 // Mais comment gérer le temps ?
 
-class JugglingEvent {
+// class BasicEvent {
+//     time: number;
+//     readonly ball_status: "AIRBORNE" | "HELD" | "TABLE";
+//     readonly hand_status: "CATCH" | "THROW" | "TABLE";
+//     private _ball_ref?: CWeakRef<Ball>;
+//     constructor(time: number) {
+//         this.time = time;
+//     }
+//     get ball(): Ball {
+//         const obj = this._ball_ref?.deref();
+//         if (obj === undefined) {
+//             throw new Error("hand is undefined");
+//         }
+//         return obj;
+//     }
+//     set ball(new_ball: Ball) {
+//         this._ball_ref = new CWeakRef(new_ball);
+//     }
+// }
+
+// class TableEvent extends BasicEvent {}
+class JugglingEvent /*extends BasicEvent*/ {
     time: number;
     unit_time: number;
     /**
@@ -25,20 +50,20 @@ class JugglingEvent {
     readonly ball_status: "AIRBORNE" | "HELD" | "TABLE";
     readonly hand_status: "CATCH" | "THROW" | "TABLE";
     private _ball_ref?: CWeakRef<Ball>;
-    private _hand_ref?: CWeakRef<Hand>;
+    private _place_ref?: CWeakRef<Hand | Table>;
     private _paired_event_ref?: CWeakRef<JugglingEvent>;
 
     constructor(
         time: number,
         unit_time: number,
         status: "CATCH" | "THROW" | "TABLE",
-        hand?: Hand,
+        place?: Hand | Table,
         ball?: Ball,
         sound_name?: string[] | string
     ) {
         this.time = time;
         this.unit_time = unit_time;
-        this._hand_ref = hand !== undefined ? new CWeakRef<Hand>(hand) : undefined;
+        this._place_ref = place !== undefined ? new CWeakRef<Hand | Table>(place) : undefined;
         this._ball_ref = ball !== undefined ? new CWeakRef<Ball>(ball) : undefined;
         this.ball_status = status === "THROW" ? "AIRBORNE" : "HELD";
         this.hand_status = status;
@@ -52,16 +77,16 @@ class JugglingEvent {
         this.sound_name = sound_name;
     }
 
-    get hand(): Hand {
-        const obj = this._hand_ref?.deref();
+    get place(): Hand | Table {
+        const obj = this._place_ref?.deref();
         if (obj === undefined) {
             throw new Error("hand is undefined");
         }
         return obj;
     }
 
-    set hand(new_hand: Hand) {
-        this._hand_ref = new CWeakRef(new_hand);
+    set place(new_hand: Hand | Table) {
+        this._place_ref = new CWeakRef(new_hand);
     }
 
     get ball(): Ball {
@@ -95,23 +120,48 @@ class JugglingEvent {
 
     //TODO: Offset the ball by its radius up ?
     //TODO: Telle what is local/global
-    get_hand_global_position(): THREE.Vector3 {
-        const local_position = this.hand.get_site_position(this.is_thrown);
-        return this.hand.origin_object.localToWorld(local_position);
+    get_global_position(): THREE.Vector3 {
+        if (this.place instanceof Hand) {
+            const local_position = this.place.get_site_position(this.is_thrown);
+            return this.place.origin_object.localToWorld(local_position);
+        }
+        return this.place.global_ball_position(this.ball.name);
     }
 
     get_ball_velocity(): THREE.Vector3 {
-        const pos0 = this.get_hand_global_position();
-        const pos1 = this.paired_event.get_hand_global_position();
+        const pos0 = this.get_global_position();
+        const pos1 = this.paired_event.get_global_position();
         const t0 = this.time;
         const t1 = this.paired_event.time;
         if (this.is_thrown) {
             return Ball.get_velocity_at_event(pos0, t0, pos1, t1, this.is_thrown);
-        } else if (this.is_caught) {
-            return Ball.get_velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
-        } else {
-            throw Error("Not implemented");
         }
+        //Can be caught in hand or on table
+        return Ball.get_velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
+    }
+
+    /**
+     * Asks the place where the event happens (hand or table) what its global velocity is at a given time.
+     * @param time
+     */
+    //TODO : CHANGE (see above)
+    get_place_global_position(time: number): THREE.Vector3 {
+        if (this.place instanceof Hand) {
+            return this.place.get_global_position(time);
+        }
+        return this.place.global_ball_position(this.ball.name);
+    }
+
+    /**
+     * Asks the place where the event happens (hand or table) what its global velocity is at a given time.
+     * @param time
+     */
+    //TODO : CHANGE (see above)
+    get_place_global_velocity(time: number): THREE.Vector3 {
+        if (this.place instanceof Hand) {
+            return this.place.get_global_velocity(time);
+        }
+        return new THREE.Vector3(0, 0, 0);
     }
 
     get is_thrown(): boolean {

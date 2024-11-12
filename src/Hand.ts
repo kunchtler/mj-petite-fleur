@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { VECTOR3_STRUCTURE } from "./constants";
 import { createRBTree, RBTree } from "./RBTree";
 import { CubicHermiteSpline } from "./Spline";
-import { FollowableTargetInterface, JugglingEvent } from "./Timeline";
+import { JugglingEvent } from "./Timeline";
 
 //TODO : Change the fact that all methods have get in front of them
 

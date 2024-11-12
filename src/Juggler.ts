@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { Hand, HandPhysicsHandling } from "./Hand";
 import { Object3DHelper } from "./Object3DHelper";
 import { find_elbow } from "./utils";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+// import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 type JugglerMesh = {
     head: THREE.Mesh;
