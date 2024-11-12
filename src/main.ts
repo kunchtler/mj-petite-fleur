@@ -823,21 +823,23 @@ const monitor = {
 //         console.error(error);
 //     }
 // );
-const textureLoader = new THREE.TextureLoader();
-const circleGeometry = new THREE.PlaneGeometry(0.6, 0.6);
-const texture = textureLoader.load("vincent.jpg");
-texture.colorSpace = THREE.SRGBColorSpace;
-const circleMaterial = new THREE.MeshBasicMaterial({
-    // color: 0xffffff,
-    map: texture,
-    // transparent: true,
-    // toneMapped: false,
-    side: THREE.DoubleSide
-}); // white color
-const circle = new THREE.Mesh(circleGeometry, circleMaterial);
-circle.rotateY(Math.PI / 2);
-circle.position.set(0.2, 1.75, 0);
-scene.add(circle);
+
+
+// const textureLoader = new THREE.TextureLoader();
+// const circleGeometry = new THREE.PlaneGeometry(0.6, 0.6);
+// const texture = textureLoader.load("vincent.jpg");
+// texture.colorSpace = THREE.SRGBColorSpace;
+// const circleMaterial = new THREE.MeshBasicMaterial({
+//     // color: 0xffffff,
+//     map: texture,
+//     // transparent: true,
+//     // toneMapped: false,
+//     side: THREE.DoubleSide
+// }); // white color
+// const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+// circle.rotateY(Math.PI / 2);
+// circle.position.set(0.2, 1.75, 0);
+// scene.add(circle);
 // const edgeGeometry = new THREE.EdgesGeometry(circleGeometry);
 // const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // black color
 // const outline = new THREE.LineLoop(edgeGeometry, edgeMaterial);
