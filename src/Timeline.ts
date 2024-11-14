@@ -3,7 +3,7 @@ import { Hand } from "./Hand";
 import { CWeakRef } from "./CustomWeakRef";
 import * as THREE from "three";
 import { Table } from "./Table";
-import { instance } from "three/examples/jsm/nodes/Nodes.js";
+import { OrderedMap } from "js-sdsl";
 
 //TODO : Gestion des corrodonnées globales / locales
 //TODO : Pb d'avoir get_abll_position ici : pos de la main et de la balle ne sont pas les mêmes
@@ -14,7 +14,188 @@ import { instance } from "three/examples/jsm/nodes/Nodes.js";
 
 //TODO : Timeline fait intermédiaire entre main et balle. Balle ne peut pas accéder main, et inversement ?
 // Mais comment gérer le temps ?
+//TODO : Cache tree iterator ?
+class Timeline<EventType> extends OrderedMap<number, EventType[]> {
+    constructor(initial_events?: [number, EventType | EventType[]][]) {
+        let container: [number, EventType[]][];
+        if (initial_events !== undefined) {
+            container = initial_events.map(([time, value]) => {
+                return [time, Array.isArray(value) ? value : [value]];
+            });
+        } else {
+            container = [];
+        }
+        super(container);
+    }
 
+    //TODO : time redundant if in EventType ?
+    prev_event(time: number): [number, EventType[]] | [null, null] {
+        const it = this.reverseLowerBound(time);
+        //We make a copy of the contents of the list because the list itself
+        //is a proxy otherwise (which has unexpected console.logs to watch out for)
+        return it.isAccessible() ? [...it.pointer] : [null, null];
+    }
+
+    next_event(time: number): [number, EventType[]] | [null, null] {
+        const it = this.upperBound(time);
+        return it.isAccessible() ? [...it.pointer] : [null, null];
+    }
+}
+
+class BaseEvent {
+    time: number;
+    sound_name: string[] | string | null;
+
+    constructor({ time, sound_name }: { time: number; sound_name?: string[] | string | null }) {
+        this.time = time;
+        this.sound_name = sound_name === undefined ? null : sound_name;
+    }
+
+    random_sound_name(): string {
+        if (Array.isArray(this.sound_name)) {
+            const random_idx = Math.floor(Math.random() * this.sound_name.length);
+            return this.sound_name[random_idx];
+        } else if (typeof this.sound_name === "string") {
+            return this.sound_name;
+        } else {
+            throw new Error("No sound_names have been provided.");
+        }
+    }
+}
+
+class AbstractBallHandEvent extends BaseEvent {
+    private _ball_ref?: CWeakRef<Ball>;
+    private _hand_ref?: CWeakRef<Hand>;
+    // private _cached_tree_iterator:
+
+    constructor({ time, sound_name }: { time: number; sound_name?: string[] | string | null }) {
+        super({ time, sound_name });
+    }
+
+    get ball(): Ball {
+        const obj = this._ball_ref?.deref();
+        if (obj === undefined) {
+            throw new Error("hand is undefined");
+        }
+        return obj;
+    }
+
+    set ball(new_ball: Ball) {
+        this._ball_ref = new CWeakRef(new_ball);
+    }
+
+    get hand(): Hand {
+        const obj = this._hand_ref?.deref();
+        if (obj === undefined) {
+            throw new Error("hand is undefined");
+        }
+        return obj;
+    }
+
+    set hand(new_hand: Hand) {
+        this._hand_ref = new CWeakRef(new_hand);
+    }
+
+    is_thrown(): boolean {
+        return false;
+    }
+
+    is_caught(): boolean {
+        return false;
+    }
+
+    is_set_on_table(): boolean {
+        return false;
+    }
+
+    is_taken_from_table(): boolean {
+        return false;
+    }
+
+    prev_ball_event(): [number, BaseEvent[]] | [null, null] {
+        return this.ball.timeline.prev_event();
+    }
+
+    next_ball_event(): [number, BaseEvent[]] | [null, null] {
+        return this.ball.timeline.next_event();
+    }
+
+    prev_hand_event(): [number, BaseEvent[]] | [null, null] {
+        return this.hand.timeline.prev_event();
+    }
+
+    next_hand_event(): [number, BaseEvent[]] | [null, null] {
+        return this.hand.timeline.next_event();
+    }
+
+    //TODO: Offset the ball by its radius up ?
+    //TODO: Telle what is local/global
+    global_position(): THREE.Vector3 {
+        throw Error("Not Implemented");
+        // if (this.place instanceof Hand) {
+        //     const local_position = this.place.get_site_position(this.is_thrown);
+        //     return this.place.origin_object.localToWorld(local_position);
+        // }
+        // return this.place.global_ball_position(this.ball.name);
+    }
+
+    get_ball_velocity(): THREE.Vector3 {
+        throw Error("Not Implemented");
+        // const pos0 = this.get_global_position();
+        // const pos1 = this.paired_event.get_global_position();
+        // const t0 = this.time;
+        // const t1 = this.paired_event.time;
+        // if (this.is_thrown) {
+        //     return Ball.get_velocity_at_event(pos0, t0, pos1, t1, this.is_thrown);
+        // }
+        // //Can be caught in hand or on table
+        // return Ball.get_velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
+    }
+
+    /**
+     * Asks the place where the event happens (hand or table) what its global velocity is at a given time.
+     * @param time
+     */
+    //TODO : CHANGE (see above)
+    get_place_global_position(time: number): THREE.Vector3 {
+        throw Error("Not Implemented");
+        // if (this.place instanceof Hand) {
+        //     return this.place.get_global_position(time);
+        // }
+        // return this.place.global_ball_position(this.ball.name);
+    }
+
+    /**
+     * Asks the place where the event happens (hand or table) what its global velocity is at a given time.
+     * @param time
+     */
+    //TODO : CHANGE (see above)
+    get_place_global_velocity(time: number): THREE.Vector3 {
+        throw Error("Not Implemented");
+    //     if (this.place instanceof Hand) {
+    //         return this.place.get_global_velocity(time);
+    //     }
+    //     return new THREE.Vector3(0, 0, 0);
+    // }
+}
+
+// type Test = AbstractBallEvent<Table>;
+
+// class AbstractCatchThrowEvent extends AbstractBallEvent {}
+
+// class AbstractTableEvent extends AbstractBallEvent {}
+
+class ThrowEvent extends AbstractBallHandEvent {
+
+}
+
+// class CatchEvent {}
+
+// class TablePutEvent {}
+
+// class TableTakeEvent {}
+
+// class HandCustomMovementEvent {}
 // class BasicEvent {
 //     time: number;
 //     readonly ball_status: "AIRBORNE" | "HELD" | "TABLE";
