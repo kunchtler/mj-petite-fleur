@@ -31,6 +31,8 @@ import { Table } from "./Table";
 
 //TODO : Controles fonctionnent bien sur firefox, à voire sur chrome et tel.
 //TODO : Make sfx sounds pause when simulator pauses.
+//TODO : undefined or null ?
+//TODO : Chrom + Windows : debugger not on render freezes app ?
 
 /// URL Parameters (temp) ///
 const queryString = window.location.search;
@@ -237,7 +239,18 @@ for (const [color, note] of [
     const panner = new Tone.Panner3D({ panningModel: "HRTF", rolloffFactor: 1 });
     player.connect(panner);
     panner.connect(sfx_gain);
-    simulator.balls.push(new Ball(color, 0.08, undefined, player, panner, undefined));
+    simulator.balls.push(
+        new Ball({
+            color: {
+                color,
+                radius: 0.08,
+                name: undefined,
+                sound: player,
+                panner3D: panner,
+                timeline: undefined
+            }
+        })
+    );
 }
 
 const bdo = simulator.balls[0];
@@ -272,21 +285,49 @@ function swap<T>(list: T[], order?: number[]): void {
     }
 }
 
+// function lance(
+//     ball: Ball,
+//     throw_time: number,
+//     ss_height: number,
+//     source: Hand,
+//     target: Hand,
+//     unit_time: number,
+//     sound?: string[] | string
+// ): void {
+//     const dwell_time = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
+//     const ev1 = new JugglingEvent(throw_time + dwell_time, unit_time, "THROW", source, ball);
+//     const ev2 = new JugglingEvent(
+//         throw_time + ss_height * unit_time,
+//         unit_time,
+//         "CATCH",
+//         target,
+//         ball,
+//         sound
+//     );
+//     ev1.pair_with(ev2);
+//     ball.timeline = ball.timeline.insert(ev1.time, ev1);
+//     ball.timeline = ball.timeline.insert(ev2.time, ev2);
+//     source.timeline = source.timeline.insert(ev1.time, ev1);
+//     target.timeline = target.timeline.insert(ev2.time, ev2);
+// }
+
 function lance(
     ball: Ball,
     throw_time: number,
     ss_height: number,
-    source: Hand,
-    target: Hand,
+    source: Hand | Table,
+    target: Hand | Table,
     unit_time: number,
     sound?: string[] | string
 ): void {
-    const dwell_time = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
-    const ev1 = new JugglingEvent(throw_time + dwell_time, unit_time, "THROW", source, ball);
+    const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
+    const ev1_status = source instanceof Hand ? "THROW" : "TABLE";
+    const ev2_status = target instanceof Hand ? "CATCH" : "TABLE";
+    const ev1 = new JugglingEvent(throw_time + time_offset, unit_time, ev1_status, source, ball);
     const ev2 = new JugglingEvent(
         throw_time + ss_height * unit_time,
         unit_time,
-        "CATCH",
+        ev2_status,
         target,
         ball,
         sound
@@ -294,8 +335,14 @@ function lance(
     ev1.pair_with(ev2);
     ball.timeline = ball.timeline.insert(ev1.time, ev1);
     ball.timeline = ball.timeline.insert(ev2.time, ev2);
-    source.timeline = source.timeline.insert(ev1.time, ev1);
-    target.timeline = target.timeline.insert(ev2.time, ev2);
+    if (source instanceof Hand) {
+        source.timeline = source.timeline.insert(ev1.time, ev1);
+    }
+    if (target instanceof Hand) {
+        target.timeline = target.timeline.insert(ev2.time, ev2);
+    }
+    console.log(ev1);
+    console.log(ev2);
 }
 
 const u = 0.25;
@@ -326,9 +373,36 @@ const table = new Table({
 table.mesh.position.set(0.9, 0, 0);
 scene.add(table.mesh);
 
-lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
-lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
-lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
+// lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
+// lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
+// lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
+// lance(bdo, t + 3 * u, 3, vincent.right_hand, table, u);
+
+const ev1 = new JugglingEvent(0.5, 0.1, "TABLE", table);
+
+const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
+const ev1_status = source instanceof Hand ? "THROW" : "TABLE";
+const ev2_status = target instanceof Hand ? "CATCH" : "TABLE";
+const ev1 = new JugglingEvent(throw_time + time_offset, unit_time, ev1_status, source, ball);
+const ev2 = new JugglingEvent(
+    throw_time + ss_height * unit_time,
+    unit_time,
+    ev2_status,
+    target,
+    ball,
+    sound
+);
+ev1.pair_with(ev2);
+ball.timeline = ball.timeline.insert(ev1.time, ev1);
+ball.timeline = ball.timeline.insert(ev2.time, ev2);
+if (source instanceof Hand) {
+    source.timeline = source.timeline.insert(ev1.time, ev1);
+}
+if (target instanceof Hand) {
+    target.timeline = target.timeline.insert(ev2.time, ev2);
+}
+console.log(ev1);
+console.log(ev2);
 
 
 //////////////// Editeur de patterns ////////////////

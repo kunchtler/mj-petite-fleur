@@ -155,7 +155,7 @@ function lance_pattern(
 
     // Build the balls
     for (let i = 0; i < Math.round(n_balls); i++) {
-        simulator.balls[i] = new Ball(colors[i], 0.04);
+        simulator.balls[i] = new Ball({ color: { color: colors[i], radius: 0.04 } });
     }
 
     // Add balls to scene

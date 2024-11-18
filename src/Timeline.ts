@@ -15,28 +15,45 @@ import { OrderedMap } from "js-sdsl";
 //TODO : Timeline fait intermédiaire entre main et balle. Balle ne peut pas accéder main, et inversement ?
 // Mais comment gérer le temps ?
 //TODO : Cache tree iterator ?
-class Timeline<EventType> extends OrderedMap<number, EventType[]> {
-    constructor(initial_events?: [number, EventType | EventType[]][]) {
-        let container: [number, EventType[]][];
-        if (initial_events !== undefined) {
-            container = initial_events.map(([time, value]) => {
-                return [time, Array.isArray(value) ? value : [value]];
-            });
-        } else {
-            container = [];
-        }
-        super(container);
-    }
+//TODO : Replace with OrderedMap<number, EventType>.
+// In case of Ball, it is BallEvent, else it is HandEvent
+// class Timeline<EventType> extends OrderedMap<number, EventType[]> {
+//     constructor(initial_events?: [number, EventType | EventType[]][]) {
+//         let container: [number, EventType[]][];
+//         if (initial_events !== undefined) {
+//             container = initial_events.map(([time, value]) => {
+//                 return [time, Array.isArray(value) ? value : [value]];
+//             });
+//         } else {
+//             container = [];
+//         }
+//         super(container);
+//     }
 
+//     //TODO : time redundant if in EventType ?
+//     prev_event(time: number): [number, EventType[]] | [null, null] {
+//         const it = this.reverseLowerBound(time);
+//         //We make a copy of the contents of the list because the list itself
+//         //is a proxy otherwise (which has unexpected console.logs to watch out for)
+//         return it.isAccessible() ? [...it.pointer] : [null, null];
+//     }
+
+//     next_event(time: number): [number, EventType[]] | [null, null] {
+//         const it = this.upperBound(time);
+//         return it.isAccessible() ? [...it.pointer] : [null, null];
+//     }
+// }
+
+class Timeline<EventType> extends OrderedMap<number, EventType> {
     //TODO : time redundant if in EventType ?
-    prev_event(time: number): [number, EventType[]] | [null, null] {
+    prev_event(time: number): [number, EventType] | [null, null] {
         const it = this.reverseLowerBound(time);
         //We make a copy of the contents of the list because the list itself
         //is a proxy otherwise (which has unexpected console.logs to watch out for)
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
 
-    next_event(time: number): [number, EventType[]] | [null, null] {
+    next_event(time: number): [number, EventType] | [null, null] {
         const it = this.upperBound(time);
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
@@ -63,17 +80,46 @@ class BaseEvent {
     }
 }
 
-class AbstractBallHandEvent extends BaseEvent {
-    private _ball_ref?: CWeakRef<Ball>;
-    private _hand_ref?: CWeakRef<Hand>;
+export interface BallEventInterface extends BaseEvent {
+    ball: Ball;
+    next_ball_event(): [number, BallEventInterface] | [null, null];
+    prev_ball_event(): [number, BallEventInterface] | [null, null];
+    ball_position(): THREE.Vector3;
+    ball_velocity(): THREE.Vector3;
+}
+
+export interface HandEventInterface extends BaseEvent {
+    hand: Hand;
+    next_hand_event(): [number, HandEventInterface[]] | [null, null];
+    prev_hand_event(): [number, HandEventInterface[]] | [null, null];
+    hand_position(): THREE.Vector3;
+    hand_velocity(): THREE.Vector3;
+}
+
+class AbstractBallHandEvent extends BaseEvent implements BallEventInterface, HandEventInterface {
+    private _ball_ref: CWeakRef<Ball>;
+    private _hand_ref: CWeakRef<Hand>;
+    private _hand_slots?: CWeakRef<Ball>[];
     // private _cached_tree_iterator:
 
-    constructor({ time, sound_name }: { time: number; sound_name?: string[] | string | null }) {
+    constructor({
+        time,
+        sound_name,
+        ball,
+        hand
+    }: {
+        time: number;
+        sound_name?: string[] | string | null;
+        ball: Ball;
+        hand: Hand;
+    }) {
         super({ time, sound_name });
+        this._ball_ref = new CWeakRef(ball);
+        this._hand_ref = new CWeakRef(hand);
     }
 
     get ball(): Ball {
-        const obj = this._ball_ref?.deref();
+        const obj = this._ball_ref.deref();
         if (obj === undefined) {
             throw new Error("hand is undefined");
         }
@@ -85,7 +131,7 @@ class AbstractBallHandEvent extends BaseEvent {
     }
 
     get hand(): Hand {
-        const obj = this._hand_ref?.deref();
+        const obj = this._hand_ref.deref();
         if (obj === undefined) {
             throw new Error("hand is undefined");
         }
@@ -96,41 +142,44 @@ class AbstractBallHandEvent extends BaseEvent {
         this._hand_ref = new CWeakRef(new_hand);
     }
 
-    is_thrown(): boolean {
-        return false;
-    }
+    //TODO : next 8 methods uneeded ?
+    // First four with instanceof
+    // Second four rather call that lien each time ?
+    // is_thrown(): boolean {
+    //     return false;
+    // }
 
-    is_caught(): boolean {
-        return false;
-    }
+    // is_caught(): boolean {
+    //     return false;
+    // }
 
-    is_set_on_table(): boolean {
-        return false;
-    }
+    // is_set_on_table(): boolean {
+    //     return false;
+    // }
 
-    is_taken_from_table(): boolean {
-        return false;
-    }
+    // is_taken_from_table(): boolean {
+    //     return false;
+    // }
 
-    prev_ball_event(): [number, BaseEvent[]] | [null, null] {
+    prev_ball_event(): [number, BallEventInterface] | [null, null] {
         return this.ball.timeline.prev_event();
     }
 
-    next_ball_event(): [number, BaseEvent[]] | [null, null] {
+    next_ball_event(): [number, BallEventInterface] | [null, null] {
         return this.ball.timeline.next_event();
     }
 
-    prev_hand_event(): [number, BaseEvent[]] | [null, null] {
+    prev_hand_event(): [number, HandEventInterface[]] | [null, null] {
         return this.hand.timeline.prev_event();
     }
 
-    next_hand_event(): [number, BaseEvent[]] | [null, null] {
+    next_hand_event(): [number, HandEventInterface[]] | [null, null] {
         return this.hand.timeline.next_event();
     }
 
     //TODO: Offset the ball by its radius up ?
     //TODO: Telle what is local/global
-    global_position(): THREE.Vector3 {
+    ball_position(): THREE.Vector3 {
         throw Error("Not Implemented");
         // if (this.place instanceof Hand) {
         //     const local_position = this.place.get_site_position(this.is_thrown);
@@ -139,7 +188,7 @@ class AbstractBallHandEvent extends BaseEvent {
         // return this.place.global_ball_position(this.ball.name);
     }
 
-    get_ball_velocity(): THREE.Vector3 {
+    ball_velocity(): THREE.Vector3 {
         throw Error("Not Implemented");
         // const pos0 = this.get_global_position();
         // const pos1 = this.paired_event.get_global_position();
@@ -150,6 +199,14 @@ class AbstractBallHandEvent extends BaseEvent {
         // }
         // //Can be caught in hand or on table
         // return Ball.get_velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
+    }
+
+    hand_position(): THREE.Vector3 {
+        throw Error("Not Implemented");
+    }
+
+    hand_velocity(): THREE.Vector3 {
+        throw Error("Not Implemented");
     }
 
     /**
@@ -172,28 +229,62 @@ class AbstractBallHandEvent extends BaseEvent {
     //TODO : CHANGE (see above)
     get_place_global_velocity(time: number): THREE.Vector3 {
         throw Error("Not Implemented");
-    //     if (this.place instanceof Hand) {
-    //         return this.place.get_global_velocity(time);
-    //     }
-    //     return new THREE.Vector3(0, 0, 0);
-    // }
+        //     if (this.place instanceof Hand) {
+        //         return this.place.get_global_velocity(time);
+        //     }
+        //     return new THREE.Vector3(0, 0, 0);
+        // }
+    }
 }
 
 // type Test = AbstractBallEvent<Table>;
 
 // class AbstractCatchThrowEvent extends AbstractBallEvent {}
 
-// class AbstractTableEvent extends AbstractBallEvent {}
+class AbstractTableEvent extends AbstractBallHandEvent {
+    table: Table;
 
-class ThrowEvent extends AbstractBallHandEvent {
-
+    constructor({
+        time,
+        sound_name,
+        ball,
+        hand,
+        table
+    }: {
+        time: number;
+        sound_name?: string[] | string | null;
+        ball: Ball;
+        hand: Hand;
+        table: Table;
+    }) {
+        super({ time, sound_name, ball, hand });
+        this.table = table;
+    }
 }
 
-// class CatchEvent {}
+export class ThrowEvent extends AbstractBallHandEvent {
+    ball_position(): THREE.Vector3 {
+        // return this.hand
+    }
 
-// class TablePutEvent {}
+    ball_velocity(): THREE.Vector3 {
+        const pos0 = this.ball_position();
+        const pos1 = this.next_ball_event.ball_position();
+        const t0 = this.time;
+        const t1 = this.paired_event.time;
+        if (this.is_thrown) {
+            return Ball.velocity_at_event(pos0, t0, pos1, t1, this.is_thrown);
+        }
+        //Can be caught in hand or on table
+        return Ball.velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
+    }
+}
 
-// class TableTakeEvent {}
+export class CatchEvent extends AbstractBallHandEvent {}
+
+export class TablePutEvent extends AbstractTableEvent{}
+
+export class TableTakeEvent extends AbstractTableEvent{}
 
 // class HandCustomMovementEvent {}
 // class BasicEvent {
@@ -315,10 +406,10 @@ class JugglingEvent /*extends BasicEvent*/ {
         const t0 = this.time;
         const t1 = this.paired_event.time;
         if (this.is_thrown) {
-            return Ball.get_velocity_at_event(pos0, t0, pos1, t1, this.is_thrown);
+            return Ball.velocity_at_event(pos0, t0, pos1, t1, this.is_thrown);
         }
         //Can be caught in hand or on table
-        return Ball.get_velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
+        return Ball.velocity_at_event(pos1, t1, pos0, t0, this.is_thrown);
     }
 
     /**
@@ -368,6 +459,8 @@ class JugglingEvent /*extends BasicEvent*/ {
         }
     }
 }
+
+export { JugglingEvent, AbstractBallHandEvent, Timeline };
 
 // class ThrowEvent extends JugglingEvent {
 //     siteswap_height: number;
@@ -453,10 +546,4 @@ class JugglingEvent /*extends BasicEvent*/ {
 //     }
 // }
 
-export interface FollowableTargetInterface {
-    tmp(time: number, ball: Ball): THREE.Vector3;
-    // get_global_position(time: number): THREE.Vector3;
-    // get_global_velocity(time: number): THREE.Vector3;
-}
-
-export { JugglingEvent };
+// export { JugglingEvent };

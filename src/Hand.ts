@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { VECTOR3_STRUCTURE } from "./constants";
 import { createRBTree, RBTree } from "./RBTree";
 import { CubicHermiteSpline } from "./Spline";
-import { JugglingEvent } from "./Timeline";
+import { HandEventInterface, JugglingEvent, Timeline } from "./Timeline";
+import { Ball } from "./Ball";
 
 //TODO : Change the fact that all methods have get in front of them
 
@@ -24,13 +25,14 @@ class Hand /*implements FollowableTargetInterface*/ {
     geometry: THREE.BufferGeometry;
     material: THREE.Material;
     mesh: THREE.Mesh;
-    timeline: RBTree<number, JugglingEvent>;
+    timeline: Timeline<HandEventInterface[]>;
     readonly rest_site_dist: number;
     readonly is_right_hand: boolean;
     readonly up_vector: THREE.Vector3;
     readonly right_vector: THREE.Vector3;
     readonly origin_object: THREE.Object3D;
     readonly center_rest_dist: number;
+    private readonly _balls: Ball[];
     catch_pos: THREE.Vector3;
     throw_pos: THREE.Vector3;
     rest_pos: THREE.Vector3;
@@ -39,14 +41,15 @@ class Hand /*implements FollowableTargetInterface*/ {
     constructor(
         hand_physics_handling: HandPhysicsHandling,
         is_right_hand: boolean,
-        timeline?: RBTree<number, JugglingEvent>
+        balls: Ball[],
+        timeline?: Timeline<HandEventInterface[]>
     ) {
         this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
         this.material = new THREE.MeshPhongMaterial({ color: "black" });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         // this.mesh.visible = false;
         if (timeline === undefined) {
-            this.timeline = createRBTree();
+            this.timeline = new Timeline<HandEventInterface[]>();
         } else {
             this.timeline = structuredClone(timeline);
         }
@@ -67,6 +70,7 @@ class Hand /*implements FollowableTargetInterface*/ {
             this.center_rest_dist + this.rest_site_dist,
             center_hand_unit_vector
         );
+        this._balls = balls;
     }
 
     get_site_position(is_thrown: boolean): THREE.Vector3 {

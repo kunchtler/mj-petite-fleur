@@ -1,8 +1,27 @@
 import * as THREE from "three";
 import { createRBTree, RBTree } from "./RBTree";
 import { GRAVITY } from "./constants";
-import { JugglingEvent } from "./Timeline";
+import {
+    AbstractBallHandEvent,
+    BallEventInterface,
+    CatchEvent,
+    JugglingEvent,
+    TablePutEvent,
+    TableTakeEvent,
+    Timeline
+} from "./Timeline";
 import * as Tone from "tone";
+import { Table } from "./Table";
+
+interface BallConstructorInterface {
+    color: number | string;
+    radius: number;
+    name?: string;
+    sound?: Tone.Players | Tone.Player | string;
+    panner3D?: Tone.Panner3D;
+    timeline?: Timeline<BallEventInterface>;
+    default_table?: Table;
+}
 
 // function create_audio(note_name: string): HTMLAudioElement {
 //     throw new Error("Not implemented");
@@ -17,19 +36,21 @@ class Ball {
     material: THREE.Material;
     mesh: THREE.Mesh;
     name: string;
-    sound: Tone.Players | Tone.Player | undefined;
-    panner3D: Tone.Panner3D | undefined;
-    timeline: RBTree<number, JugglingEvent>;
-    prev_time = 0;
+    timeline: Timeline<BallEventInterface>;
+    sound?: Tone.Players | Tone.Player;
+    panner3D?: Tone.Panner3D;
+    default_table?: Table;
+    private _prev_time = 0;
 
-    constructor(
-        color: number | string,
-        radius: number,
-        name?: string,
-        sound?: Tone.Players | Tone.Player | string,
-        panner3D?: Tone.Panner3D,
-        timeline?: RBTree<number, JugglingEvent>
-    ) {
+    constructor({
+        color,
+        radius,
+        name,
+        sound,
+        panner3D,
+        timeline,
+        default_table
+    }: BallConstructorInterface) {
         this.color = color;
         this.radius = radius;
         this.geometry = new THREE.SphereGeometry(radius, 8, 8);
@@ -38,7 +59,7 @@ class Ball {
         this.mesh = new THREE.Mesh(this.geometry, this.material);
 
         if (timeline === undefined) {
-            this.timeline = createRBTree();
+            this.timeline = new Timeline();
         } else {
             this.timeline = structuredClone(timeline);
         }
@@ -49,40 +70,40 @@ class Ball {
         }
         this.sound = sound;
         this.panner3D = panner3D;
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         this.name = name !== undefined ? name : "None";
+        this.default_table = default_table;
     }
 
     /**
      * @param time The time in seconds.
      * @returns The position of the ball at that given time.
      */
-    get_position(time: number): THREE.Vector3 {
-        const prev_event = this.timeline.le(time).value;
-        const next_event = this.timeline.gt(time).value;
+    position(time: number): THREE.Vector3 {
+        const [t0, prev_event] = this.timeline.prev_event(time);
+        const [t1, next_event] = this.timeline.next_event(time);
 
         // Cases when one of the event is undefined.
-        // Note : Should not happen if :
-        //  - the timeline starts and ends with held events
-        //  - and those events happen at +/- Infinity.
-
-        //TODO : Rather have timeline sanitized with +/- Infinity ?
-        //But that way, more error prone.
-        //Have start/end special events (to make clear when begin/end ?) NO
-
-        if (prev_event === undefined && next_event === undefined) {
-            throw new Error("No event in the timeline to determine where the ball is.");
-        }
-        if (prev_event === undefined) {
-            if (next_event!.is_caught) {
-                throw new Error("Ball is caught at the beginning without being thrown.");
+        if (prev_event === null && next_event === null) {
+            if (this.default_table === undefined) {
+                throw new Error("No event in the timeline to determine where the ball is.");
             }
-            return next_event!.place.get_global_position(time);
+            return this.default_table.global_ball_position(this.name);
+        }
+        if (prev_event === null) {
+            if (next_event instanceof CatchEvent) {
+                throw new Error("Ball is caught at the beginning without being thrown.");
+            } else if (next_event instanceof ThrowEvent) {
+                return next_event!.get_place_global_position(time);
+            } else if (next_event instanceof TablePutEvent) {
+            } else if (next_event instanceof TableTakeEvent) {
+            }
         }
         if (next_event === undefined) {
             if (prev_event.is_thrown) {
                 throw new Error("Ball is thrown at the end without being caught.");
             } else if (prev_event.is_caught) {
-                return prev_event.place.get_global_position(time);
+                return prev_event.get_place_global_position(time);
             } else {
                 //return prev_event.t;
                 return new THREE.Vector3(0, 0, 0);
@@ -100,18 +121,19 @@ class Ball {
                 time
             );
         } else {
-            return prev_event.place.get_global_position(time);
+            return prev_event.get_place_global_position(time);
         }
     }
 
-    static get_velocity_at_event(
+    static velocity_at_event(event: BallEventInterface): THREE.Vector3;
+    static velocity_at_event(
         pos0: THREE.Vector3,
         t0: number,
         pos1: THREE.Vector3,
         t1: number,
         is_thrown: boolean
     ): THREE.Vector3 {
-        const dt = t1 - t0;
+        if (event instanceof Event) const dt = t1 - t0;
         const v0x = (pos1.x - pos0.x) / dt;
         const v0z = (pos1.z - pos0.z) / dt;
         const v0y = (dt * GRAVITY) / 2 + (pos1.y - pos0.y) / dt;
@@ -126,7 +148,7 @@ class Ball {
         t1: number,
         t: number
     ): THREE.Vector3 {
-        const v0 = this.get_velocity_at_event(pos0, t0, pos1, t1, true);
+        const v0 = this.velocity_at_event(pos0, t0, pos1, t1, true);
         return new THREE.Vector3(
             v0.x * (t - t0) + pos0.x,
             (-GRAVITY / 2) * (t - t0) ** 2 + v0.y * (t - t0) + pos0.y,
@@ -141,7 +163,7 @@ class Ball {
         t1: number,
         t: number
     ): THREE.Vector3 {
-        const v0 = this.get_velocity_at_event(pos0, t0, pos1, t1, true);
+        const v0 = this.velocity_at_event(pos0, t0, pos1, t1, true);
         return new THREE.Vector3(v0.x, -GRAVITY * t + v0.y, v0.z);
     }
 
@@ -180,24 +202,24 @@ class Ball {
         if (prev_event.hand_status === "THROW") {
             //TODO : Check next_event is not throw to catch errors early.
             return Ball.get_airborne_velocity(
-                prev_event.global_position(),
+                prev_event.get_global_position(),
                 prev_event.time,
-                next_event.global_position(),
+                next_event.get_global_position(),
                 next_event.time,
                 time
             );
         }
         if (prev_event.hand_status === "CATCH") {
-            return prev_event.place.global_velocity(time);
+            return prev_event.get_place_global_velocity(time);
         }
-        return prev_event.table.global_ball_position(this.name);
+        return prev_event.get_place_global_position(time);
     }
 
     //TODO : make it so that event.sound if array or undefined in constructor ?
     //TODO : method should rather be in simulator ?
     play_on_catch(time: number): void {
         const prev_event = this.timeline.le(time).value;
-        if (prev_event !== undefined && prev_event.is_caught && this.prev_time < prev_event.time) {
+        if (prev_event !== undefined && prev_event.is_caught && this._prev_time < prev_event.time) {
             // Play a sound
             if (this.sound instanceof Tone.Players) {
                 if (prev_event.sound_name !== undefined) {
@@ -208,7 +230,7 @@ class Ball {
                 this.sound.start();
             }
         }
-        this.prev_time = time;
+        this._prev_time = time;
     }
 
     /**
@@ -217,7 +239,7 @@ class Ball {
      */
     render = (time: number): void => {
         //Receives the time in seconds.
-        const position = this.get_position(time);
+        const position = this.position(time);
         this.mesh.position.copy(position);
         this.panner3D?.setPosition(position.x, position.y, position.z);
     };
