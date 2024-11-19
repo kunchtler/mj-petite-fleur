@@ -1,16 +1,61 @@
 import * as THREE from "three";
 import { VECTOR3_STRUCTURE } from "./constants";
-import { createRBTree, RBTree } from "./RBTree";
 import { CubicHermiteSpline } from "./Spline";
-import { HandEventInterface, JugglingEvent, Timeline } from "./Timeline";
-import { Ball } from "./Ball";
+import {
+    CatchEvent,
+    HandEventInterface,
+    TablePutEvent,
+    TableTakeEvent,
+    ThrowEvent,
+    Timeline
+} from "./Timeline";
 
 //TODO : Change the fact that all methods have get in front of them
+//TODO : Change instanceof to string type as it is faster ?
+//TODO : Remove the throws and instead have union type of supported types, so that
+//it is the compiler that complains when someone tries to add events.
+//TODO : Make it so moving juggler moves its points with him (so no precalculated things ?)
+//TODO : Forbid Hand Event[] from having catch/thrown and put/take
+//TODO : Replace null by undefined ?
 
 const { multiply_by_scalar: V3SCA } = VECTOR3_STRUCTURE;
 
 // This variable serves to make hand movements more circular.
-const power = 1;
+// const power = 1;
+
+/**
+ * Converts a vector (in the mathematical sense) from world to local coordinates.
+ * @param vec a Vector3 in world coordinates.
+ * @param obj the target Object3D for local coordinates.
+ * @returns a vector in local coordinates.
+ */
+function world_to_local_vector(vec: THREE.Vector3, obj: THREE.Object3D) {
+    return obj.worldToLocal(vec.clone()).sub(obj.worldToLocal(new THREE.Vector3(0, 0, 0)));
+}
+
+function local_to_world_vector(vec: THREE.Vector3, obj: THREE.Object3D) {
+    return obj.localToWorld(vec.clone()).sub(obj.localToWorld(new THREE.Vector3(0, 0, 0)));
+}
+
+function world_to_local_position(pos: THREE.Vector3, obj: THREE.Object3D) {
+    return obj.worldToLocal(pos.clone());
+}
+
+function local_to_world_position(pos: THREE.Vector3, obj: THREE.Object3D) {
+    return obj.localToWorld(pos.clone());
+}
+
+function average_vector(vectors: THREE.Vector3[]): THREE.Vector3 {
+    const sum = new THREE.Vector3(0, 0, 0);
+    if (vectors.length === 0) {
+        return sum;
+    }
+    for (const vec of vectors) {
+        sum.add(vec);
+    }
+    sum.divideScalar(vectors.length);
+    return sum;
+}
 
 export type HandPhysicsHandling = {
     rest_site_dist: number;
@@ -32,16 +77,16 @@ class Hand /*implements FollowableTargetInterface*/ {
     readonly right_vector: THREE.Vector3;
     readonly origin_object: THREE.Object3D;
     readonly center_rest_dist: number;
-    private readonly _balls: Ball[];
-    catch_pos: THREE.Vector3;
-    throw_pos: THREE.Vector3;
-    rest_pos: THREE.Vector3;
+    local_catch_pos: THREE.Vector3;
+    local_throw_pos: THREE.Vector3;
+    local_rest_pos: THREE.Vector3;
+    // private _simulator_ref: WeakRef<Simulator>;
 
     // Constructs hand ONLY FROM THE JUGGLING PANE ORIGIN
     constructor(
         hand_physics_handling: HandPhysicsHandling,
         is_right_hand: boolean,
-        balls: Ball[],
+        /*simulator: Simulator,*/
         timeline?: Timeline<HandEventInterface[]>
     ) {
         this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
@@ -61,171 +106,213 @@ class Hand /*implements FollowableTargetInterface*/ {
         this.origin_object = hand_physics_handling.origin_object;
         const hand_sign = this.is_right_hand ? 1 : -1;
         const center_hand_unit_vector = V3SCA(hand_sign, this.right_vector);
-        this.rest_pos = V3SCA(this.center_rest_dist, center_hand_unit_vector);
-        this.throw_pos = V3SCA(
+        this.local_rest_pos = V3SCA(this.center_rest_dist, center_hand_unit_vector);
+        this.local_throw_pos = V3SCA(
             this.center_rest_dist - this.rest_site_dist,
             center_hand_unit_vector
         );
-        this.catch_pos = V3SCA(
+        this.local_catch_pos = V3SCA(
             this.center_rest_dist + this.rest_site_dist,
             center_hand_unit_vector
         );
-        this._balls = balls;
+        // this._simulator_ref = new WeakRef(simulator);
     }
 
-    get_site_position(is_thrown: boolean): THREE.Vector3 {
-        return is_thrown ? this.throw_pos.clone() : this.catch_pos.clone();
+    // get simulator(): Simulator {
+    //     const obj = this._simulator_ref.deref();
+    //     if (obj === undefined) {
+    //         throw new Error("simulator is undefined");
+    //     }
+    //     return obj;
+    // }
+
+    // set simulator(new_simulator: Simulator) {
+    //     this._simulator_ref = new WeakRef(new_simulator);
+    // }
+
+    site_position(is_thrown: boolean): THREE.Vector3 {
+        return local_to_world_position(
+            is_thrown ? this.local_throw_pos.clone() : this.local_catch_pos.clone(),
+            this.mesh
+        );
     }
 
-    world_to_local_velocity(vec: THREE.Vector3) {
-        return this.mesh.worldToLocal(vec).sub(this.mesh.worldToLocal(new THREE.Vector3(0, 0, 0)));
+    velocity_at_event(events: HandEventInterface[] | null): THREE.Vector3 {
+        if (events === null) {
+            return new THREE.Vector3(0, 0, 0);
+        }
+        const vectors: THREE.Vector3[] = [];
+        for (const event of events) {
+            if (event instanceof CatchEvent || event instanceof ThrowEvent) {
+                vectors.push(event.ball.velocity_at_catch_throw_event(event));
+            } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
+                vectors.push(new THREE.Vector3(0, 0, 0));
+            } else {
+                throw Error("Unimplemented behaviour");
+            }
+        }
+        return average_vector(vectors);
     }
 
+    position_at_event(events: HandEventInterface[] | null): THREE.Vector3 {
+        if (events === null) {
+            return local_to_world_position(this.local_rest_pos, this.mesh);
+        }
+        const vectors: THREE.Vector3[] = [];
+        for (const event of events) {
+            if (event instanceof CatchEvent || event instanceof ThrowEvent) {
+                vectors.push(this.site_position(event instanceof ThrowEvent));
+            } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
+                vectors.push(event.table.ball_position(event.ball.name));
+            } else {
+                throw Error("Unimplemented behaviour");
+            }
+        }
+        return average_vector(vectors);
+    }
+
+    //TODO : Move unit_time info to simulator level.
+    //TODO : Better handle local/global corrdinates functions ?
+    //eg : make local functions private and global public.
+    //or make spline global. Better ?
+    //TODO : Make HandEventInterface[] have its own time ?
+    // TODO : Add a little bit of impact based on speed after throw / catch. Ou quand la ball sonne et qu'on la claque dans la main.
+    //Rather clamp position ?
     get_spline(
-        prev_event: JugglingEvent | undefined,
-        next_event: JugglingEvent | undefined
+        prev_event: HandEventInterface[] | null,
+        next_event: HandEventInterface[] | null
     ): CubicHermiteSpline<THREE.Vector3> {
         let points: THREE.Vector3[], dpoints: THREE.Vector3[], knots: number[];
-        if (prev_event === undefined && next_event === undefined) {
-            points = [this.rest_pos];
-            dpoints = [new THREE.Vector3(0, 0, 0)];
+
+        if (prev_event === null && next_event === null) {
+            points = [this.position_at_event(null)];
+            dpoints = [this.velocity_at_event(null)];
             knots = [0];
-        } else if (prev_event === undefined) {
-            points = [this.rest_pos, this.get_site_position(next_event!.is_thrown)];
-            dpoints = [
-                new THREE.Vector3(0, 0, 0),
-                this.world_to_local_velocity(next_event!.get_ball_velocity())
-            ];
+            return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
+        }
+        points = [this.position_at_event(prev_event), this.position_at_event(next_event)];
+        dpoints = [this.velocity_at_event(prev_event), this.velocity_at_event(next_event)];
+        if (prev_event === null) {
             knots = [next_event!.time - next_event!.unit_time, next_event!.time];
-        } else if (next_event === undefined) {
-            points = [this.get_site_position(prev_event.is_thrown), this.rest_pos];
-            dpoints = [
-                this.world_to_local_velocity(prev_event.get_ball_velocity()),
-                new THREE.Vector3(0, 0, 0)
-            ];
+        } else if (next_event === null) {
             knots = [prev_event.time, prev_event.time + prev_event.unit_time];
         } else {
-            const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
-            const next_sca = next_event.is_thrown ? 1 : 1 / 3;
-            // const prev_sca = 1;
-            // const next_sca = 1;
+            knots = [prev_event.time, next_event.time];
+            //If two much time sperate the previous from the next event, we add some rest.
             if (
                 prev_event.time + 1.5 * prev_event.unit_time <
                 next_event.time - 1.5 * next_event.unit_time
             ) {
-                points = [
-                    this.get_site_position(prev_event.is_thrown),
-                    this.rest_pos, // Plutôt idem que la ligne au dessus ?
-                    this.rest_pos, // Plutôt idem que la ligne au dessus ?
-                    this.get_site_position(next_event.is_thrown)
-                ];
-                dpoints = [
-                    V3SCA(prev_sca, this.world_to_local_velocity(prev_event.get_ball_velocity())),
-                    new THREE.Vector3(0, 0, 0),
-                    new THREE.Vector3(0, 0, 0),
-                    V3SCA(next_sca, this.world_to_local_velocity(next_event.get_ball_velocity()))
-                ];
-                knots = [
-                    prev_event.time,
+                points.splice(1, 0, this.position_at_event(null), this.position_at_event(null));
+                dpoints.splice(1, 0, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0));
+                knots.splice(
+                    1,
+                    0,
                     prev_event.time + 1.5 * prev_event.unit_time,
-                    next_event.time - 1.5 * next_event.unit_time,
-                    next_event.time
-                ];
-            } else {
-                points = [
-                    this.get_site_position(prev_event.is_thrown),
-                    this.get_site_position(next_event.is_thrown)
-                ];
-                dpoints = [
-                    V3SCA(prev_sca, this.world_to_local_velocity(prev_event.get_ball_velocity())),
-                    V3SCA(next_sca, this.world_to_local_velocity(next_event.get_ball_velocity()))
-                ];
-                knots = [prev_event.time, next_event.time];
+                    next_event.time - 1.5 * next_event.unit_time
+                );
             }
         }
-        // TODO : Add a little bit of impact based on speed after throw / catch. Ou quand la ball sonne et qu'on la claque dans la main.
+        // Hand catch/throw movement scaling.
+        // const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
+        // const next_sca = next_event.is_thrown ? 1 : 1 / 3;
+        let prev_sca = 1,
+            next_sca = 1;
+        if (prev_event instanceof CatchEvent || next_event instanceof ThrowEvent) {
+            prev_sca = 1 / 3;
+        }
+        if (next_event instanceof CatchEvent) {
+            next_sca = 1 / 3;
+        }
+        dpoints[0].multiplyScalar(prev_sca);
+        dpoints[dpoints.length - 1].multiplyScalar(next_sca);
+        // Hard Hand movement clamp.
         for (const dp of dpoints) {
             dp.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
         }
-        // console.log(dpoints[0].z);
         return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
     }
 
-    hand_position_correction(pos: THREE.Vector3): THREE.Vector3 {
-        const dist = pos.distanceTo(this.rest_pos);
-        if (dist <= 1e-8) {
-            return pos.clone();
-        }
-        return pos
-            .clone()
-            .sub(this.rest_pos)
-            .multiplyScalar((this.rest_site_dist / dist) ** (1 - power))
-            .add(this.rest_pos);
-    }
+    // hand_position_correction(pos: THREE.Vector3): THREE.Vector3 {
+    //     const dist = pos.distanceTo(this.rest_pos);
+    //     if (dist <= 1e-8) {
+    //         return pos.clone();
+    //     }
+    //     return pos
+    //         .clone()
+    //         .sub(this.rest_pos)
+    //         .multiplyScalar((this.rest_site_dist / dist) ** (1 - power))
+    //         .add(this.rest_pos);
+    // }
 
-    hand_velocity_jacobian(pos: THREE.Vector3): THREE.Matrix3 {
-        const dist = pos.distanceTo(this.rest_pos);
-        // TODO? : if (dist == 0) {
-        //     return
-        // }
-        const correction_jacobian = new THREE.Matrix3(
-            dist ** 2 / power + pos.x * (pos.x - this.rest_pos.x),
-            pos.x * (pos.y - this.rest_pos.y),
-            pos.x * (pos.z - this.rest_pos.z),
-            pos.y * (pos.x - this.rest_pos.x),
-            dist ** 2 / power + pos.y * (pos.y - this.rest_pos.y),
-            pos.y * (pos.z - this.rest_pos.z),
-            pos.z * (pos.x - this.rest_pos.x),
-            pos.z * (pos.y - this.rest_pos.y),
-            dist ** 2 / power + pos.z * (pos.z - this.rest_pos.z)
-        );
-        correction_jacobian.multiplyScalar(
-            dist ** (power - 2) * this.rest_site_dist ** -power * power
-        );
-        return correction_jacobian;
-    }
+    // hand_velocity_jacobian(pos: THREE.Vector3): THREE.Matrix3 {
+    //     const dist = pos.distanceTo(this.rest_pos);
+    //     // TODO? : if (dist == 0) {
+    //     //     return
+    //     // }
+    //     const correction_jacobian = new THREE.Matrix3(
+    //         dist ** 2 / power + pos.x * (pos.x - this.rest_pos.x),
+    //         pos.x * (pos.y - this.rest_pos.y),
+    //         pos.x * (pos.z - this.rest_pos.z),
+    //         pos.y * (pos.x - this.rest_pos.x),
+    //         dist ** 2 / power + pos.y * (pos.y - this.rest_pos.y),
+    //         pos.y * (pos.z - this.rest_pos.z),
+    //         pos.z * (pos.x - this.rest_pos.x),
+    //         pos.z * (pos.y - this.rest_pos.y),
+    //         dist ** 2 / power + pos.z * (pos.z - this.rest_pos.z)
+    //     );
+    //     correction_jacobian.multiplyScalar(
+    //         dist ** (power - 2) * this.rest_site_dist ** -power * power
+    //     );
+    //     return correction_jacobian;
+    // }
 
-    get_local_position(time: number): THREE.Vector3 {
-        const prev_event = this.timeline.le(time).value;
-        const next_event = this.timeline.gt(time).value;
+    // local_position(time: number): THREE.Vector3 {
+    //     const prev_event = this.timeline.le(time).value;
+    //     const next_event = this.timeline.gt(time).value;
+    //     const spline = this.get_spline(prev_event, next_event);
+    //     const pos = spline.interpolate(time);
+    //     return pos;
+    // return this.hand_position_correction(pos);
+
+    // const prev_event = this.timeline.le(time).value;
+    // const next_event = this.timeline.gt(time).value;
+    // const spline = this.get_spline(prev_event, next_event);
+    // return spline.interpolate(time);
+    // }
+
+    position(time: number): THREE.Vector3 {
+        const [, prev_event] = this.timeline.prev_event(time);
+        const [, next_event] = this.timeline.next_event(time);
         const spline = this.get_spline(prev_event, next_event);
-        const pos = spline.interpolate(time);
-        return this.hand_position_correction(pos);
-
-        // const prev_event = this.timeline.le(time).value;
-        // const next_event = this.timeline.gt(time).value;
-        // const spline = this.get_spline(prev_event, next_event);
-        // return spline.interpolate(time);
+        return spline.interpolate(time);
     }
+
+    // local_velocity(time: number): THREE.Vector3 {
+    //     const [, prev_event] = this.timeline.prev_event(time);
+    //     const [, next_event] = this.timeline.next_event(time);
+    //     const spline = this.get_spline(prev_event, next_event);
+    //     const vel = spline.velocity(time);
+    //     return vel;
+    // const pos = spline.interpolate(time);
+    // return vel.applyMatrix3(this.hand_velocity_jacobian(pos));
+
+    // const prev_event = this.timeline.le(time).value;
+    // const next_event = this.timeline.gt(time).value;
+    // const spline = this.get_spline(prev_event, next_event);
+    // return spline.velocity(time);
+    // }
+
+    // global_velocity(time: number): THREE.Vector3 {
+    //     const vec = this.local_velocity(time);
+    //     return this.mesh.localToWorld(vec).sub(this.mesh.localToWorld(new THREE.Vector3(0, 0, 0)));
+    // }
 
     //TODO : Pas ouf que _origin_object soit utilisé ici. Changer la classe ?
     //Faire uniquement avec mesh en faisant offset ?
     //Note : suppose que le jongleur ne bouge pas.
-    get_global_position(time: number): THREE.Vector3 {
-        return this.origin_object.localToWorld(this.get_local_position(time));
-    }
-
-    get_local_velocity(time: number): THREE.Vector3 {
-        const prev_event = this.timeline.le(time).value;
-        const next_event = this.timeline.gt(time).value;
-        const spline = this.get_spline(prev_event, next_event);
-        const vel = spline.velocity(time);
-        const pos = spline.interpolate(time);
-        return vel.applyMatrix3(this.hand_velocity_jacobian(pos));
-
-        // const prev_event = this.timeline.le(time).value;
-        // const next_event = this.timeline.gt(time).value;
-        // const spline = this.get_spline(prev_event, next_event);
-        // return spline.velocity(time);
-    }
-
-    get_global_velocity(time: number): THREE.Vector3 {
-        const vec = this.get_local_velocity(time);
-        return this.mesh.localToWorld(vec).sub(this.mesh.localToWorld(new THREE.Vector3(0, 0, 0)));
-    }
-
     render = (time: number): void => {
-        this.mesh.position.copy(this.get_local_position(time));
+        this.mesh.position.copy(world_to_local_position(this.position(time), this.origin_object));
     };
 
     /**
@@ -237,12 +324,11 @@ class Hand /*implements FollowableTargetInterface*/ {
         }
         this.geometry.dispose();
         this.material.dispose();
-        this.timeline = createRBTree();
+        this.timeline.clear();
     }
 }
 
 export { Hand };
-
 
 // import * as THREE from "three";
 // import { VECTOR3_STRUCTURE } from "./constants";

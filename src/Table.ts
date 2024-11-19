@@ -46,7 +46,7 @@ class Table {
         this._surface_internal.add(new THREE.GridHelper(10, 10, "orange", "orange"));
     }
 
-    global_ball_position(ball_name: string): THREE.Vector3 {
+    ball_position(ball_name: string): THREE.Vector3 {
         let pos: THREE.Vector2;
         if (ball_name in this.balls_placement) {
             pos = this.balls_placement[ball_name];

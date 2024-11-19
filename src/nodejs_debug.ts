@@ -54,4 +54,4 @@ import { Recorder } from "tone";
 // console.log(a.reverseUpperBound(0).isAccessible());
 // console.log(...a.reverseUpperBound(0).pointer); // x < 1
 
-const a = new Map<
+const a = 1;

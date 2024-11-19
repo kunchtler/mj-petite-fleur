@@ -271,7 +271,7 @@ class Juggler {
         this.elbow.position.copy(
             find_elbow(
                 this.shoulder.position,
-                this.mesh.worldToLocal(this.right_hand.get_global_position(time)),
+                this.right_hand.position(time),
                 this.arm_length,
                 this.arm_length,
                 this.target.position
