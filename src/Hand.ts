@@ -7,7 +7,9 @@ import {
     TablePutEvent,
     TableTakeEvent,
     ThrowEvent,
-    Timeline
+    Timeline,
+    HandTimelineEvent,
+    HandMultiEvent
 } from "./Timeline";
 
 //TODO : Change the fact that all methods have get in front of them
@@ -17,6 +19,8 @@ import {
 //TODO : Make it so moving juggler moves its points with him (so no precalculated things ?)
 //TODO : Forbid Hand Event[] from having catch/thrown and put/take
 //TODO : Replace null by undefined ?
+//TODO : Replace HandEventInterface by HandEventTimeline in function signatures ?
+//TODO : Better handle type checking of multievent ?
 
 const { multiply_by_scalar: V3SCA } = VECTOR3_STRUCTURE;
 
@@ -70,7 +74,7 @@ class Hand /*implements FollowableTargetInterface*/ {
     geometry: THREE.BufferGeometry;
     material: THREE.Material;
     mesh: THREE.Mesh;
-    timeline: Timeline<HandEventInterface[]>;
+    timeline: Timeline<HandTimelineEvent>;
     readonly rest_site_dist: number;
     readonly is_right_hand: boolean;
     readonly up_vector: THREE.Vector3;
@@ -87,14 +91,14 @@ class Hand /*implements FollowableTargetInterface*/ {
         hand_physics_handling: HandPhysicsHandling,
         is_right_hand: boolean,
         /*simulator: Simulator,*/
-        timeline?: Timeline<HandEventInterface[]>
+        timeline?: Timeline<HandTimelineEvent>
     ) {
         this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
         this.material = new THREE.MeshPhongMaterial({ color: "black" });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         // this.mesh.visible = false;
         if (timeline === undefined) {
-            this.timeline = new Timeline<HandEventInterface[]>();
+            this.timeline = new Timeline<HandTimelineEvent>();
         } else {
             this.timeline = structuredClone(timeline);
         }
@@ -137,38 +141,54 @@ class Hand /*implements FollowableTargetInterface*/ {
         );
     }
 
-    velocity_at_event(events: HandEventInterface[] | null): THREE.Vector3 {
-        if (events === null) {
+    velocity_at_event(event: HandEventInterface | null, is_prev?: boolean): THREE.Vector3 {
+        if (event === null || event instanceof TablePutEvent || event instanceof TableTakeEvent) {
             return new THREE.Vector3(0, 0, 0);
-        }
-        const vectors: THREE.Vector3[] = [];
-        for (const event of events) {
-            if (event instanceof CatchEvent || event instanceof ThrowEvent) {
-                vectors.push(event.ball.velocity_at_catch_throw_event(event));
-            } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-                vectors.push(new THREE.Vector3(0, 0, 0));
-            } else {
-                throw Error("Unimplemented behaviour");
+        } else if (event instanceof HandMultiEvent) {
+            const velocities: THREE.Vector3[] = [];
+            for (const single_event of event.events) {
+                if (single_event instanceof CatchEvent || single_event instanceof ThrowEvent) {
+                    const velocity = single_event.ball.velocity_at_catch_throw_event(single_event);
+                    // Hand catch/throw movement scaling.
+                    // const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
+                    // const next_sca = next_event.is_thrown ? 1 : 1 / 3;
+                    let sca = 1;
+                    if (is_prev) {
+                        sca = 1 / 3;
+                    } else if (single_event instanceof CatchEvent) {
+                        sca = 1 / 3;
+                    }
+                    velocities.push(velocity.multiplyScalar(sca));
+                } else {
+                    throw Error("Unimplemented behaviour");
+                }
             }
+            // Hard Hand movement clamp.
+            for (const velocity of velocities) {
+                velocity.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
+            }
+            return average_vector(velocities);
         }
-        return average_vector(vectors);
+        throw Error("Unimplemented behaviour");
     }
 
-    position_at_event(events: HandEventInterface[] | null): THREE.Vector3 {
-        if (events === null) {
+    position_at_event(event: HandEventInterface | null): THREE.Vector3 {
+        if (event === null) {
             return local_to_world_position(this.local_rest_pos, this.mesh);
-        }
-        const vectors: THREE.Vector3[] = [];
-        for (const event of events) {
-            if (event instanceof CatchEvent || event instanceof ThrowEvent) {
-                vectors.push(this.site_position(event instanceof ThrowEvent));
-            } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-                vectors.push(event.table.ball_position(event.ball.name));
-            } else {
-                throw Error("Unimplemented behaviour");
+        } else if (event instanceof HandMultiEvent) {
+            const positions: THREE.Vector3[] = [];
+            for (const single_event of event.events) {
+                if (single_event instanceof CatchEvent || single_event instanceof ThrowEvent) {
+                    positions.push(this.site_position(single_event instanceof ThrowEvent));
+                    // } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
+                    //     vectors.push(event.table.ball_position(event.ball.name));
+                } else {
+                    throw Error("Unimplemented behaviour");
+                }
             }
+            return average_vector(positions);
         }
-        return average_vector(vectors);
+        throw Error("Unimplemented behaviour");
     }
 
     //TODO : Move unit_time info to simulator level.
@@ -179,8 +199,8 @@ class Hand /*implements FollowableTargetInterface*/ {
     // TODO : Add a little bit of impact based on speed after throw / catch. Ou quand la ball sonne et qu'on la claque dans la main.
     //Rather clamp position ?
     get_spline(
-        prev_event: HandEventInterface[] | null,
-        next_event: HandEventInterface[] | null
+        prev_event: HandTimelineEvent | null,
+        next_event: HandTimelineEvent | null
     ): CubicHermiteSpline<THREE.Vector3> {
         let points: THREE.Vector3[], dpoints: THREE.Vector3[], knots: number[];
 
@@ -212,23 +232,6 @@ class Hand /*implements FollowableTargetInterface*/ {
                     next_event.time - 1.5 * next_event.unit_time
                 );
             }
-        }
-        // Hand catch/throw movement scaling.
-        // const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
-        // const next_sca = next_event.is_thrown ? 1 : 1 / 3;
-        let prev_sca = 1,
-            next_sca = 1;
-        if (prev_event instanceof CatchEvent || next_event instanceof ThrowEvent) {
-            prev_sca = 1 / 3;
-        }
-        if (next_event instanceof CatchEvent) {
-            next_sca = 1 / 3;
-        }
-        dpoints[0].multiplyScalar(prev_sca);
-        dpoints[dpoints.length - 1].multiplyScalar(next_sca);
-        // Hard Hand movement clamp.
-        for (const dp of dpoints) {
-            dp.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
         }
         return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
     }

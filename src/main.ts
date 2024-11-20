@@ -9,9 +9,10 @@ import * as Tone from "tone";
 // import { lance } from "./Interactive_siteswap_player";
 import { MediaPlayer, TimeConductor } from "./AudioPlayer";
 import { Hand } from "./Hand";
-import { JugglingEvent } from "./Timeline";
+import { ThrowEvent, CatchEvent, HandMultiEvent } from "./Timeline";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Table } from "./Table";
+import { string } from "three/examples/jsm/nodes/Nodes.js";
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -201,16 +202,16 @@ async function handle_sounds_loaded() {
     handle_load_end();
 }
 
-const sfx_buffers = {
-    do: new Tone.ToneAudioBuffer("notes/C4.mp3"),
-    re: new Tone.ToneAudioBuffer("notes/D4.mp3"),
-    mi: new Tone.ToneAudioBuffer("notes/E4.mp3"),
-    fa: new Tone.ToneAudioBuffer("notes/F4.mp3"),
-    sol: new Tone.ToneAudioBuffer("notes/G4.mp3"),
-    la: new Tone.ToneAudioBuffer("notes/A4.mp3"),
-    si: new Tone.ToneAudioBuffer("notes/B4.mp3"),
-    do2: new Tone.ToneAudioBuffer("notes/C5.mp3")
-};
+const sfx_buffers = new Map<string, Tone.ToneAudioBuffer>([
+    ["do", new Tone.ToneAudioBuffer("notes/C4.mp3")],
+    ["re", new Tone.ToneAudioBuffer("notes/D4.mp3")],
+    ["mi", new Tone.ToneAudioBuffer("notes/E4.mp3")],
+    ["fa", new Tone.ToneAudioBuffer("notes/F4.mp3")],
+    ["sol", new Tone.ToneAudioBuffer("notes/G4.mp3")],
+    ["la", new Tone.ToneAudioBuffer("notes/A4.mp3")],
+    ["si", new Tone.ToneAudioBuffer("notes/B4.mp3")],
+    ["do2", new Tone.ToneAudioBuffer("notes/C5.mp3")]
+]);
 
 const sfx_gain = new Tone.Gain(mute_simulator ? 0 : 1).toDestination();
 // sfx_gain.gain.value = 0;
@@ -235,20 +236,18 @@ for (const [color, note] of [
     ["green", "re"],
     ["blue", "mi"]
 ]) {
-    const player = new Tone.Player(sfx_buffers[note]);
+    const player = new Tone.Player(sfx_buffers.get(note));
     const panner = new Tone.Panner3D({ panningModel: "HRTF", rolloffFactor: 1 });
     player.connect(panner);
     panner.connect(sfx_gain);
     simulator.balls.push(
         new Ball({
-            color: {
-                color,
-                radius: 0.08,
-                name: undefined,
-                sound: player,
-                panner3D: panner,
-                timeline: undefined
-            }
+            color: color,
+            radius: 0.08,
+            name: undefined,
+            sound: player,
+            panner3D: panner,
+            timeline: undefined
         })
     );
 }
@@ -266,24 +265,24 @@ const vincent = simulator.jugglers[0];
 // }
 // const pane = new TWEAKPANE.Pane({ container: tweakpane_container });
 
-function swap<T>(list: T[], order?: number[]): void {
-    if (list.length === 0) {
-        return;
-    }
-    if (order === undefined) {
-        order = [];
-        for (let i = 0; i < list.length; i++) {
-            order.push((i + 1) % list.length);
-        }
-    }
-    const list2: T[] = [];
-    for (let i = 0; i < list.length; i++) {
-        list2.push(list[order[i]]);
-    }
-    for (let i = 0; i < list.length; i++) {
-        list[i] = list2[i];
-    }
-}
+// function swap<T>(list: T[], order?: number[]): void {
+//     if (list.length === 0) {
+//         return;
+//     }
+//     if (order === undefined) {
+//         order = [];
+//         for (let i = 0; i < list.length; i++) {
+//             order.push((i + 1) % list.length);
+//         }
+//     }
+//     const list2: T[] = [];
+//     for (let i = 0; i < list.length; i++) {
+//         list2.push(list[order[i]]);
+//     }
+//     for (let i = 0; i < list.length; i++) {
+//         list[i] = list2[i];
+//     }
+// }
 
 // function lance(
 //     ball: Ball,
@@ -315,34 +314,54 @@ function lance(
     ball: Ball,
     throw_time: number,
     ss_height: number,
-    source: Hand | Table,
-    target: Hand | Table,
+    source: Hand,
+    target: Hand,
     unit_time: number,
     sound?: string[] | string
 ): void {
     const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
-    const ev1_status = source instanceof Hand ? "THROW" : "TABLE";
-    const ev2_status = target instanceof Hand ? "CATCH" : "TABLE";
-    const ev1 = new JugglingEvent(throw_time + time_offset, unit_time, ev1_status, source, ball);
-    const ev2 = new JugglingEvent(
-        throw_time + ss_height * unit_time,
-        unit_time,
-        ev2_status,
-        target,
-        ball,
-        sound
-    );
-    ev1.pair_with(ev2);
-    ball.timeline = ball.timeline.insert(ev1.time, ev1);
-    ball.timeline = ball.timeline.insert(ev2.time, ev2);
-    if (source instanceof Hand) {
-        source.timeline = source.timeline.insert(ev1.time, ev1);
-    }
-    if (target instanceof Hand) {
-        target.timeline = target.timeline.insert(ev2.time, ev2);
-    }
+    const ev1 = new ThrowEvent({
+        time: throw_time + time_offset,
+        unit_time: unit_time,
+        sound_name: sound,
+        ball: ball,
+        hand: source
+    });
+    const ev2 = new CatchEvent({
+        time: throw_time + ss_height * unit_time,
+        unit_time: unit_time,
+        sound_name: sound,
+        ball: ball,
+        hand: target
+    });
     console.log(ev1);
     console.log(ev2);
+    ball.timeline.setElement(ev1.time, ev1);
+    ball.timeline.setElement(ev2.time, ev2);
+    const source_it = source.timeline.find(ev1.time);
+    if (source_it.isAccessible() && source_it.pointer[1] instanceof HandMultiEvent) {
+        source_it.pointer[1].events.push(ev1);
+    } else {
+        const source_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
+            time: ev1.time,
+            unit_time: ev1.unit_time,
+            hand: ev1.hand,
+            events: [ev1]
+        });
+        source.timeline.setElement(source_ev.time, source_ev);
+    }
+    const target_it = source.timeline.find(ev1.time);
+    if (target_it.isAccessible() && target_it.pointer[1] instanceof HandMultiEvent) {
+        target_it.pointer[1].events.push(ev1);
+    } else {
+        const target_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
+            time: ev2.time,
+            unit_time: ev2.unit_time,
+            hand: ev2.hand,
+            events: [ev2]
+        });
+        target.timeline.setElement(target_ev.time, target_ev);
+    }
 }
 
 const u = 0.25;
@@ -376,34 +395,7 @@ scene.add(table.mesh);
 // lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
 // lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
 // lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
-// lance(bdo, t + 3 * u, 3, vincent.right_hand, table, u);
-
-const ev1 = new JugglingEvent(0.5, 0.1, "TABLE", table);
-
-const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
-const ev1_status = source instanceof Hand ? "THROW" : "TABLE";
-const ev2_status = target instanceof Hand ? "CATCH" : "TABLE";
-const ev1 = new JugglingEvent(throw_time + time_offset, unit_time, ev1_status, source, ball);
-const ev2 = new JugglingEvent(
-    throw_time + ss_height * unit_time,
-    unit_time,
-    ev2_status,
-    target,
-    ball,
-    sound
-);
-ev1.pair_with(ev2);
-ball.timeline = ball.timeline.insert(ev1.time, ev1);
-ball.timeline = ball.timeline.insert(ev2.time, ev2);
-if (source instanceof Hand) {
-    source.timeline = source.timeline.insert(ev1.time, ev1);
-}
-if (target instanceof Hand) {
-    target.timeline = target.timeline.insert(ev2.time, ev2);
-}
-console.log(ev1);
-console.log(ev2);
-
+//lance(bdo, t + 3 * u, 3, vincent.right_hand, table, u);
 
 //////////////// Editeur de patterns ////////////////
 

@@ -7,10 +7,13 @@ import {
     TablePutEvent,
     TableTakeEvent,
     Timeline,
-    BaseEvent
+    BaseEvent,
+    BallTimelineEvent
 } from "./Timeline";
 import * as Tone from "tone";
 import { Table } from "./Table";
+
+//TODO : Replace type BallEventInterface by BallTimelineEvent in functions signatures ?
 
 function thrown_ball_velocity_at_start_end(
     pos0: THREE.Vector3,
@@ -59,7 +62,7 @@ interface BallConstructorInterface {
     name?: string;
     sound?: Tone.Players | Tone.Player | string;
     panner3D?: Tone.Panner3D;
-    timeline?: Timeline<BallEventInterface>;
+    timeline?: Timeline<BallTimelineEvent>;
     default_table?: Table;
 }
 
@@ -78,7 +81,7 @@ class Ball {
     material: THREE.Material;
     mesh: THREE.Mesh;
     name: string;
-    timeline: Timeline<BallEventInterface>;
+    timeline: Timeline<BallTimelineEvent>;
     sound?: Tone.Players | Tone.Player;
     panner3D?: Tone.Panner3D;
     default_table?: Table;
