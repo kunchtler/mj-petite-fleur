@@ -71,6 +71,7 @@ body {
     align-items: center;
     height: 2rem;
     max-width: 2rem;
+    user-select: none;
 }
 
 .slider {
