@@ -137,13 +137,15 @@ class Hand /*implements FollowableTargetInterface*/ {
     site_position(is_thrown: boolean): THREE.Vector3 {
         return local_to_world_position(
             is_thrown ? this.local_throw_pos.clone() : this.local_catch_pos.clone(),
-            this.mesh
+            this.origin_object
         );
     }
 
     velocity_at_event(event: HandEventInterface | null, is_prev?: boolean): THREE.Vector3 {
         if (event === null || event instanceof TablePutEvent || event instanceof TableTakeEvent) {
             return new THREE.Vector3(0, 0, 0);
+        } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
+            return event.ball.velocity_at_catch_throw_event(event);
         } else if (event instanceof HandMultiEvent) {
             const velocities: THREE.Vector3[] = [];
             for (const single_event of event.events) {
@@ -174,7 +176,11 @@ class Hand /*implements FollowableTargetInterface*/ {
 
     position_at_event(event: HandEventInterface | null): THREE.Vector3 {
         if (event === null) {
-            return local_to_world_position(this.local_rest_pos, this.mesh);
+            // console.log(this.mesh.position);
+            //TODO : Handle this origin object better ? Easy errors if we put this.mesh instead.
+            return local_to_world_position(this.local_rest_pos, this.origin_object);
+        } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
+            return this.site_position(event instanceof ThrowEvent)
         } else if (event instanceof HandMultiEvent) {
             const positions: THREE.Vector3[] = [];
             for (const single_event of event.events) {
@@ -315,7 +321,9 @@ class Hand /*implements FollowableTargetInterface*/ {
     //Faire uniquement avec mesh en faisant offset ?
     //Note : suppose que le jongleur ne bouge pas.
     render = (time: number): void => {
+        // console.log("1", this.mesh.position);
         this.mesh.position.copy(world_to_local_position(this.position(time), this.origin_object));
+        // console.log("2", this.mesh.position);
     };
 
     /**

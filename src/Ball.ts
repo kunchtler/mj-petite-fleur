@@ -7,7 +7,6 @@ import {
     TablePutEvent,
     TableTakeEvent,
     Timeline,
-    BaseEvent,
     BallTimelineEvent
 } from "./Timeline";
 import * as Tone from "tone";
@@ -121,7 +120,10 @@ class Ball {
     }
 
     //TODO : Move this as static for events
-    throw_timeline_error(event1: BaseEvent | null, event2: BaseEvent | null): void {
+    throw_timeline_error(
+        event1: BallEventInterface | null,
+        event2: BallEventInterface | null
+    ): void {
         const str1 =
             event1 === null
                 ? `has previous event null`
@@ -362,24 +364,40 @@ class Ball {
     //TODO : method should rather be in simulator ?
     //TODO : Make it so if the ball has sounds, there are options to play on every event, or catch, or throw.
     //TODO : Make it so if the ball falls after a throw it makes a sound
+    //TODO : Rename to play_sound, and have it executed on all events rather than just ball.
     play_on_catch(time: number): void {
         const prev_event = this.timeline.prev_event(time)[1];
-        if (
-            prev_event !== null &&
-            prev_event instanceof ThrowEvent &&
-            this._prev_time <= prev_event.time
-        ) {
+        if (prev_event === null) {
+            this._prev_time = time;
+            return;
+        }
+        if (prev_event.sound_name !== null && this._prev_time <= prev_event.time) {
             // Play a sound
             if (this.sound instanceof Tone.Players) {
-                if (prev_event.sound_name !== null) {
-                    const sound_name = prev_event.random_sound_name();
-                    this.sound.player(sound_name).start();
-                }
+                const sound_name = prev_event.random_sound_name();
+                this.sound.player(sound_name).start();
             } else if (this.sound instanceof Tone.Player) {
                 this.sound.start();
             }
         }
         this._prev_time = time;
+        // const prev_event = this.timeline.prev_event(time)[1];
+        // if (
+        //     prev_event !== null &&
+        //     prev_event instanceof CatchEvent &&
+        //     this._prev_time <= prev_event.time
+        // ) {
+        //     // Play a sound
+        //     if (this.sound instanceof Tone.Players) {
+        //         if (prev_event.sound_name !== null) {
+        //             const sound_name = prev_event.random_sound_name();
+        //             this.sound.player(sound_name).start();
+        //         }
+        //     } else if (this.sound instanceof Tone.Player) {
+        //         this.sound.start();
+        //     }
+        // }
+        // this._prev_time = time;
     }
 
     /**

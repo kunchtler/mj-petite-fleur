@@ -57,12 +57,17 @@ export class Timeline<EventType> extends OrderedMap<number, EventType> {
         const it = strict ? this.upperBound(time) : this.lowerBound(time);
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
+
+    pretty_print(): void {
+        this.forEach(([, event]) => {
+            console.log(event);
+        });
+    }
 }
 
 export class BaseEvent {
     time: number;
     sound_name: string[] | string | null;
-    readonly error_ball_status: string = "unnamed attribute";
 
     constructor({ time, sound_name }: { time: number; sound_name?: string[] | string | null }) {
         this.time = time;
@@ -83,6 +88,7 @@ export class BaseEvent {
 
 export interface BallEventInterface extends BaseEvent {
     ball: Ball;
+    error_ball_status: string;
     next_ball_event(): [number, BallTimelineEvent] | [null, null];
     prev_ball_event(): [number, BallTimelineEvent] | [null, null];
     // ball_position(): THREE.Vector3;
@@ -105,6 +111,7 @@ export class AbstractBallHandEvent extends BaseEvent implements BallEventInterfa
     private _ball_ref: WeakRef<Ball>;
     private _hand_ref: WeakRef<Hand>;
     unit_time: number;
+    readonly error_ball_status: string = "unnamed attribute";
     // private _cached_tree_iterator:
 
     constructor({
@@ -285,6 +292,9 @@ export class HandMultiEvent<T extends HandEventInterface> extends AbstractHandEv
     }
 }
 
+class MultiThrowCatchEvent extends HandMultiEvent<CatchEvent | ThrowEvent> {
+} //TODO Implement this
+//TODO : move ball error status to AbstractBallEvent only (not hand)
 //TODO : Replace TablePutEvent / TableTakeEvent with MultiHandEvent<TablePutEvent | TableTakeEvent> ?
 export type HandTimelineEvent =
     | HandMultiEvent<CatchEvent | ThrowEvent>

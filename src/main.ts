@@ -62,7 +62,7 @@ if (
 }
 
 seek_bar.value = "0";
-seek_bar.max = "10";
+seek_bar.max = "5";
 
 const time_conductor = new TimeConductor({});
 
@@ -323,14 +323,14 @@ function lance(
     const ev1 = new ThrowEvent({
         time: throw_time + time_offset,
         unit_time: unit_time,
-        sound_name: sound,
+        sound_name: null,
         ball: ball,
         hand: source
     });
     const ev2 = new CatchEvent({
         time: throw_time + ss_height * unit_time,
         unit_time: unit_time,
-        sound_name: sound,
+        sound_name: "", //TODO : Fix sound handling, this is dirty. Have events play sound. Have hands not have this attribute.
         ball: ball,
         hand: target
     });
@@ -350,7 +350,7 @@ function lance(
         });
         source.timeline.setElement(source_ev.time, source_ev);
     }
-    const target_it = source.timeline.find(ev1.time);
+    const target_it = target.timeline.find(ev1.time);
     if (target_it.isAccessible() && target_it.pointer[1] instanceof HandMultiEvent) {
         target_it.pointer[1].events.push(ev1);
     } else {
@@ -392,10 +392,15 @@ const table = new Table({
 table.mesh.position.set(0.9, 0, 0);
 scene.add(table.mesh);
 
-// lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
-// lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
-// lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
+const right_hand = vincent.right_hand;
+const left_hand = vincent.left_hand;
+
+lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
+lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
+lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
 //lance(bdo, t + 3 * u, 3, vincent.right_hand, table, u);
+
+//TODO : Shorten notes or Synthesize with Tone ?
 
 //////////////// Editeur de patterns ////////////////
 
@@ -571,7 +576,7 @@ const monitor = {
 
 function render(t: number) {
     const time = t * 0.001; // convert time to seconds
-
+    // console.log(vincent.mesh.position);
     // fpsGraph.begin();
     const video_time = time_conductor.currentTime;
     // monitor.video_time = time;
@@ -602,7 +607,6 @@ function render(t: number) {
     listener.upX.value = camera_up.x;
     listener.upY.value = camera_up.y;
     listener.upZ.value = camera_up.z;
-
     renderer.render(scene, camera);
 
     // fpsGraph.end();
@@ -618,5 +622,5 @@ simulator.balls = simulator.balls.filter((ball) => {
 simulator.balls.forEach((ball) => {
     scene.add(ball.mesh);
 });
-
+resizeRendererToDisplaySize(renderer, camera /*, init_tan_fov, init_window_height*/);
 requestAnimationFrame(render);
