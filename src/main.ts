@@ -9,7 +9,7 @@ import * as Tone from "tone";
 // import { lance } from "./Interactive_siteswap_player";
 import { MediaPlayer, TimeConductor } from "./AudioPlayer";
 import { Hand } from "./Hand";
-import { ThrowEvent, CatchEvent, HandMultiEvent } from "./Timeline";
+import { ThrowEvent, CatchEvent, HandMultiEvent, TablePutEvent } from "./Timeline";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Table } from "./Table";
 import { string } from "three/examples/jsm/nodes/Nodes.js";
@@ -29,6 +29,7 @@ import { string } from "three/examples/jsm/nodes/Nodes.js";
 //TODO : Dans petite fleur, tester le u plus petit dans les fonctions.
 //TODO : Remake system to sync with tonejs transport ? (to allow for smooth bpm transitions for instance)
 //TODO : Change sfx playbackrate based on music playbackrate.
+//TODO : For fun, squash and stretch on the ball + Failevent
 
 //TODO : Controles fonctionnent bien sur firefox, à voire sur chrome et tel.
 //TODO : Make sfx sounds pause when simulator pauses.
@@ -364,6 +365,23 @@ function lance(
     }
 }
 
+//TODO : Forbid in timeline a ball to "teleport from hand to hand" ?
+//TODO : Instead of having rest depend unit time, make it depend on some constant (time independent from unit_time)
+//TODO : timeline.add_event(event) so as not to pass event.time ?
+//TODO : Function to add things to the timeline and handle collision ?
+function put_on_table(ball: Ball, time: number, hand: Hand, table: Table, unit_time: number): void {
+    const time_offset = unit_time / 3; //TODO : Pb if next event too close :/
+    const ev = new TablePutEvent({
+        time: time + time_offset,
+        unit_time: unit_time,
+        ball: ball,
+        hand: hand,
+        table: table
+    });
+    ball.timeline.setElement(ev.time, ev);
+    hand.timeline.setElement(ev.time, ev);
+}
+
 const u = 0.25;
 const t = 0;
 
@@ -398,6 +416,10 @@ const left_hand = vincent.left_hand;
 lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
 lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
 lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
+put_on_table(bdo, t + 5 * u, vincent.right_hand, table, u);
+lance(bre, t + 9 * u, 3, vincent.left_hand, vincent.right_hand, u);
+//TODO : Change the fact that we need more time to put balls on the table than to throw it
+//So adapt the time where we go at rest position.
 //lance(bdo, t + 3 * u, 3, vincent.right_hand, table, u);
 
 //TODO : Shorten notes or Synthesize with Tone ?

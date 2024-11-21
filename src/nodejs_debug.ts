@@ -1,57 +1,100 @@
-// import { createRBTree, RBTree } from "./RBTree";
+import { log } from "tone/build/esm/core/util/Debug";
+import { Hand } from "./Hand";
 
-import { Recorder } from "tone";
+interface Tree<T> {
+    value: T;
+    children: Tree<T>[];
+}
 
-// let a: RBTree<number, number> = createRBTree();
-// let b: RBTree<number, number> = a;
-// console.log(Object.is(a, b));
-// console.log(Object.is(a, b));
-// console.log(Object.is(a.find(0).tree, a));
-// // a = a.insert(0, 10);
-// a = a.insert(0, 11);
-// a = a.insert(0, 12);
-// a = a.insert(0, 13);
-// a = a.insert(0, 14);
-// a = a.insert(0, 15);
-// // console.log(a);
-// a.forEach((key, value) => {
-//     console.log(`${key} ${value}`);
-// });
-// let it = a.find(0);
-// console.log(it.value);
-// it.next();
-// console.log(it.value);
-// it.prev();
-// console.log(it.value);
-// it.prev();
-// console.log(it.value);
-// it.prev();
-// console.log(it.value);
-// it.prev();
-// console.log(it.value);
-// it.prev();
-// console.log(it.value);
-// a = a.remove(0);
-// a.forEach((key, value) => {
-//     console.log(`${key} ${value}`);
-// });
+const a: Tree<number> = {
+    value: 0,
+    children: [
+        {
+            value: 1,
+            children: [
+                { value: 1, children: [] },
+                { value: 1, children: [] }
+            ]
+        },
+        { value: 1, children: [] }
+    ]
+};
 
-// import { OrderedMap } from "js-sdsl";
+type TreeNode = {
+    children?: TreeNode[];
+} & object;
 
-// const a = new OrderedMap([
-//     [0, "a"],
-//     [0, "a2"],
-//     [1, "b"],
-//     [2, "c"]
-// ] as [number, string][]);
-// // console.log(a);
-// a.forEach(([key, value]) => {
-//     console.log([key, value]);
-// });
-// console.log(...a.lowerBound(0).pointer); // 1 <= x
-// console.log(...a.reverseLowerBound(0).pointer); // x <= 1
-// console.log(...a.upperBound(0).pointer); // 1 < x
-// console.log(a.reverseUpperBound(0).isAccessible());
-// console.log(...a.reverseUpperBound(0).pointer); // x < 1
+type Tree2 = {
+    children: Tree2[];
+};
 
-const a = 1;
+console.log(a);
+
+class A {
+    time: number;
+    constructor(time: number) {
+        this.time = time;
+    }
+}
+
+class B {
+    time: number;
+    b = "a";
+    constructor(time: number) {
+        this.time = time;
+    }
+}
+
+function isB(x: A | B): x is B {
+    return (x as B).b !== undefined;
+}
+
+type test = A | B;
+
+type Chaining = [A, B] | [A, A] | [B, B];
+
+function bar([x, y]: Chaining) {
+    if (isB(x)) {
+        y;
+    }
+}
+
+function foo(x: test) {
+    console.log(x.time);
+}
+
+// type Base = { next(): HandEvent };
+
+// type SingleThrow = { name: "st" };
+// type SingleCatch = { name: "sc" };
+// type TablePut = Base & { name: "tp" };
+// type TableTake = Base & { name: "tt" };
+// type MultTC = Base & { ev: (SingleThrow | SingleCatch)[] };
+
+// type HandEvent = (MultTC | TablePut | TableTake) | null;
+
+// const b: HandEvent = {
+//     name: "tp",
+//     next: () => {
+//         return { ev: [{ name: "st" }, { name: "st" }, { name: "sc" }], next: () => null };
+//     }
+// };
+
+// interface Base { next(): HandEvent };
+
+// interface SingleThrow { name: "st" };
+// interface SingleCatch { name: "sc" };
+// interface TablePut Base & { name: "tp" };
+// interface TableTake = Base & { name: "tt" };
+// interface MultTC = Base & { ev: (SingleThrow | SingleCatch)[] };
+
+// type HandEvent = (MultTC | TablePut | TableTake) | null;
+
+// const b: HandEvent = {
+//     name: "tp",
+//     next: () => {
+//         return { ev: [{ name: "st" }, { name: "st" }, { name: "sc" }], next: () => null };
+//     }
+// };
+
+// console.log(Infinity < Infinity);

@@ -44,6 +44,7 @@ class Simulator {
     renderer: THREE.WebGLRenderer;
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
+    controls: OrbitControls;
     balls: Ball[];
     jugglers: Juggler[];
     // paused: boolean;
@@ -84,6 +85,10 @@ class Simulator {
         this.renderer = renderer;
         this.camera = camera;
         this.scene = scene;
+        this.controls = controls;
+        // controls.addEventListener("change", () => {
+        //     renderer.render(this.scene, this.camera);
+        // });
 
         this.balls = [];
         this.jugglers = [];

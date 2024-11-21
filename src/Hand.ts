@@ -180,7 +180,9 @@ class Hand /*implements FollowableTargetInterface*/ {
             //TODO : Handle this origin object better ? Easy errors if we put this.mesh instead.
             return local_to_world_position(this.local_rest_pos, this.origin_object);
         } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
-            return this.site_position(event instanceof ThrowEvent)
+            return this.site_position(event instanceof ThrowEvent);
+        } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
+            return event.table.ball_position(event.ball.name);
         } else if (event instanceof HandMultiEvent) {
             const positions: THREE.Vector3[] = [];
             for (const single_event of event.events) {
