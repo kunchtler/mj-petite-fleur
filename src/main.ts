@@ -9,7 +9,7 @@ import * as Tone from "tone";
 // import { lance } from "./Interactive_siteswap_player";
 import { MediaPlayer, TimeConductor } from "./AudioPlayer";
 import { Hand } from "./Hand";
-import { ThrowEvent, CatchEvent, HandMultiEvent, TablePutEvent } from "./Timeline";
+import { ThrowEvent, CatchEvent, HandMultiEvent, TablePutEvent, TableTakeEvent } from "./Timeline";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Table } from "./Table";
 import { string } from "three/examples/jsm/nodes/Nodes.js";
@@ -63,7 +63,7 @@ if (
 }
 
 seek_bar.value = "0";
-seek_bar.max = "5";
+seek_bar.max = "20";
 
 const time_conductor = new TimeConductor({});
 
@@ -226,38 +226,104 @@ const camera = simulator.camera;
 
 //create_juggler_mesh(scene, 2.0, 0.5, 0.3);
 
-simulator.jugglers = [new Juggler(2.0)];
+simulator.jugglers = [new Juggler(2.0), new Juggler(2.0)];
+const vincent = simulator.jugglers[0];
+const nicolas = simulator.jugglers[1];
+vincent.mesh.position.set(-1, 0, 1);
+nicolas.mesh.position.set(-1, 0, -1);
+
+// const right_hand = vincent.right_hand;
+// const left_hand = vincent.left_hand;
 // vincent.mesh.position.set(-1, 0, 1);
 // vincent.mesh.rotateY(Math.PI / 2);
 
 //TODO : Handle properly this await (by loading the sounds for the balls only when Tone has loaded the buffer.)
 await Tone.loaded();
+
+const balls_placement: Record<string, THREE.Vector2> = {
+    do: new THREE.Vector2(1, 0.5),
+    doD: new THREE.Vector2(1.5, 1.5),
+    re: new THREE.Vector2(2, 0.5),
+    reD: new THREE.Vector2(2.5, 1.5),
+    mi: new THREE.Vector2(3, 0.5),
+    fa: new THREE.Vector2(4, 0.5),
+    faD: new THREE.Vector2(4.5, 1.5),
+    sol: new THREE.Vector2(5, 0.5),
+    solD: new THREE.Vector2(7.5, 1.5),
+    la: new THREE.Vector2(6, 0.5),
+    laD: new THREE.Vector2(6.5, 1.5),
+    si: new THREE.Vector2(7, 0.5),
+    do2: new THREE.Vector2(8, 0.5)
+};
+
+//TODO : Raccourcir durée note.
+const table_vincent = new Table({
+    height: 0.9,
+    surface_real_dimensions: [1.1, 0.5],
+    surface_internal_dimensions: [9, 2],
+    balls_placement: balls_placement
+});
+table_vincent.mesh.position.copy(vincent.mesh.localToWorld(new THREE.Vector3(0.9, 0, 0)));
+scene.add(table_vincent.mesh);
+
+const table_nicolas = new Table({
+    height: 0.9,
+    surface_real_dimensions: [1.1, 0.5],
+    surface_internal_dimensions: [9, 2],
+    balls_placement: balls_placement
+});
+table_nicolas.mesh.position.copy(nicolas.mesh.localToWorld(new THREE.Vector3(0.9, 0, 0)));
+scene.add(table_nicolas.mesh);
+
 for (const [color, note] of [
     ["red", "do"],
-    ["green", "re"],
-    ["blue", "mi"]
+    ["orange", "re"],
+    ["yellow", "mi"],
+    ["green", "fa"],
+    ["blue", "sol"],
+    ["purple", "la"],
+    ["gray", "si"],
+    ["red", "do2"]
 ]) {
-    const player = new Tone.Player(sfx_buffers.get(note));
-    const panner = new Tone.Panner3D({ panningModel: "HRTF", rolloffFactor: 1 });
-    player.connect(panner);
-    panner.connect(sfx_gain);
-    simulator.balls.push(
-        new Ball({
-            color: color,
-            radius: 0.08,
-            name: undefined,
-            sound: player,
-            panner3D: panner,
-            timeline: undefined
-        })
-    );
+    for (const table of [table_vincent, table_nicolas]) {
+        const player = new Tone.Player(sfx_buffers.get(note));
+        const panner = new Tone.Panner3D({ panningModel: "HRTF", rolloffFactor: 1 });
+        player.connect(panner);
+        panner.connect(sfx_gain);
+        simulator.balls.push(
+            new Ball({
+                color: color,
+                radius: 0.08,
+                name: note,
+                sound: player,
+                panner3D: panner,
+                default_table: table
+            })
+        );
+    }
 }
 
-const bdo = simulator.balls[0];
-const bre = simulator.balls[1];
-const bmi = simulator.balls[2];
+const [
+    bdov,
+    dbon,
+    brev,
+    bren,
+    bmiv,
+    bmin,
+    bfav,
+    bfan,
+    bsolv,
+    bsoln,
+    blav,
+    blan,
+    bsiv,
+    bsin,
+    bdo2v,
+    bdo2n
+] = simulator.balls;
 
-const vincent = simulator.jugglers[0];
+//TODO : Add default table to juggler.
+
 //TODO : One note per ball
 
 // const tweakpane_container = document.querySelector(".tp-dfwv");
@@ -320,7 +386,7 @@ function lance(
     unit_time: number,
     sound?: string[] | string
 ): void {
-    const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 9) / 10;
+    const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 7) / 10;
     const ev1 = new ThrowEvent({
         time: throw_time + time_offset,
         unit_time: unit_time,
@@ -330,6 +396,60 @@ function lance(
     });
     const ev2 = new CatchEvent({
         time: throw_time + ss_height * unit_time,
+        unit_time: unit_time,
+        sound_name: "", //TODO : Fix sound handling, this is dirty. Have events play sound. Have hands not have this attribute.
+        ball: ball,
+        hand: target
+    });
+    console.log(ev1);
+    console.log(ev2);
+    ball.timeline.setElement(ev1.time, ev1);
+    ball.timeline.setElement(ev2.time, ev2);
+    const source_it = source.timeline.find(ev1.time);
+    if (source_it.isAccessible() && source_it.pointer[1] instanceof HandMultiEvent) {
+        source_it.pointer[1].events.push(ev1);
+    } else {
+        const source_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
+            time: ev1.time,
+            unit_time: ev1.unit_time,
+            hand: ev1.hand,
+            events: [ev1]
+        });
+        source.timeline.setElement(source_ev.time, source_ev);
+    }
+    const target_it = target.timeline.find(ev1.time);
+    if (target_it.isAccessible() && target_it.pointer[1] instanceof HandMultiEvent) {
+        target_it.pointer[1].events.push(ev1);
+    } else {
+        const target_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
+            time: ev2.time,
+            unit_time: ev2.unit_time,
+            hand: ev2.hand,
+            events: [ev2]
+        });
+        target.timeline.setElement(target_ev.time, target_ev);
+    }
+}
+
+function lance_rev(
+    ball: Ball,
+    catch_time: number,
+    ss_height: number,
+    source: Hand,
+    target: Hand,
+    unit_time: number,
+    sound?: string[] | string
+): void {
+    const time_offset = ss_height <= 1 ? unit_time / 3 : (unit_time * 7) / 10;
+    const ev1 = new ThrowEvent({
+        time: catch_time - ss_height * unit_time + time_offset,
+        unit_time: unit_time,
+        sound_name: null,
+        ball: ball,
+        hand: source
+    });
+    const ev2 = new CatchEvent({
+        time: catch_time,
         unit_time: unit_time,
         sound_name: "", //TODO : Fix sound handling, this is dirty. Have events play sound. Have hands not have this attribute.
         ball: ball,
@@ -381,43 +501,130 @@ function put_on_table(ball: Ball, time: number, hand: Hand, table: Table, unit_t
     ball.timeline.setElement(ev.time, ev);
     hand.timeline.setElement(ev.time, ev);
 }
+function take_from_table(
+    ball: Ball,
+    time: number,
+    hand: Hand,
+    table: Table,
+    unit_time: number
+): void {
+    const time_offset = unit_time / 3; //TODO : Pb if next event too close :/
+    const ev = new TableTakeEvent({
+        time: time + time_offset,
+        unit_time: unit_time,
+        ball: ball,
+        hand: hand,
+        table: table
+    });
+    ball.timeline.setElement(ev.time, ev);
+    hand.timeline.setElement(ev.time, ev);
+}
 
-const u = 0.25;
-const t = 0;
+const u = 60 / 180;
+let t = 5 * u;
+//Vincent
+lance_rev(bdov, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(bdov, t + 1 * u, 1, vincent.left_hand, vincent.right_hand, u);
+lance_rev(bmiv, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(bsolv, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
+lance_rev(bsolv, t + 4 * u, 1, vincent.right_hand, vincent.left_hand, u);
+//Nicolas
+lance_rev(bsoln, t + 6 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(bsoln, t + 7 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+lance_rev(bmin, t + 9 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(bmin, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+//In the meantime, Vincent swaps
+put_on_table(bdov, t + 6 * u, vincent.right_hand, table_vincent, u);
+put_on_table(bsolv, t + 6 * u, vincent.left_hand, table_vincent, u);
+put_on_table(bmiv, t + 6.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bdov, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bmiv, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bsolv, t + 7 * u, vincent.right_hand, table_vincent, u);
 
-const balls_placement: Record<string, THREE.Vector2> = {
-    do: new THREE.Vector2(1, 0.5),
-    doD: new THREE.Vector2(1.5, 1.5),
-    re: new THREE.Vector2(2, 0.5),
-    reD: new THREE.Vector2(2.5, 1.5),
-    mi: new THREE.Vector2(3, 0.5),
-    fa: new THREE.Vector2(4, 0.5),
-    faD: new THREE.Vector2(4.5, 1.5),
-    sol: new THREE.Vector2(5, 0.5),
-    solD: new THREE.Vector2(7.5, 1.5),
-    la: new THREE.Vector2(6, 0.5),
-    laD: new THREE.Vector2(6.5, 1.5),
-    si: new THREE.Vector2(7, 0.5),
-    do2: new THREE.Vector2(8, 0.5)
-};
+t = t + 12 * u;
+//Vincent
+lance_rev(bdov, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(bdov, t + 1 * u, 1, vincent.left_hand, vincent.right_hand, u);
+lance_rev(bmiv, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(bsolv, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
+lance_rev(bsolv, t + 4 * u, 1, vincent.right_hand, vincent.left_hand, u);
+//In the meantime, Nicolas swaps
+put_on_table(bmin, t + 0 * u, nicolas.right_hand, table_nicolas, u);
+take_from_table(bfan, t + 0.5 * u, nicolas.right_hand, table_nicolas, u);
+//Nicolas
+lance_rev(bsoln, t + 6 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(bsoln, t + 7 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+lance_rev(bfan, t + 9 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(bfan, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+//In the meantime, Vincent swaps
+put_on_table(bdov, t + 6 * u, vincent.right_hand, table_vincent, u);
+put_on_table(bsolv, t + 6 * u, vincent.left_hand, table_vincent, u);
+put_on_table(bmiv, t + 6.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(brev, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bfav, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(blav, t + 7 * u, vincent.right_hand, table_vincent, u);
 
-const table = new Table({
-    height: 1,
-    surface_real_dimensions: [1.1, 0.5],
-    surface_internal_dimensions: [9, 2],
-    balls_placement: balls_placement
-});
-table.mesh.position.set(0.9, 0, 0);
-scene.add(table.mesh);
+t = t + 12 * u;
+//Vincent
+lance_rev(brev, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(brev, t + 1 * u, 1, vincent.left_hand, vincent.right_hand, u);
+lance_rev(bfav, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(blav, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
+lance_rev(blav, t + 4 * u, 1, vincent.right_hand, vincent.left_hand, u);
+//In the meantime, Nicolas swaps
+put_on_table(bsoln, t + 0 * u, nicolas.right_hand, table_nicolas, u);
+take_from_table(blan, t + 0.5 * u, nicolas.right_hand, table_nicolas, u);
+//Nicolas
+lance_rev(blan, t + 6 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(blan, t + 7 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+lance_rev(bfan, t + 9 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(bfan, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+//In the meantime, Vincent swaps
+put_on_table(brev, t + 6 * u, vincent.right_hand, table_vincent, u);
+put_on_table(blav, t + 6 * u, vincent.left_hand, table_vincent, u);
+put_on_table(bfav, t + 6.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(brev, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bfav, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(blav, t + 7 * u, vincent.right_hand, table_vincent, u);
 
-const right_hand = vincent.right_hand;
-const left_hand = vincent.left_hand;
+t = t + 12 * u;
+//Vincent
+lance_rev(brev, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(brev, t + 1 * u, 1, vincent.left_hand, vincent.right_hand, u);
+lance_rev(bfav, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(blav, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
+lance_rev(blav, t + 4 * u, 1, vincent.right_hand, vincent.left_hand, u);
+//In the meantime, Nicolas swaps
+put_on_table(bfan, t + 0 * u, nicolas.right_hand, table_nicolas, u);
+take_from_table(bmin, t + 0.5 * u, nicolas.right_hand, table_nicolas, u);
+//Nicolas
+lance_rev(blan, t + 6 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(blan, t + 7 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+lance_rev(bmin, t + 9 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+lance_rev(bmin, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+//In the meantime, Vincent swaps
+put_on_table(brev, t + 6 * u, vincent.right_hand, table_vincent, u);
+put_on_table(blav, t + 6 * u, vincent.left_hand, table_vincent, u);
+put_on_table(bfav, t + 6.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(brev, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bfav, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(blav, t + 7 * u, vincent.right_hand, table_vincent, u);
 
-lance(bdo, t + 0 * u, 3, vincent.left_hand, vincent.right_hand, u);
-lance(bre, t + 1 * u, 3, vincent.right_hand, vincent.left_hand, u);
-lance(bmi, t + 2 * u, 3, vincent.left_hand, vincent.right_hand, u);
-put_on_table(bdo, t + 5 * u, vincent.right_hand, table, u);
-lance(bre, t + 9 * u, 3, vincent.left_hand, vincent.right_hand, u);
+// const u = 60 / 180;
+// const t = 1 * u;
+// lance(bdov, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
+// lance(bmiv, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
+// lance(bsolv, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
+// lance(bdov, t + 4 * u, 1, vincent.left_hand, vincent.right_hand, u);
+// lance(bsolv, t + 7 * u, 1, vincent.right_hand, vincent.left_hand, u);
+// lance(bsoln, t + 7 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+// lance(bsoln, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+// lance(bmin, t + 10 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
+// lance(bmin, t + 13 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
+// lance(bsoln, )
+// put_on_table(bdov, t + 5 * u, vincent.right_hand, table_vincent, u);
+// lance(bren, t + 9 * u, 3, nicolas.left_hand, nicolas.right_hand, u);
+
 //TODO : Change the fact that we need more time to put balls on the table than to throw it
 //So adapt the time where we go at rest position.
 //lance(bdo, t + 3 * u, 3, vincent.right_hand, table, u);
@@ -639,7 +846,7 @@ simulator.jugglers.forEach((juggler) => {
     scene.add(juggler.mesh);
 });
 simulator.balls = simulator.balls.filter((ball) => {
-    return ball.timeline.length !== 0;
+    return ball.timeline.length !== 0 || ball.default_table !== undefined;
 });
 simulator.balls.forEach((ball) => {
     scene.add(ball.mesh);

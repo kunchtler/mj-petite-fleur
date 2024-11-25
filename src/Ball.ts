@@ -147,7 +147,7 @@ class Ball {
             //With proper animations, could change.
             return event.hand.position_at_event(event);
         } else if (event instanceof TablePutEvent) {
-            return event.table.ball_position(this.name);
+            return event.table.ball_position(this);
         }
         throw Error("Unimplemented behaviour");
     }
@@ -167,7 +167,7 @@ class Ball {
                 if (this.default_table === undefined) {
                     this.throw_timeline_error(prev_event, next_event);
                 } else {
-                    return this.default_table.ball_position(this.name);
+                    return this.default_table.ball_position(this);
                 }
             }
             if (next_event instanceof CatchEvent) {
@@ -177,7 +177,7 @@ class Ball {
                 return next_event.hand.position(time);
             }
             if (next_event instanceof TableTakeEvent) {
-                return next_event.table.ball_position(this.name);
+                return next_event.table.ball_position(this);
             }
         }
         if (prev_event instanceof CatchEvent) {
@@ -206,7 +206,7 @@ class Ball {
                 return thrown_ball_position(
                     prev_event.hand.position_at_event(prev_event),
                     prev_event.time,
-                    next_event.table.ball_position(this.name),
+                    next_event.table.ball_position(this),
                     next_event.time,
                     time
                 );
@@ -221,7 +221,7 @@ class Ball {
         }
         if (prev_event instanceof TablePutEvent) {
             if (next_event === null || next_event instanceof TableTakeEvent) {
-                return prev_event.table.ball_position(this.name);
+                return prev_event.table.ball_position(this);
             }
             if (
                 next_event instanceof CatchEvent ||

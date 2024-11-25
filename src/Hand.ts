@@ -94,7 +94,7 @@ class Hand /*implements FollowableTargetInterface*/ {
         timeline?: Timeline<HandTimelineEvent>
     ) {
         this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
-        this.material = new THREE.MeshPhongMaterial({ color: "black" });
+        this.material = new THREE.MeshPhongMaterial({ color: 0xffdbac });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         // this.mesh.visible = false;
         if (timeline === undefined) {
@@ -182,7 +182,7 @@ class Hand /*implements FollowableTargetInterface*/ {
         } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
             return this.site_position(event instanceof ThrowEvent);
         } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-            return event.table.ball_position(event.ball.name);
+            return event.table.ball_position(event.ball);
         } else if (event instanceof HandMultiEvent) {
             const positions: THREE.Vector3[] = [];
             for (const single_event of event.events) {
@@ -228,16 +228,16 @@ class Hand /*implements FollowableTargetInterface*/ {
             knots = [prev_event.time, next_event.time];
             //If two much time sperate the previous from the next event, we add some rest.
             if (
-                prev_event.time + 1.5 * prev_event.unit_time <
-                next_event.time - 1.5 * next_event.unit_time
+                prev_event.time + 1.2 * prev_event.unit_time <
+                next_event.time - 1.2 * next_event.unit_time
             ) {
                 points.splice(1, 0, this.position_at_event(null), this.position_at_event(null));
                 dpoints.splice(1, 0, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0));
                 knots.splice(
                     1,
                     0,
-                    prev_event.time + 1.5 * prev_event.unit_time,
-                    next_event.time - 1.5 * next_event.unit_time
+                    prev_event.time + 1.2 * prev_event.unit_time,
+                    next_event.time - 1.2 * next_event.unit_time
                 );
             }
         }

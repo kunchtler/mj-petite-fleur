@@ -220,7 +220,7 @@ class Juggler {
         basic_geometry.translate(0, height / 2, 0);
         this.geometry = basic_geometry;
         this.material = new THREE.MeshPhongMaterial({
-            color: "yellow",
+            color: 0x202020,
             wireframe: false
             // visible: false
         });

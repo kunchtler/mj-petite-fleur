@@ -17,11 +17,7 @@ class TimeConductor {
     _event_target: EventTarget;
     _timeupdate_interval?: number;
 
-    constructor({
-        start_time = 0,
-        playback_rate = 1,
-        autoplay = false
-    }: TimeConductorParam) {
+    constructor({ start_time = 0, playback_rate = 1, autoplay = false }: TimeConductorParam) {
         this._last_update_time = performance.now() / 1000;
         this._last_known_time = start_time;
         this._playbackRate = playback_rate;
@@ -38,7 +34,7 @@ class TimeConductor {
         this._last_update_time = performance.now() / 1000;
         this._paused = false;
         this._event_target.dispatchEvent(new CustomEvent("play"));
-        this._timeupdate_interval = setInterval(() => {
+        this._timeupdate_interval = window.setInterval(() => {
             this._event_target.dispatchEvent(new CustomEvent("timeupdate"));
         }, 100);
         return Promise.resolve();

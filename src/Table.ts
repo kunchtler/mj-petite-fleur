@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Object3DHelper } from "./Object3DHelper";
+import { Ball } from "./Ball";
 
 //TODO : Rename Ball_placement en balls_spot
 
@@ -36,24 +37,24 @@ class Table {
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this._surface_internal = new THREE.Object3D();
         this._surface_internal.position.set(-this.width / 2, this.height, -this.depth / 2);
-        this._surface_internal.add(new Object3DHelper(true, undefined, true));
+        // this._surface_internal.add(new Object3DHelper(true, undefined, true));
         this.mesh.add(this._surface_internal);
         this._surface_internal.scale.set(
             this.width / surface_internal_dimensions[1],
             1,
             this.depth / surface_internal_dimensions[0]
         );
-        this._surface_internal.add(new THREE.GridHelper(10, 10, "orange", "orange"));
+        // this._surface_internal.add(new THREE.GridHelper(10, 10, "orange", "orange"));
     }
 
-    ball_position(ball_name: string): THREE.Vector3 {
+    ball_position(ball: Ball): THREE.Vector3 {
         let pos: THREE.Vector2;
-        if (ball_name in this.balls_placement) {
-            pos = this.balls_placement[ball_name];
+        if (ball.name in this.balls_placement) {
+            pos = this.balls_placement[ball.name];
         } else {
             pos = new THREE.Vector2(0, 0);
         }
-        return this._surface_internal.localToWorld(new THREE.Vector3(pos.x, 0, pos.y));
+        return this._surface_internal.localToWorld(new THREE.Vector3(pos.y, ball.radius, pos.x));
     }
 
     //TODO
