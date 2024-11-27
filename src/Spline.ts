@@ -1,5 +1,5 @@
 import { Matrix, Structure } from "./Matrix";
-import { createRBTree, RBTree } from "./RBTree";
+import { OrderedMap } from "js-sdsl";
 import { NUMBERS_STRUCTURE } from "./constants";
 
 //TODO : To geneeralize to splines, rename points by parameter ?
@@ -7,7 +7,7 @@ import { NUMBERS_STRUCTURE } from "./constants";
 
 abstract class Spline<T> {
     abstract knots: number[];
-    abstract tree: RBTree<number, number>;
+    abstract tree: OrderedMap<number, number>;
     abstract structure: Structure<T, number>;
 
     // constructor(structure: Structure<T, number>) {
@@ -48,26 +48,19 @@ abstract class Spline<T> {
             time = this.knots[this.knots.length - 1];
         }
 
-        const prev_it = this.tree.le(time);
-        const next_it = this.tree.ge(time);
-        const prev_time = prev_it.key;
-        const prev_idx = prev_it.value;
-        const next_time = next_it.key;
-        const next_idx = next_it.value;
-        // Sanity Check.
-        if (
-            prev_time === undefined ||
-            next_time === undefined ||
-            prev_idx === undefined ||
-            next_idx === undefined
-        ) {
+        const prev_it = this.tree.reverseLowerBound(time);
+        const next_it = this.tree.lowerBound(time);
+        // Sanity Check
+        if (!prev_it.isAccessible() || !next_it.isAccessible()) {
             throw new Error("Something went wrong...");
         }
+        // const [prev_time, prev_idx] = prev_it.pointer;
+        // const [next_time, next_idx] = next_it.pointer;
         return {
-            prev_time: prev_time,
-            next_time: next_time,
-            prev_idx: prev_idx,
-            next_idx: next_idx
+            prev_time: prev_it.pointer[0],
+            next_time: next_it.pointer[0],
+            prev_idx: prev_it.pointer[1],
+            next_idx: next_it.pointer[1]
         };
     }
 
@@ -135,7 +128,7 @@ class CubicHermiteSpline<T> extends Spline<T> {
     points: T[];
     dpoints: T[];
     knots: number[];
-    tree: RBTree<number, number>;
+    tree: OrderedMap<number, number>;
     structure: Structure<T, number>;
     private static _transformation_matrix = new Matrix<number, number>(
         [
@@ -166,11 +159,10 @@ class CubicHermiteSpline<T> extends Spline<T> {
             this.knots = knots;
         }
 
-        let tree: RBTree<number, number> = createRBTree();
+        this.tree = new OrderedMap<number, number>();
         for (let i = 0; i < this.points.length; i++) {
-            tree = tree.insert(this.knots[i], i);
+            this.tree.setElement(this.knots[i], i);
         }
-        this.tree = tree;
 
         this.structure = structure;
     }
@@ -195,7 +187,7 @@ class QuinticHermiteSpline<T> extends Spline<T> {
     dpoints: T[];
     apoints: T[];
     knots: number[];
-    tree: RBTree<number, number>;
+    tree: OrderedMap<number, number>;
     structure: Structure<T, number>;
     private static _transformation_matrix = new Matrix<number, number>(
         [
@@ -235,11 +227,10 @@ class QuinticHermiteSpline<T> extends Spline<T> {
             this.knots = knots;
         }
 
-        let tree: RBTree<number, number> = createRBTree();
+        this.tree = new OrderedMap();
         for (let i = 0; i < this.points.length; i++) {
-            tree = tree.insert(this.knots[i], i);
+            this.tree.setElement(this.knots[i], i);
         }
-        this.tree = tree;
 
         this.structure = structure;
     }

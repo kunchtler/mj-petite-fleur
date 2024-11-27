@@ -9,7 +9,6 @@ import { OrderedMap } from "js-sdsl";
 //TODO : Really needs references if can be gathered from the ball timeline ?
 //TODO : Dual condition (instanceof hand / table, and status). Create custom class instancing each other to fix this.
 //Generic class with only type instancing ?
-//TODO Remove createRBTree and createRBTRree types dpenendcies form project
 
 //TODO : Timeline fait intermédiaire entre main et balle. Balle ne peut pas accéder main, et inversement ?
 // Mais comment gérer le temps ?

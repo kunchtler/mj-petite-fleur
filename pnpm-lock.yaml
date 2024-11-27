@@ -20,9 +20,6 @@ importers:
       eslint:
         specifier: ^9.15.0
         version: 9.15.0
-      functional-red-black-tree:
-        specifier: ^1.0.1
-        version: 1.0.1
       js-sdsl:
         specifier: ^4.4.2
         version: 4.4.2
@@ -45,9 +42,6 @@ importers:
       '@tweakpane/core':
         specifier: ^2.0.5
         version: 2.0.5
-      '@types/functional-red-black-tree':
-        specifier: ^1.0.6
-        version: 1.0.6
       '@types/three':
         specifier: ^0.163.0
         version: 0.163.0
@@ -528,9 +522,6 @@ packages:
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
 
-  '@types/functional-red-black-tree@1.0.6':
-    resolution: {integrity: sha512-h7W9Mjozzx+HA9L7CSKAm3dSCa9vBea2U5kWfDuXedAjOb/Sy7VXWL4qUi7H03IJvwHEJ/vf2P2agw9XNTWZxg==}
-
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
@@ -796,9 +787,6 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
-
-  functional-red-black-tree@1.0.1:
-    resolution: {integrity: sha512-dsKNQNdj6xA3T+QlADDA7mOSlX0qiMINjn0cgr+eGHGsbSHzTabcIogz2+p/iqP1Xs6EP/sS2SbqH+brGTbq0g==}
 
   get-tsconfig@4.8.1:
     resolution: {integrity: sha512-k9PN+cFBmaLWtVz29SkUoqU5O0slLuHJXt/2P+tMVFT+phsSGXGkp9t3rQIqdz0e+06EHNGs3oM6ZX1s2zHxRg==}
@@ -1380,8 +1368,6 @@ snapshots:
 
   '@types/estree@1.0.6': {}
 
-  '@types/functional-red-black-tree@1.0.6': {}
-
   '@types/json-schema@7.0.15': {}
 
   '@types/node@22.9.0':
@@ -1724,8 +1710,6 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
-
-  functional-red-black-tree@1.0.1: {}
 
   get-tsconfig@4.8.1:
     dependencies:
