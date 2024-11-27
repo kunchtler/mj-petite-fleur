@@ -10,12 +10,12 @@ interface TimeConductorParam {
 }
 
 class TimeConductor {
-    _last_update_time: number;
-    _last_known_time: number;
-    _playbackRate: number;
-    _paused: boolean;
-    _event_target: EventTarget;
-    _timeupdate_interval?: number;
+    private _last_update_time: number;
+    private _last_known_time: number;
+    private _playbackRate: number;
+    private _paused: boolean;
+    private _event_target: EventTarget;
+    private _timeupdate_interval?: number;
 
     constructor({ start_time = 0, playback_rate = 1, autoplay = false }: TimeConductorParam) {
         this._last_update_time = performance.now() / 1000;
@@ -23,6 +23,7 @@ class TimeConductor {
         this._playbackRate = playback_rate;
         this._event_target = new EventTarget();
         this._paused = true;
+
         if (autoplay) {
             this.play().catch(() => {
                 throw new Error();
