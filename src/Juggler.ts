@@ -266,8 +266,8 @@ class Juggler {
 
     render = (time: number): void => {
         //Receives the time in seconds.
-        this.hands[0].render(time);
-        this.hands[1].render(time);
+        this.right_hand.render(time);
+        this.left_hand.render(time);
         this.elbow.position.copy(
             find_elbow(
                 this.shoulder.position,

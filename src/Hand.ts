@@ -182,7 +182,7 @@ class Hand /*implements FollowableTargetInterface*/ {
         } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
             return this.site_position(event instanceof ThrowEvent);
         } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-            return event.table.ball_position(event.ball);
+            return event.table.hand_position(event.ball);
         } else if (event instanceof HandMultiEvent) {
             const positions: THREE.Vector3[] = [];
             for (const single_event of event.events) {

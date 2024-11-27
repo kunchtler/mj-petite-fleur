@@ -57,6 +57,18 @@ class Table {
         return this._surface_internal.localToWorld(new THREE.Vector3(pos.y, ball.radius, pos.x));
     }
 
+    hand_position(ball: Ball): THREE.Vector3 {
+        let pos: THREE.Vector2;
+        if (ball.name in this.balls_placement) {
+            pos = this.balls_placement[ball.name];
+        } else {
+            pos = new THREE.Vector2(0, 0);
+        }
+        return this._surface_internal.localToWorld(
+            new THREE.Vector3(pos.y, ball.radius * 3, pos.x)
+        );
+    }
+
     //TODO
     dispose(): void {
         if (this.mesh.parent !== null) {
