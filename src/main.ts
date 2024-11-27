@@ -455,14 +455,16 @@ function lance_rev(
         ball: ball,
         hand: target
     });
-    console.log(ev1);
-    console.log(ev2);
+    // console.log(ev1);
+    // console.log(ev2);
     ball.timeline.setElement(ev1.time, ev1);
     ball.timeline.setElement(ev2.time, ev2);
     const source_it = source.timeline.find(ev1.time);
     if (source_it.isAccessible() && source_it.pointer[1] instanceof HandMultiEvent) {
+        console.log("1");
         source_it.pointer[1].events.push(ev1);
     } else {
+        console.log("2");
         const source_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
             time: ev1.time,
             unit_time: ev1.unit_time,
@@ -471,9 +473,9 @@ function lance_rev(
         });
         source.timeline.setElement(source_ev.time, source_ev);
     }
-    const target_it = target.timeline.find(ev1.time);
+    const target_it = target.timeline.find(ev2.time);
     if (target_it.isAccessible() && target_it.pointer[1] instanceof HandMultiEvent) {
-        target_it.pointer[1].events.push(ev1);
+        target_it.pointer[1].events.push(ev2);
     } else {
         const target_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
             time: ev2.time,
@@ -523,7 +525,7 @@ function take_from_table(
 const u = 60 / 180;
 let t = 5 * u;
 //Vincent
-lance_rev(bdov, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
+lance_rev(bdov, t + 0 * u, 3, vincent.left_hand, vincent.left_hand, u);
 lance_rev(bdov, t + 1 * u, 1, vincent.left_hand, vincent.right_hand, u);
 lance_rev(bmiv, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
 lance_rev(bsolv, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
@@ -537,8 +539,8 @@ lance_rev(bmin, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
 put_on_table(bdov, t + 6 * u, vincent.right_hand, table_vincent, u);
 put_on_table(bsolv, t + 6 * u, vincent.left_hand, table_vincent, u);
 put_on_table(bmiv, t + 6.5 * u, vincent.left_hand, table_vincent, u);
-take_from_table(bdov, t + 7 * u, vincent.left_hand, table_vincent, u);
-take_from_table(bmiv, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bmiv, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bdov, t + 7.5 * u, vincent.left_hand, table_vincent, u);
 take_from_table(bsolv, t + 7 * u, vincent.right_hand, table_vincent, u);
 
 t = t + 12 * u;
@@ -560,8 +562,8 @@ lance_rev(bfan, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
 put_on_table(bdov, t + 6 * u, vincent.right_hand, table_vincent, u);
 put_on_table(bsolv, t + 6 * u, vincent.left_hand, table_vincent, u);
 put_on_table(bmiv, t + 6.5 * u, vincent.left_hand, table_vincent, u);
-take_from_table(brev, t + 7 * u, vincent.left_hand, table_vincent, u);
-take_from_table(bfav, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bfav, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(brev, t + 7.5 * u, vincent.left_hand, table_vincent, u);
 take_from_table(blav, t + 7 * u, vincent.right_hand, table_vincent, u);
 
 t = t + 12 * u;
@@ -583,8 +585,8 @@ lance_rev(bfan, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
 put_on_table(brev, t + 6 * u, vincent.right_hand, table_vincent, u);
 put_on_table(blav, t + 6 * u, vincent.left_hand, table_vincent, u);
 put_on_table(bfav, t + 6.5 * u, vincent.left_hand, table_vincent, u);
-take_from_table(brev, t + 7 * u, vincent.left_hand, table_vincent, u);
-take_from_table(bfav, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bfav, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(brev, t + 7.5 * u, vincent.left_hand, table_vincent, u);
 take_from_table(blav, t + 7 * u, vincent.right_hand, table_vincent, u);
 
 t = t + 12 * u;
@@ -606,24 +608,9 @@ lance_rev(bmin, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
 put_on_table(brev, t + 6 * u, vincent.right_hand, table_vincent, u);
 put_on_table(blav, t + 6 * u, vincent.left_hand, table_vincent, u);
 put_on_table(bfav, t + 6.5 * u, vincent.left_hand, table_vincent, u);
-take_from_table(brev, t + 7 * u, vincent.left_hand, table_vincent, u);
-take_from_table(bfav, t + 7.5 * u, vincent.left_hand, table_vincent, u);
+take_from_table(bfav, t + 7 * u, vincent.left_hand, table_vincent, u);
+take_from_table(brev, t + 7.5 * u, vincent.left_hand, table_vincent, u);
 take_from_table(blav, t + 7 * u, vincent.right_hand, table_vincent, u);
-
-// const u = 60 / 180;
-// const t = 1 * u;
-// lance(bdov, t + 0 * u, 4, vincent.left_hand, vincent.left_hand, u);
-// lance(bmiv, t + 2 * u, 4, vincent.left_hand, vincent.left_hand, u);
-// lance(bsolv, t + 3 * u, 4, vincent.right_hand, vincent.right_hand, u);
-// lance(bdov, t + 4 * u, 1, vincent.left_hand, vincent.right_hand, u);
-// lance(bsolv, t + 7 * u, 1, vincent.right_hand, vincent.left_hand, u);
-// lance(bsoln, t + 7 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
-// lance(bsoln, t + 10 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
-// lance(bmin, t + 10 * u, 3, nicolas.right_hand, nicolas.left_hand, u);
-// lance(bmin, t + 13 * u, 1, nicolas.left_hand, nicolas.right_hand, u);
-// lance(bsoln, )
-// put_on_table(bdov, t + 5 * u, vincent.right_hand, table_vincent, u);
-// lance(bren, t + 9 * u, 3, nicolas.left_hand, nicolas.right_hand, u);
 
 //TODO : Change the fact that we need more time to put balls on the table than to throw it
 //So adapt the time where we go at rest position.
@@ -803,6 +790,8 @@ const monitor = {
 //     }
 // );
 
+vincent.left_hand.timeline.pretty_print();
+
 function render(t: number) {
     const time = t * 0.001; // convert time to seconds
     // console.log(vincent.mesh.position);
@@ -822,6 +811,10 @@ function render(t: number) {
     simulator.jugglers.forEach((juggler) => {
         juggler.render(video_time);
     });
+
+    // if (time_conductor.playing) {
+    //     console.log(video_time.toPrecision(3), vincent.left_hand.position(video_time));
+    // }
 
     const listener = Tone.getListener();
     const camera_pos = camera.localToWorld(new THREE.Vector3(0, 0, 0));
