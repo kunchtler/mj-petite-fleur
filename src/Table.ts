@@ -3,8 +3,8 @@ import { Object3DHelper } from "./Object3DHelper";
 import { Ball } from "./Ball";
 
 //TODO : Rename Ball_placement en balls_spot
-
-interface TableConstructorParameters {
+//TODO : Change THREE.Vector2 to [number, number]
+export interface TableConstructorParameters {
     height?: number;
     surface_real_dimensions?: [number, number];
     surface_internal_dimensions?: [number, number];
@@ -26,7 +26,7 @@ class Table {
         surface_real_dimensions = [1.1, 0.7],
         surface_internal_dimensions = [1, 1],
         balls_placement = {}
-    }: TableConstructorParameters) {
+    }: TableConstructorParameters = {}) {
         this.height = height;
         this.width = surface_real_dimensions[1];
         this.depth = surface_real_dimensions[0];

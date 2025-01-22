@@ -3,6 +3,7 @@ import { Ball } from "./Ball";
 import { Juggler } from "./Juggler";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/Addons.js";
+import { Table } from "./Table";
 
 function resizeRendererToDisplaySize(
     renderer: THREE.WebGLRenderer,
@@ -47,6 +48,7 @@ class Simulator {
     controls: OrbitControls;
     balls: Ball[];
     jugglers: Juggler[];
+    table: Table[];
     // paused: boolean;
 
     constructor(canvas_id: string) {
@@ -92,6 +94,7 @@ class Simulator {
 
         this.balls = [];
         this.jugglers = [];
+        this.table = [];
     }
 
     //TODO method to facilitate not having to add balls to the scene
