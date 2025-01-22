@@ -25,6 +25,7 @@
     "src"
   ],
   "exclude": [
-    "src/Interactive_siteswap_player.ts"
+    "src/simulator/Interactive_siteswap_player.ts",
+    "notes",
   ]
 }

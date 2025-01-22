@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { Object3DHelper } from "./Object3DHelper";
 import { Ball } from "./Ball";
 
 //TODO : Rename Ball_placement en balls_spot

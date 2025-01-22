@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Hand, HandPhysicsHandling } from "./Hand";
-import { Object3DHelper } from "./Object3DHelper";
-import { find_elbow } from "./utils";
+import { Object3DHelper } from "../utils/Object3DHelper";
+import { find_elbow } from "../utils/utils";
 import { Table } from "./Table";
 
 type JugglerMesh = {

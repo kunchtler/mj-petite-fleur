@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GRAVITY } from "./constants";
+import { GRAVITY } from "../utils/constants";
 import {
     BallEventInterface,
     CatchEvent,

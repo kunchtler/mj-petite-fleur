@@ -1,8 +1,8 @@
-import { Ball } from "./Ball";
-import { Hand } from "./Hand";
-import { Juggler } from "./Juggler";
-import { Simulator } from "./Simulator";
-import { JugglingEvent } from "./Timeline";
+import { Ball } from "../simulator/Ball";
+import { Hand } from "../simulator/Hand";
+import { Juggler } from "../simulator/Juggler";
+import { Simulator } from "../simulator/Simulator";
+import { JugglingEvent } from "../simulator/Timeline";
 
 function lance(
     ball: Ball,

@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import * as THREE from "three";
-import { resizeRendererToDisplaySize, Simulator } from "./Simulator";
-import { Ball } from "./Ball";
-import { Juggler } from "./Juggler";
-import * as TWEAKPANE from "tweakpane";
-import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
+import { resizeRendererToDisplaySize, Simulator } from "./simulator/Simulator";
+import { Ball } from "./simulator/Ball";
+import { Juggler } from "./simulator/Juggler";
 import * as Tone from "tone";
-// import { lance } from "./Interactive_siteswap_player";
-import { MediaPlayer, TimeConductor } from "./AudioPlayer";
-import { Hand } from "./Hand";
-import { ThrowEvent, CatchEvent, HandMultiEvent, TablePutEvent, TableTakeEvent } from "./Timeline";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { Table } from "./Table";
-import { string } from "three/examples/jsm/nodes/Nodes.js";
+import { TimeConductor } from "./simulator/AudioPlayer";
+import { Hand } from "./simulator/Hand";
+import { ThrowEvent, CatchEvent, HandMultiEvent, TablePutEvent, TableTakeEvent } from "./simulator/Timeline";
+import { Table } from "./simulator/Table";
+import abcjs from "abcjs";
+
+import danubeAbc from "./music_sheets/danube.abc?raw";
+console.log(danubeAbc);
+
+//TODO : Correct casing of variables + functions
 
 //TODO : With react, handle volume button being pressed as interaction ?
 //TODO : Test on phone if touch correctly starts audio
@@ -172,20 +173,6 @@ async function handle_first_interaction(event: Event) {
         console.log("Touch ok");
         handle_load_end();
     }
-    //We block the promise until resolved
-    // await Tone.start()
-    //     .then(() => {
-    //         console.log("User interaction detected. Ready to play audio");
-    //         return Tone.loaded();
-    //     })
-    //     .then(() => {
-    //         console.log("Audio buffers all loaded !");
-    //         //transport.start();
-    //     })
-    //     .catch((reason: unknown) => {
-    //         throw new Error(`Unable to setup the audio to play. Reason : ${reason}`);
-    //         //console.log(reason);
-    //     });
 }
 
 for (const event_type of first_interaction_event_types) {
@@ -226,7 +213,7 @@ const camera = simulator.camera;
 
 //create_juggler_mesh(scene, 2.0, 0.5, 0.3);
 
-simulator.jugglers = [new Juggler(2.0), new Juggler(2.0)];
+simulator.jugglers = [new Juggler({ height: 2.0 }), new Juggler({ height: 2.0 })];
 const vincent = simulator.jugglers[0];
 const nicolas = simulator.jugglers[1];
 vincent.mesh.position.set(-1, 0, 1);
@@ -521,6 +508,76 @@ function take_from_table(
     ball.timeline.setElement(ev.time, ev);
     hand.timeline.setElement(ev.time, ev);
 }
+
+// TODO : Once finished, steamline the forbidden keywords by replacing them with classes.
+// TODO : Account for BPM with offset between jugglers.
+// interface NoName {
+//     throw_beat: number;
+//     ss_height: number;
+//     from?: "L" | "R" | [string, "L" | "R"];
+//     to?: string | "L" | "R" | [string, "L" | "R"];
+//     ball?: string | [string, string];
+// }
+
+// interface BPMChange {
+//     new_bpm: number;
+// }
+
+// interface BallsChange {
+//     new_hands: [(string | [string, string])[], (string | [string, string])[]];
+// }
+
+// const music = new Timeline<string | string[]>();
+// const sequence = new Timeline<NoName | BPMChange | BallsChange>();
+
+// import danube from "./examples/danube.abc?raw";
+// console.log(danube);
+
+// const abcNotation = `
+// X:1
+// L:1/4
+// Q:1/4=160
+// M:3/4
+// K:G
+// V:1
+//  C' | c ^E'' F | [K:Fb][M:7/8][L:1/8][Q:1/8=160] z2G AB cd 
+// C C C|]
+// V:2
+//  E | E E E | D F G |]
+//     `;
+
+// const c = abcjs.renderAbc("*", abcNotation)[0];
+
+// abcjs.parseOnly(danube)[0].deline();
+// try {
+//     const danube = await fetch("examples/danube.abc");
+//     console.log("Text");
+//     console.log(danube);
+// } catch (error) {
+//     console.log(error.message);
+// }
+
+// prettier-ignore
+// const music_array = [
+//     "do", "do", "mi", "sol", "sol", "", "sol", "sol", "", "mi", "mi", "",
+//     "do", "do", "mi", "sol", "sol", "", "sol", "sol", "", "fa", "fa", "",
+//     "re", "re", "fa", "la", "la", "", "la", "la", "", "fa", "fa", "",
+//     "re", "re", "fa", "la", "la", "", "la", "la", "", "mi", "mi", "",
+//     "do", "do", "mi", "sol", "do2", "", "do2", "do2", "", "sol", "sol", "",
+//     "do", "do", "mi", "sol", "do2", "", "do2", "do2", "", "la", "la", "",
+//     //Fa diese au lieu de fa, mi1 au lieu de mi2 en dessous ?
+//     "re", "re", "fa", "la", "la", "", "", "", "", "fad", "sol", "mi2", "", "", "", "", 
+//     "do", "mi", "mi", "", "re", "la", "", "sol", "do", /*+1.5"do", */"do", "do", "do",
+//     "", "", "", "do2", "si", "si", "la", "la", "", "la", "sold", "sold", "la", "la", "",
+//     "re", "re", "mi", "", "re", "", "re", "re", "la", "", "sol",
+//     "",
+//     "do2", "si", "si", "la", "la", "", "la", "si", "re2", "do2", "do2", "",
+//     "re", "re", "mi", "", "re", "", "re", "re", "la", "", "sol",
+//     "", "",
+
+// ]
+
+
 
 const u = 60 / 180;
 let t = 5 * u;

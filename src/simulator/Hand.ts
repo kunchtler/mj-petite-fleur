@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { VECTOR3_STRUCTURE } from "./constants";
-import { CubicHermiteSpline } from "./Spline";
+import { VECTOR3_STRUCTURE } from "../utils/constants";
+import { CubicHermiteSpline } from "../utils/Spline";
 import {
     CatchEvent,
     HandEventInterface,
