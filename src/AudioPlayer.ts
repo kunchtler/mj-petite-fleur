@@ -14,7 +14,7 @@ class TimeConductor {
     private _last_known_time: number;
     private _playbackRate: number;
     private _paused: boolean;
-    private _event_target: EventTarget;
+    _event_target: EventTarget;
     private _timeupdate_interval?: number;
 
     constructor({ start_time = 0, playback_rate = 1, autoplay = false }: TimeConductorParam) {
