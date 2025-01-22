@@ -58,6 +58,12 @@ export class Timeline<EventType> extends OrderedMap<number, EventType> {
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
 
+    setElements(it: [number, EventType][]): void {
+        for (const [key, event] of it) {
+            this.setElement(key, event);
+        }
+    }
+
     pretty_print(): void {
         this.forEach(([, event]) => {
             console.log(event);
@@ -103,7 +109,10 @@ export interface HandEventInterface extends BaseEvent {
     prev_hand_event(): [number, HandTimelineEvent] | [null, null];
 }
 
-export class AbstractBallHandEvent extends BaseEvent implements BallEventInterface, HandEventInterface {
+export class AbstractBallHandEvent
+    extends BaseEvent
+    implements BallEventInterface, HandEventInterface
+{
     private _ball_ref: WeakRef<Ball>;
     private _hand_ref: WeakRef<Hand>;
     unit_time: number;
@@ -272,8 +281,7 @@ export class HandMultiEvent<T extends HandEventInterface> extends AbstractHandEv
     }
 }
 
-class MultiThrowCatchEvent extends HandMultiEvent<CatchEvent | ThrowEvent> {
-} //TODO Implement this
+class MultiThrowCatchEvent extends HandMultiEvent<CatchEvent | ThrowEvent> {} //TODO Implement this
 //TODO : move ball error status to AbstractBallEvent only (not hand)
 //TODO : Replace TablePutEvent / TableTakeEvent with MultiHandEvent<TablePutEvent | TableTakeEvent> ?
 export type HandTimelineEvent =
@@ -325,4 +333,3 @@ throw Error("Unimplemented behaviour");
 */
 
 // class HandCustomMovementEvent {}
-
