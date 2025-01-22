@@ -1,0 +1,38 @@
+X:1
+T:Danube Bleu
+C:Composer / arranger
+%%score [ 1 2 ]
+L:1/4
+Q:1/4=160
+M:3/4
+K:C
+V:1 treble transpose=12 nm="Juggler 1" snm="J1"
+V:2 treble transpose=12 nm="Juggler 2" snm="J2"
+V:1
+ C | C E G | G z z | z3 |
+ z z C | C E G | G z z | z3 |
+ z z D | D F A | A z z | z3 |
+ z z D | D F A | A z z | z3 |
+ z z C | C E G | c z z | z3 |
+ z z C | C E G | c z z | z3 |
+ z z D | D F A | A z z | z3 |
+ z3 | z c E | E z z | z3 |
+ z z/ C/ C | C z z | z c B | B A A |
+ z3 | z3 | z D D | E z D |
+ z D D | A z G | z3 | z3 |
+ z A B | d c c | z3 | z3 |
+ z z/ E/ C/A,/ | E/E/ E z | z3 | !arpeggio![Gdg] z z |]
+V:2
+ z | z3 | z z G | G z E |
+ E z z | z3 | z z G | G z F |
+ F z z | z3 | z z A | A z F |
+ F z z | z3 | z z A | A z E |
+ E z z | z3 | z z c | c z G |
+ G z z | z3 | z z c | c z A |
+ A z z | z3 | z3 | z ^F G |
+ e z z | z3 | z z D | A z G |
+ C z z | z3 | z3 | z3 |
+ z A ^G | ^G A A | z3 | z3 |
+ z3 | z3 | z c B | B A A |
+ z3 | z3 | z ^F A | A z G |
+ ^F z z | z z D | G, z z | !arpeggio![G,D] z z |]
