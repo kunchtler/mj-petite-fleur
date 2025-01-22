@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Hand, HandPhysicsHandling } from "./Hand";
 import { Object3DHelper } from "./Object3DHelper";
 import { find_elbow } from "./utils";
+import { Table } from "./Table";
 
 type JugglerMesh = {
     head: THREE.Mesh;
@@ -196,6 +197,13 @@ export function create_juggler_mesh(
 //     }
 // );
 
+interface JugglerParamConstructor {
+    height?: number;
+    width?: number;
+    depth?: number;
+    arm_length?: number;
+    default_table?: Table;
+}
 
 class Juggler {
     height: number;
@@ -210,8 +218,15 @@ class Juggler {
     elbow: THREE.Object3D;
     arm_length: number;
     target: THREE.Object3D;
+    default_table?: Table;
 
-    constructor(height = 1.8, width = 0.3, depth = 0.5, arm_length = 0.4) {
+    constructor({
+        height = 1.8,
+        width = 0.3,
+        depth = 0.5,
+        arm_length = 0.4,
+        default_table
+    }: JugglerParamConstructor = {}) {
         this.height = height;
         this.arm_length = arm_length;
         const basic_geometry = new THREE.BoxGeometry(width, height, depth);
@@ -262,6 +277,8 @@ class Juggler {
         this.target.position.set(0, 0, depth / 2);
         this.mesh.add(this.target);
         this.target.add(new Object3DHelper(false, undefined, false));
+
+        this.default_table = default_table;
     }
 
     render = (time: number): void => {
