@@ -11,6 +11,7 @@ import {
 } from "./Timeline";
 import * as Tone from "tone";
 import { Table } from "./Table";
+import { Juggler } from "./Juggler";
 
 //TODO : Replace type BallEventInterface by BallTimelineEvent in functions signatures ?
 
@@ -63,6 +64,7 @@ interface BallConstructorInterface {
     panner3D?: Tone.Panner3D;
     timeline?: Timeline<BallTimelineEvent>;
     default_table?: Table;
+    default_juggler?: Juggler;
 }
 
 // function create_audio(note_name: string): HTMLAudioElement {
@@ -83,6 +85,7 @@ class Ball {
     timeline: Timeline<BallTimelineEvent>;
     sound?: Tone.Players | Tone.Player;
     panner3D?: Tone.Panner3D;
+    default_juggler?: Juggler;
     default_table?: Table;
     private _prev_time = 0;
 
@@ -93,7 +96,8 @@ class Ball {
         sound,
         panner3D,
         timeline,
-        default_table
+        default_table,
+        default_juggler
     }: BallConstructorInterface) {
         this.color = color;
         this.radius = radius;
@@ -117,6 +121,7 @@ class Ball {
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         this.name = name !== undefined ? name : "None";
         this.default_table = default_table;
+        this.default_juggler = default_juggler;
     }
 
     //TODO : Move this as static for events
@@ -164,10 +169,12 @@ class Ball {
 
         if (prev_event === null) {
             if (next_event === null) {
-                if (this.default_table === undefined) {
-                    this.throw_timeline_error(prev_event, next_event);
-                } else {
+                if (this.default_table !== undefined) {
                     return this.default_table.ball_position(this);
+                } else if (this.default_juggler?.default_table !== undefined) {
+                    return this.default_juggler.default_table.ball_position(this);
+                } else {
+                    this.throw_timeline_error(prev_event, next_event);
                 }
             }
             if (next_event instanceof CatchEvent) {
