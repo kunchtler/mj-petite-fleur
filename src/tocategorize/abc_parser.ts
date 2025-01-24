@@ -23,14 +23,15 @@ export interface NoteInfo {
     pitchRawString: string;
     measureNb: number;
     beatNb: number; // in range [0, measure.signature_num[
-    trackWholeNoteNb: number;
+    trackWholeNote: number;
     // beatNbGlobal: number
     // nbBeatsInMeasure: number;
     timeMilliseconds: number; // As computed by abcjs midi functionnalities for playback
     // timeWholeNotes: number;
-    // duration: number;
+    // duration: number; //duration here is only one note, not tied notes.
 }
 
+//TODO : Check when first measure is smaller (anacrusis)
 //TODO : Check assumptions ?
 //TODO other measure attributes.
 //TODO : At some point, do with precise fractions for beats ? For now, clip to closest.
@@ -51,7 +52,6 @@ export function parseTune(tune: abcjs.TuneObject, voiceNb: number): [NoteInfo[],
     const notes: NoteInfo[] = [];
     const measures: MeasureInfo[] = [];
     for (const elem of seq[voiceNb]) {
-        // Possible el_type : meter tempo bar
         if (elem.el_type === "note") {
             if (isNewMeasure) {
                 //We freeze measure specific information.
@@ -62,6 +62,7 @@ export function parseTune(tune: abcjs.TuneObject, voiceNb: number): [NoteInfo[],
                 if (midiPitches === undefined) {
                     throw Error("No Midi data for note.");
                 }
+                // Handles tied notes.
                 for (const midiPitch of midiPitches) {
                     const note = abcjs.synth.pitchToNoteName[midiPitch.pitch];
                     if (note === undefined) {
@@ -101,7 +102,7 @@ export function parseTune(tune: abcjs.TuneObject, voiceNb: number): [NoteInfo[],
                         pitchRawString: note,
                         measureNb: measures.length,
                         beatNb: (trackWholeNote - measureFirstWholeNote) * currentSignatureDen,
-                        trackWholeNoteNb: trackWholeNote,
+                        trackWholeNote: trackWholeNote,
                         timeMilliseconds: trackTime
                     });
                 }
@@ -126,7 +127,22 @@ export function parseTune(tune: abcjs.TuneObject, voiceNb: number): [NoteInfo[],
                 bpm: currentBpm,
                 startWholeNote: measureFirstWholeNote
             });
-            measureFirstWholeNote += currentSignatureNum / currentSignatureDen;
+            //Handle anacrusis
+            //TODO : WORKS WITH THE REST ?
+            if (measures.length === 1) {
+                const pickupLength = tune.getPickupLength();
+                for (const note of notes) {
+                    note.beatNb =
+                        (note.trackWholeNote -
+                            measureFirstWholeNote +
+                            currentSignatureNum / currentSignatureDen -
+                            pickupLength) *
+                        currentSignatureDen;
+                }
+                measureFirstWholeNote += pickupLength;
+            } else {
+                measureFirstWholeNote += currentSignatureNum / currentSignatureDen;
+            }
             isNewMeasure = true;
         } else if (
             [
@@ -160,28 +176,28 @@ export function parseTune(tune: abcjs.TuneObject, voiceNb: number): [NoteInfo[],
 
 // Function test
 
-const danube = `X:1
-T:Untitled score
-C:Composer / arranger
-L:1/4
-Q:1/4=80
-M:4/4
-K:G
-%%stretchlast true
-V:1 treble nm="Flute" snm="Fl."
-%%MIDI program 73
-V:1
- f z d z |[K:Bb][Q:1/4=180] f z e z |[M:2/4][Q:1/2=180] A d |]
-`;
-const danube2 = `X:1
-L:1/4
-M:4/4
-Q:1/2=100
-K:C
-V:1 treble nm="Flute" snm="Fl."
-V:1
- |: B c z e :| F G A F |]
-`;
+// const danube = `X:1
+// T:Untitled score
+// C:Composer / arranger
+// L:1/4
+// Q:1/4=80
+// M:4/4
+// K:G
+// %%stretchlast true
+// V:1 treble nm="Flute" snm="Fl."
+// %%MIDI program 73
+// V:1
+//  f z d z |[K:Bb][Q:1/4=180] f z e z |[M:2/4][Q:1/2=180] A d |]
+// `;
+// const danube2 = `X:1
+// L:1/4
+// M:4/4
+// Q:1/2=100
+// K:C
+// V:1 treble nm="Flute" snm="Fl."
+// V:1
+//  |: B c z e :| F G A F |]
+// `;
 // export function tmp();
 // const danube = `X:1
 // T:Danube Bleu
@@ -225,20 +241,75 @@ V:1
 //  z3 | z3 | z ^F A | A z G |
 //  ^F z z | z z D | G, z z | !arpeggio![G,D] z z |]
 // `;
+const danube = `X:1
+T:Untitled score
+C:Composer / arranger
+%%score [ 1 2 ]
+L:1/4
+Q:1/4=160
+M:3/4
+K:C
+%%stretchlast true
+V:1 treble transpose=12 nm="Juggler 1" snm="J1"
+%%MIDI program 112
+V:2 treble transpose=12 nm="Juggler 2" snm="J2"
+%%MIDI program 112
+V:1
+ C | C E G | G z z | z3 |
+ z z C | C E G | G z z | z3 |
+ z z D | D F A | A z z | z3 |
+ z z D | D F A | A z z | z3 |
+ z z C | C E G | c z z | z3 |
+ z z C | C E G | c z z | z3 |
+ z z D | D F A | A z z | z3 |
+ z3 | z c E | E z z | z3 |
+ z z/ C/ C | C z z | z c B | B A A |
+ z3 | z3 | z D D | E z D |
+ z D D | A z G | z3 | z3 |
+ z A B | d c c | z3 | z3 |
+ z z/ E/ C/A,/ | E/E/ E z | z3 | !arpeggio![Gdg] z z |]
+V:2
+ z | z3 | z z G | G z E |
+ E z z | z3 | z z G | G z F |
+ F z z | z3 | z z A | A z F |
+ F z z | z3 | z z A | A z E |
+ E z z | z3 | z z c | c z G |
+ G z z | z3 | z z c | c z A |
+ A z z | z3 | z3 | z ^F G |
+ e z z | z3 | z z D | A z G |
+ C z z | z3 | z3 | z3 |
+ z A ^G | ^G A A | z3 | z3 |
+ z3 | z3 | z c B | B A A |
+ z3 | z3 | z ^F A | A z G |
+ ^F z z | z z D | G, z z | !arpeggio![G,D] z z |]
+`;
+// const danube = `X:1
+// T:Untitled score
+// C:Composer / arranger
+// L:1/4
+// M:4/4
+// Q:1/2=100
+// K:C
+// %%stretchlast true
+// V:1 treble nm="Flute" snm="Fl."
+// %%MIDI program 73
+// V:1
+//  B- | B c- c z |]
+// `
 
 const tuneObject = abcjs.parseOnly(danube)[0];
 const seq = abcjs.synth.sequence(tuneObject, {});
 console.log(seq);
 
-const b = abcjs.synth.flatten(seq);
-console.log(b);
+// const b = abcjs.synth.flatten(seq);
+// console.log(b);
 
-const tuneObject2 = abcjs.parseOnly(danube2)[0];
-const seq2 = abcjs.synth.sequence(tuneObject2, {});
-console.log(seq2);
+// const tuneObject2 = abcjs.parseOnly(danube2)[0];
+// const seq2 = abcjs.synth.sequence(tuneObject2, {});
+// console.log(seq2);
 
-const b2 = abcjs.synth.flatten(seq2);
-console.log(b2);
+// const b2 = abcjs.synth.flatten(seq2);
+// console.log(b2);
 
 const [notes, measures] = parseTune(tuneObject, 0);
 console.log(notes);
