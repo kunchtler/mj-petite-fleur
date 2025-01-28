@@ -62,7 +62,7 @@ interface BallConstructorInterface {
     name?: string;
     sound?: Tone.Players | Tone.Player | string;
     panner3D?: Tone.Panner3D;
-    timeline?: Timeline<BallTimelineEvent>;
+    timeline?: Timeline<number, BallTimelineEvent>;
     default_table?: Table;
     default_juggler?: Juggler;
 }
@@ -82,7 +82,7 @@ class Ball {
     material: THREE.Material;
     mesh: THREE.Mesh;
     name: string;
-    timeline: Timeline<BallTimelineEvent>;
+    timeline: Timeline<number, BallTimelineEvent>;
     sound?: Tone.Players | Tone.Player;
     panner3D?: Tone.Panner3D;
     default_juggler?: Juggler;

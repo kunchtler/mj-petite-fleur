@@ -74,7 +74,7 @@ class Hand /*implements FollowableTargetInterface*/ {
     geometry: THREE.BufferGeometry;
     material: THREE.Material;
     mesh: THREE.Mesh;
-    timeline: Timeline<HandTimelineEvent>;
+    timeline: Timeline<number, HandTimelineEvent>;
     readonly rest_site_dist: number;
     readonly is_right_hand: boolean;
     readonly up_vector: THREE.Vector3;
@@ -91,14 +91,14 @@ class Hand /*implements FollowableTargetInterface*/ {
         hand_physics_handling: HandPhysicsHandling,
         is_right_hand: boolean,
         /*simulator: Simulator,*/
-        timeline?: Timeline<HandTimelineEvent>
+        timeline?: Timeline<number, HandTimelineEvent>
     ) {
         this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
         this.material = new THREE.MeshPhongMaterial({ color: 0xffdbac });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         // this.mesh.visible = false;
         if (timeline === undefined) {
-            this.timeline = new Timeline<HandTimelineEvent>();
+            this.timeline = new Timeline();
         } else {
             this.timeline = structuredClone(timeline);
         }

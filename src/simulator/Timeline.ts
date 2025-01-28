@@ -41,32 +41,39 @@ import { OrderedMap } from "js-sdsl";
 //     }
 // }
 
-export class Timeline<EventType> extends OrderedMap<number, EventType> {
+export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType> {
     //TODO : time redundant if in EventType ?
     //TODO : Remove time
     //TODO : Methods to create / modify / delete events without interacting with OrderedMap directly ?
+    //TODO : Rename key to time ?
     // (and to not mess up modifying or fusing of events for instance)
-    prev_event(time: number, strict = false): [number, EventType] | [null, null] {
+    prev_event(time: KeyType, strict = false): [KeyType, EventType] | [null, null] {
         const it = strict ? this.reverseUpperBound(time) : this.reverseLowerBound(time);
         //We make a copy of the contents of the list because the list itself
         //is a proxy otherwise (which has unexpected console.logs to watch out for)
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
 
-    next_event(time: number, strict = true): [number, EventType] | [null, null] {
+    next_event(time: KeyType, strict = true): [KeyType, EventType] | [null, null] {
         const it = strict ? this.upperBound(time) : this.lowerBound(time);
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
 
-    setElements(it: [number, EventType][]): void {
+    setElements(it: [KeyType, EventType][]): void {
         for (const [key, event] of it) {
             this.setElement(key, event);
         }
     }
 
-    pretty_print(): void {
-        this.forEach(([, event]) => {
-            console.log(event);
+    pretty_print(
+        stringifyKey?: (key: KeyType) => string,
+        stringifyElem?: (elem: EventType) => string
+    ): void {
+        this.forEach(([time, event]) => {
+            console.log(
+                `${stringifyKey === undefined ? time : stringifyKey(time)} : \
+                ${stringifyElem === undefined ? event : stringifyElem(event)}`
+            );
         });
     }
 }
