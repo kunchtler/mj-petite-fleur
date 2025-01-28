@@ -33,7 +33,8 @@ export default tseslint.config(
                     "arguments": false
                 }
                 }
-            ]
+            ],
+            "@typescript-eslint/no-unnecessary-template-expression": "warn"
         }
     },
 );
