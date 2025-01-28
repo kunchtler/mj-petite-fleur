@@ -1,0 +1,90 @@
+Version 1
+
+Titre:
+    Le beau danube bleu
+
+Jongleurs:
+    Vincent, abrégé en V 
+    Florent, abrégé en F
+
+Balles:
+    Tous ont:
+        Do (C4) (pos ?)
+        Re (D4) 
+        Mi (E4)
+        Fa (F4)
+        Sol (G4)
+        La (A4)
+        Si (B4)
+        Do' (C5)
+    Florent a en plus:
+        Fa# (F#4)
+        Mi' (Mi5)
+
+Musique:
+    Signature: 3/4
+    Tempo: 1/4 = 160
+
+Pattern:
+    Vincent:
+        -1, 2:
+            Tempo: 1/4
+            Mains: G[Do Mi] D[Sol]
+            Pattern: 4(G)0441001
+        3, 2:
+            Mains: G[Do Mi] D[Sol]
+            Pattern: 4(G)0441001
+        7, 2:
+            Mains: G[Re Fa] D[La]
+            Pattern: 4(G)0441001
+        11, 2:
+            Mains: G[Re Fa] D[La]
+            Pattern: 4(G)0441001
+        15, 2:
+            Mains: G[Do Mi] D[Sol Do']
+            Pattern: 4(G)04[4(Sol)5(Do')]1
+        19, 2:
+            Mains: G[Do Mi] D[Sol Do']
+            Pattern: 4(G)04[4(Sol)5(Do')]1
+        23, 2:
+            Mains: G[Re Fa] D[La]
+            Pattern: 4(G)0441001
+        28, 3:
+            Mains: G[Re] D[Do']
+            Pattern: 2(D)201
+        31, 3:
+            Mains: G[Do] D[]
+            Pattern: 1
+        32, 1:
+            Tempo: 1/8
+            Pattern: 1(D)1
+        32, 2:
+            Tempo: 1/4
+            Pattern: 1(D)
+
+    Florent:
+        1, 3:
+            Tempo: 1/4
+            Mains: G[Mi] D[Sol]
+            Pattern: 3(D)501001
+        5, 3:
+            Mains: G[Fa] D[Sol]
+            Pattern: 3(D)501001
+        9, 3:
+            Mains: G[Fa] D[La]
+            Pattern: 3(D)501001
+        13, 3:
+            Mains: G[Mi] D[La]
+            Pattern: 3(D)501001
+        17, 3:
+            Mains: G[Sol] D[Do']
+            Pattern: 3(D)501001
+        21, 3:
+            Mains: G[La] D[Do']
+            Pattern: 3(D)501001
+        26, 2:
+            Mains: G[Fa# Mi'] D[Sol]
+            Pattern: 3(G!)^3
+        29, 2:
+            Mains: G[La Do] D[Re Sol]
+            Pattern: 4(D)45x5x
