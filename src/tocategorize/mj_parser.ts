@@ -65,7 +65,7 @@ interface PartialToss {
 }
 
 interface PartialToss2 {
-    from: { juggler: string; rightHand: boolean; beat: Fraction };
+    from: { juggler: string; rightHand?: boolean; beat: Fraction };
     to: {
         juggler: string;
         rightHand?: boolean;
@@ -226,9 +226,63 @@ class IWorkOnPatterns {
         }
     }
 
-    validatePattern() {
-        for (const [name, juggler] of this.jugglers) {
-            juggler.populateBeats();
+    //TODO : Move the initial startingposition if catches earlier something.
+    //TODO : Handle errors.
+    validatePattern(): boolean {
+        if (this.jugglers.size === 0) {
+            return true;
+        }
+
+        let reachedEnd = false;
+        while (reachedEnd) {
+            // Figure out when the closest next beat is from amongst all jugglers.
+            let closestNextBeat: Fraction | undefined = undefined;
+            let concernedJugglers: string[] = [];
+            for (const [name, juggler] of this.jugglers) {
+                const beat = juggler.getNextBeat();
+                if (closestNextBeat === undefined || beat.lt(closestNextBeat)) {
+                    closestNextBeat = beat;
+                    concernedJugglers = [name];
+                } else if (beat.equals(closestNextBeat)) {
+                    concernedJugglers.push(name);
+                }
+            }
+
+            // For all concerned jugglers, process a step and gather the balls they toss.
+            // In case a juggler fails, return early.
+            const tossedTo = new Map<string, PartialToss2[]>();
+            for (const name of this.jugglers.keys()) {
+                tossedTo.set(name, []);
+            }
+            let failedAcc = false;
+            for (const name of concernedJugglers) {
+                const juggler = this.jugglers.get(name);
+                const { failed, tossedBalls } = juggler.processOneStep();
+                failedAcc ||= failed;
+                for (const toss of tossedBalls) {
+                    tossedTo.get(name)?.push(toss);
+                }
+            }
+            if (failedAcc) {
+                return false;
+            }
+
+            // Send the tossed ball to the corresponding jugglers.
+            for (const [name, juggler] of this.jugglers) {
+                const tossedBalls = tossedTo.get(name);
+                //TODO : Move starting beat if ball received early.
+                const failed = juggler.receiveTosses(tossedBalls);
+                failedAcc ||= failed;
+            }
+            if (failedAcc) {
+                return false;
+            }
+
+            // Check if any juggler needs further processing
+            reachedEnd = true;
+            for (const juggler of this.jugglers.values()) {
+                reachedEnd &&= juggler.reachedEnd();
+            }
         }
     }
 }
@@ -301,8 +355,22 @@ class JugglerManager {
         this._itBeats = this.beats.begin();
     }
 
-    nextEventBeat(): Fraction | null {
+    nextEventsBeat(): Fraction | null {
         return this._itEvents.isAccessible() ? this._itEvents.pointer[0] : null;
+    }
+
+    getNextBeat(): Fraction {
+        return this._currentBeat.add(this._currentTempo);
+    }
+
+    nextTosses(): PartialToss2[] {
+        const events = this._itEvents.pointer[1];
+        const tosses: PartialToss2[] = [];
+        for (const toss of events.tosses) {
+            const toJuggler = toss.to.juggler ?? this.name;
+            const ballName = toss.ball?.name ?? "";
+            const newToss: PartialToss2 = { from: toss.from, to: {}, ball: { name: "" } };
+        }
     }
 
     advanceEvent(): void {
@@ -312,7 +380,7 @@ class JugglerManager {
     reachedEnd(): boolean {
         // The end has been reached if we no longer have events to process, nor
         // do we have balls in the air that need falling.
-        return this.nextEventBeat() === null && this._currentState.airborne.size === 0;
+        return !this._itEvents.isAccessible() && this._currentState.airborne.size === 0;
     }
 
     // Generates beats
