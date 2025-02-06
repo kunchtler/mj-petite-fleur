@@ -1,4 +1,4 @@
-grammar Pattern;
+grammar OldSiteswapParser;
 pattern: sequence+ | mirror_pattern;
 mirror_pattern: sequence+ '*';
 sequence:
