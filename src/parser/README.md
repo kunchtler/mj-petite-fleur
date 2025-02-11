@@ -6,6 +6,8 @@ We use the ANTLR4 tool to generate from a grammer file and some lexer/parser cod
 
 If any changes are made to the parser, they should be recompiled.
 
+For convenience, we provide a MakeFile in each parser folder.
+
 TODO : ANTLR4 Installation
 TODO : Automatic compilation when building ?
 
