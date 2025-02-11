@@ -1,0 +1,134 @@
+// Generated from MJSiteswapLexer.g4 by ANTLR 4.13.2
+// noinspection ES6UnusedImports,JSUnusedGlobalSymbols,JSUnusedLocalSymbols
+import {
+	ATN,
+	ATNDeserializer,
+	CharStream,
+	DecisionState, DFA,
+	Lexer,
+	LexerATNSimulator,
+	RuleContext,
+	PredictionContextCache,
+	Token
+} from "antlr4";
+export default class MJSiteswapLexer extends Lexer {
+	public static readonly DIGIT = 1;
+	public static readonly BIG_HEIGHT_DIGIT = 2;
+	public static readonly LCUR = 3;
+	public static readonly RCUR = 4;
+	public static readonly REP = 5;
+	public static readonly LPAR = 6;
+	public static readonly RPAR = 7;
+	public static readonly LSQU = 8;
+	public static readonly RSQU = 9;
+	public static readonly X_MOD = 10;
+	public static readonly L_MOD = 11;
+	public static readonly R_MOD = 12;
+	public static readonly COMMA = 13;
+	public static readonly EXCL = 14;
+	public static readonly PLUS = 15;
+	public static readonly BEAT = 16;
+	public static readonly MEASURE = 17;
+	public static readonly COMMENT = 18;
+	public static readonly DIV = 19;
+	public static readonly NAME = 20;
+	public static readonly WS = 21;
+	public static readonly EOF = Token.EOF;
+
+	public static readonly channelNames: string[] = [ "DEFAULT_TOKEN_CHANNEL", "HIDDEN" ];
+	public static readonly literalNames: (string | null)[] = [ null, null, 
+                                                            null, "'{'", 
+                                                            "'}'", "'^'", 
+                                                            "'('", "')'", 
+                                                            "'['", "']'", 
+                                                            "'x'", "'L'", 
+                                                            "'R'", "','", 
+                                                            "'!'", "'+'", 
+                                                            "'B'", "'M'", 
+                                                            null, "'/'" ];
+	public static readonly symbolicNames: (string | null)[] = [ null, "DIGIT", 
+                                                             "BIG_HEIGHT_DIGIT", 
+                                                             "LCUR", "RCUR", 
+                                                             "REP", "LPAR", 
+                                                             "RPAR", "LSQU", 
+                                                             "RSQU", "X_MOD", 
+                                                             "L_MOD", "R_MOD", 
+                                                             "COMMA", "EXCL", 
+                                                             "PLUS", "BEAT", 
+                                                             "MEASURE", 
+                                                             "COMMENT", 
+                                                             "DIV", "NAME", 
+                                                             "WS" ];
+	public static readonly modeNames: string[] = [ "DEFAULT_MODE", ];
+
+	public static readonly ruleNames: string[] = [
+		"DIGIT", "BIG_HEIGHT_DIGIT", "LCUR", "RCUR", "REP", "LPAR", "RPAR", "LSQU", 
+		"RSQU", "X_MOD", "L_MOD", "R_MOD", "COMMA", "EXCL", "PLUS", "BEAT", "MEASURE", 
+		"COMMENT", "DIV", "NAME", "WS",
+	];
+
+
+	constructor(input: CharStream) {
+		super(input);
+		this._interp = new LexerATNSimulator(this, MJSiteswapLexer._ATN, MJSiteswapLexer.DecisionsToDFA, new PredictionContextCache());
+	}
+
+	public get grammarFileName(): string { return "MJSiteswapLexer.g4"; }
+
+	public get literalNames(): (string | null)[] { return MJSiteswapLexer.literalNames; }
+	public get symbolicNames(): (string | null)[] { return MJSiteswapLexer.symbolicNames; }
+	public get ruleNames(): string[] { return MJSiteswapLexer.ruleNames; }
+
+	public get serializedATN(): number[] { return MJSiteswapLexer._serializedATN; }
+
+	public get channelNames(): string[] { return MJSiteswapLexer.channelNames; }
+
+	public get modeNames(): string[] { return MJSiteswapLexer.modeNames; }
+
+	public static readonly _serializedATN: number[] = [4,0,21,107,6,-1,2,0,
+	7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,7,7,7,2,8,7,8,2,9,
+	7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,2,14,7,14,2,15,7,15,2,16,7,
+	16,2,17,7,17,2,18,7,18,2,19,7,19,2,20,7,20,1,0,1,0,1,1,1,1,1,2,1,2,1,3,
+	1,3,1,4,1,4,1,5,1,5,1,6,1,6,1,7,1,7,1,8,1,8,1,9,1,9,1,10,1,10,1,11,1,11,
+	1,12,1,12,1,13,1,13,1,14,1,14,1,15,1,15,1,16,1,16,1,17,1,17,1,17,1,17,5,
+	17,82,8,17,10,17,12,17,85,9,17,1,17,1,17,1,18,1,18,1,19,1,19,5,19,93,8,
+	19,10,19,12,19,96,9,19,1,19,3,19,99,8,19,1,20,4,20,102,8,20,11,20,12,20,
+	103,1,20,1,20,0,0,21,1,1,3,2,5,3,7,4,9,5,11,6,13,7,15,8,17,9,19,10,21,11,
+	23,12,25,13,27,14,29,15,31,16,33,17,35,18,37,19,39,20,41,21,1,0,7,1,0,48,
+	57,1,0,97,103,2,0,10,10,13,13,1,0,65,90,5,0,39,39,48,57,92,92,95,95,97,
+	122,4,0,39,39,92,92,95,95,97,122,3,0,9,10,12,13,32,32,110,0,1,1,0,0,0,0,
+	3,1,0,0,0,0,5,1,0,0,0,0,7,1,0,0,0,0,9,1,0,0,0,0,11,1,0,0,0,0,13,1,0,0,0,
+	0,15,1,0,0,0,0,17,1,0,0,0,0,19,1,0,0,0,0,21,1,0,0,0,0,23,1,0,0,0,0,25,1,
+	0,0,0,0,27,1,0,0,0,0,29,1,0,0,0,0,31,1,0,0,0,0,33,1,0,0,0,0,35,1,0,0,0,
+	0,37,1,0,0,0,0,39,1,0,0,0,0,41,1,0,0,0,1,43,1,0,0,0,3,45,1,0,0,0,5,47,1,
+	0,0,0,7,49,1,0,0,0,9,51,1,0,0,0,11,53,1,0,0,0,13,55,1,0,0,0,15,57,1,0,0,
+	0,17,59,1,0,0,0,19,61,1,0,0,0,21,63,1,0,0,0,23,65,1,0,0,0,25,67,1,0,0,0,
+	27,69,1,0,0,0,29,71,1,0,0,0,31,73,1,0,0,0,33,75,1,0,0,0,35,77,1,0,0,0,37,
+	88,1,0,0,0,39,90,1,0,0,0,41,101,1,0,0,0,43,44,7,0,0,0,44,2,1,0,0,0,45,46,
+	7,1,0,0,46,4,1,0,0,0,47,48,5,123,0,0,48,6,1,0,0,0,49,50,5,125,0,0,50,8,
+	1,0,0,0,51,52,5,94,0,0,52,10,1,0,0,0,53,54,5,40,0,0,54,12,1,0,0,0,55,56,
+	5,41,0,0,56,14,1,0,0,0,57,58,5,91,0,0,58,16,1,0,0,0,59,60,5,93,0,0,60,18,
+	1,0,0,0,61,62,5,120,0,0,62,20,1,0,0,0,63,64,5,76,0,0,64,22,1,0,0,0,65,66,
+	5,82,0,0,66,24,1,0,0,0,67,68,5,44,0,0,68,26,1,0,0,0,69,70,5,33,0,0,70,28,
+	1,0,0,0,71,72,5,43,0,0,72,30,1,0,0,0,73,74,5,66,0,0,74,32,1,0,0,0,75,76,
+	5,77,0,0,76,34,1,0,0,0,77,78,5,47,0,0,78,79,5,47,0,0,79,83,1,0,0,0,80,82,
+	8,2,0,0,81,80,1,0,0,0,82,85,1,0,0,0,83,81,1,0,0,0,83,84,1,0,0,0,84,86,1,
+	0,0,0,85,83,1,0,0,0,86,87,6,17,0,0,87,36,1,0,0,0,88,89,5,47,0,0,89,38,1,
+	0,0,0,90,98,7,3,0,0,91,93,7,4,0,0,92,91,1,0,0,0,93,96,1,0,0,0,94,92,1,0,
+	0,0,94,95,1,0,0,0,95,97,1,0,0,0,96,94,1,0,0,0,97,99,7,5,0,0,98,94,1,0,0,
+	0,98,99,1,0,0,0,99,40,1,0,0,0,100,102,7,6,0,0,101,100,1,0,0,0,102,103,1,
+	0,0,0,103,101,1,0,0,0,103,104,1,0,0,0,104,105,1,0,0,0,105,106,6,20,0,0,
+	106,42,1,0,0,0,5,0,83,94,98,103,1,6,0,0];
+
+	private static __ATN: ATN;
+	public static get _ATN(): ATN {
+		if (!MJSiteswapLexer.__ATN) {
+			MJSiteswapLexer.__ATN = new ATNDeserializer().deserialize(MJSiteswapLexer._serializedATN);
+		}
+
+		return MJSiteswapLexer.__ATN;
+	}
+
+
+	static DecisionsToDFA = MJSiteswapLexer._ATN.decisionToState.map( (ds: DecisionState, index: number) => new DFA(ds, index) );
+}
