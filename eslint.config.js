@@ -7,7 +7,7 @@ import eslintConfigPrettier from "eslint-config-prettier";
 export default tseslint.config(
     {
         files: ["src/**/*.js", "src/**/*.ts"],
-        ignores: ["**/parser/*"],
+        ignores: ["src/parser/**/output/*.ts"],
         extends: [
             eslint.configs.recommended,
             ...tseslint.configs.strictTypeChecked,

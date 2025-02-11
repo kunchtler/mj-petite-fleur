@@ -25,3 +25,6 @@ dist-ssr
 
 # ANTLR
 .antlr
+
+# Custom folders
+**/IGNORE
