@@ -11,6 +11,7 @@ import { Sync_throwContext } from "./SiteswapParser.js";
 import { ThrowContext } from "./SiteswapParser.js";
 import { Hand_modContext } from "./SiteswapParser.js";
 import { X_modContext } from "./SiteswapParser.js";
+import { Excl_modContext } from "./SiteswapParser.js";
 
 
 /**
@@ -98,5 +99,15 @@ export default class SiteswapParserListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitX_mod?: (ctx: X_modContext) => void;
+	/**
+	 * Enter a parse tree produced by `SiteswapParser.excl_mod`.
+	 * @param ctx the parse tree
+	 */
+	enterExcl_mod?: (ctx: Excl_modContext) => void;
+	/**
+	 * Exit a parse tree produced by `SiteswapParser.excl_mod`.
+	 * @param ctx the parse tree
+	 */
+	exitExcl_mod?: (ctx: Excl_modContext) => void;
 }
 

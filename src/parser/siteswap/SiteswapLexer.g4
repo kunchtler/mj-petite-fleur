@@ -12,6 +12,7 @@ L_MOD: 'L';
 R_MOD: 'R';
 COMMA: ',';
 EXCL: '!';
+COMMENT: '//' ~[\r\n]* -> skip;
 WS: [ \n\t\r\f]+ -> skip;
 
 mode MULTIPLE_DIGITS;
