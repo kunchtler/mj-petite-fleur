@@ -29,21 +29,21 @@ the juggling pattern's data.
 //     }
 // }
 
-class FracTimeline<EventType> extends Timeline<Fraction, EventType> {
+export class FracTimeline<EventType> extends Timeline<Fraction, EventType> {
     static cmp = (x: Fraction, y: Fraction) => x.compare(y);
     constructor(container?: [Fraction, EventType][]) {
         super(container, FracTimeline.cmp);
     }
 }
 
-interface Ball {
+export interface Ball {
     name: string;
-    id: number;
+    id: string;
 }
 
-interface PartialBall {
+export interface PartialBall {
     name: string;
-    id?: number;
+    id?: string;
 }
 
 //TODO : toss.to.juggler => toss.to.name ?
@@ -51,35 +51,35 @@ interface PartialBall {
 //TODO : Errors or console.log ?
 //TODO : Differentiate name and unique id for balls ?
 //TODO : Rename "mode" -> 'beatMode'
-interface PartialToss {
-    from: { juggler: string; rightHand?: boolean; beat: Fraction };
+export interface PartialToss {
+    from: { juggler: string; hand?: "R" | "L"; beat: Fraction };
     to: {
         juggler?: string;
-        rightHand?: boolean;
+        hand?: "R" | "L" | "x";
     } & ({ mode: "ToBeat"; beat: Fraction } | { mode: "AsHeight"; height: number });
     ball?: PartialBall;
 }
 
-interface PartialToss2 {
+export interface PartialToss2 {
     from: { juggler: string; rightHand: boolean; beat: Fraction };
     to: { juggler: string; rightHand?: boolean; beat: Fraction };
     ball: Ball;
 }
 
-interface Toss {
+export interface Toss {
     from: { juggler: string; rightHand: boolean; beat: Fraction };
     to: { juggler: string; rightHand: boolean; beat: Fraction };
     ball: Ball;
 }
 
-interface BallsInHands {
+export interface BallsInHands {
     rightHand: Deque<Ball>;
     leftHand: Deque<Ball>;
 }
 
 // TODO : Rename
-interface PartialEvents {
-    tosses: PartialToss[];
+export interface PartialEvents {
+    tosses?: PartialToss[];
     tempoChange?: Fraction;
     ballsSwap?: BallsInHands;
     useRightHand?: boolean;

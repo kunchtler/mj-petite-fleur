@@ -18,7 +18,7 @@ BEAT: 'B';
 MEASURE: 'M';
 COMMENT: '//' ~[\r\n]* -> skip;
 DIV: '/';
-NAME: [A-Z][a-z'\\_#];
+NAME: [A-Z][a-z'\\_#]*;
 // NAME: [A-Z]([a-z'\\_0-9]* [a-z'\\_])?;
 WS: [ \n\t\r\f]+ -> skip;
 

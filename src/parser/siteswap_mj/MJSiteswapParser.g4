@@ -4,8 +4,9 @@ parser grammar MJSiteswapParser;
 options {
 	tokenVocab = MJSiteswapLexer;
 }
-// pattern: pattern_atom+;
-pattern: pattern_atom+;
+// pattern: pattern_atom+; TODO Invert order (more specific to more detailed + change method order
+// in custom visitor)
+pattern: pattern_atom*;
 pattern_atom:
 	toss											# PatternToss
 	| '(' pattern_atom+ ')'							# PatternPar
@@ -30,11 +31,12 @@ toss: HAND_MOD? (async_toss | sync_toss);
 measure: 'M' number;
 frac: number DIV number;
 beat: 'B' frac # BeatFrac | 'B' number # BeatWholeNumber;
-abs_catch: (measure beat)	# AbsMeasureAndBeat
-	| beat					# AbsBeatOnly;
+abs_catch:
+	measure beat	# AbsMeasureAndBeat
+	| beat			# AbsBeatOnly;
 rel_catch: '+' beat;
 detailed_toss:
-	'{' NAME? (height | abs_catch | rel_catch) NAME? (
+	'{' ball = NAME? (height | abs_catch | rel_catch) toJuggler = NAME? (
 		HAND_MOD
 		| X_MOD
 	)? '}';
