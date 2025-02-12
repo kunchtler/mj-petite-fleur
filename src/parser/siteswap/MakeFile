@@ -1,2 +1,2 @@
 all:
-	antlr4 -Dlanguage=TypeScript SiteswapLexer.g4 SiteswapParser.g4 -o output
+	antlr4 -Dlanguage=TypeScript SiteswapLexer.g4 SiteswapParser.g4 -o output -visitor -listener

@@ -7,31 +7,34 @@ options {
 // pattern: pattern_atom+;
 pattern: pattern_atom+;
 pattern_atom:
-	throw
-	| '(' pattern ')'
-	| pattern_atom '^' (number | '(' number ')')
-	| detailed_throw;
+	toss											# PatternToss
+	| '(' pattern_atom+ ')'							# PatternPar
+	| pattern_atom '^' (number | '(' number ')')	# PatternExp;
 
 // Siteswap (normal + note)
 number: DIGIT+;
-height: DIGIT | BIG_HEIGHT_DIGIT | '{' number '}';
-throw_info: name? height x_mod? | detailed_throw;
-async_throw: throw_info | ('[' throw_info+ ']');
-sync_throw: '(' async_throw ',' async_throw ')' excl_mod?;
-throw: hand_mod? async_throw | sync_throw;
-hand_mod: 'L' | 'R';
-x_mod: 'x';
-excl_mod: '!';
-name: NAME;
+height:
+	DIGIT				# HeightDigit
+	| BIG_HEIGHT_DIGIT	# HeightBigDigit
+	| '{' number '}'	# HeightAcc;
+toss_info:
+	NAME? height X_MOD?	# TossVanilla
+	| detailed_toss		# TossDetailed;
+async_toss:
+	toss_info				# AsyncToss
+	| ('[' toss_info+ ']')	# AsyncMultiplex;
+sync_toss: '(' async_toss ',' async_toss ')' EXCL?;
+toss: HAND_MOD? (async_toss | sync_toss);
 
 // Siteswap (musical)
 measure: 'M' number;
-frac: number DIV number | number;
-beat: 'B' frac;
-abs_catch: (measure beat) | beat;
+frac: number DIV number;
+beat: 'B' frac # BeatFrac | 'B' number # BeatWholeNumber;
+abs_catch: (measure beat)	# AbsMeasureAndBeat
+	| beat					# AbsBeatOnly;
 rel_catch: '+' beat;
-detailed_throw:
-	'{' name? (height | abs_catch | rel_catch) name? (
-		hand_mod
-		| x_mod
+detailed_toss:
+	'{' NAME? (height | abs_catch | rel_catch) NAME? (
+		HAND_MOD
+		| X_MOD
 	)? '}';

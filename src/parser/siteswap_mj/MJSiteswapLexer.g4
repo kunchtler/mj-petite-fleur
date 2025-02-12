@@ -10,8 +10,7 @@ RPAR: ')';
 LSQU: '[';
 RSQU: ']';
 X_MOD: 'x';
-L_MOD: 'L';
-R_MOD: 'R';
+HAND_MOD: 'L' | 'R';
 COMMA: ',';
 EXCL: '!';
 PLUS: '+';
@@ -19,7 +18,8 @@ BEAT: 'B';
 MEASURE: 'M';
 COMMENT: '//' ~[\r\n]* -> skip;
 DIV: '/';
-NAME: [A-Z]([a-z'\\_0-9]* [a-z'\\_])?;
+NAME: [A-Z][a-z'\\_#];
+// NAME: [A-Z]([a-z'\\_0-9]* [a-z'\\_])?;
 WS: [ \n\t\r\f]+ -> skip;
 
 // mode MULTIPLE_DIGITS; NUMBER: [0-9]+; DIV: '/'; MD_RACC: RCUR -> popMode, type(RCUR); MD_RPAR:
