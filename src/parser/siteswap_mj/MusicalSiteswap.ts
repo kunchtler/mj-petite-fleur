@@ -28,26 +28,18 @@ import {
 } from "./output/MJSiteswapParser";
 
 type EventsList = [Fraction, PartialEvents][];
-// type T = string;
 
 //TODO : useRightHand ambiguity : is it in the throws or not ?
 // When L/R is specified -> gets fed in the event.
-// When sync toss -> gets fed in the toss.
+// When sync toss -> gets fed in the toss. RESOLVED. Document somewhere.
 //TODO : Make custom class with no mutation ? (but composition)
 //By passing time, and returning correct things ?
 //TODO : Bug report that tokens may be null and are not marked as null in types.
 //TODO : Ball Name / ID ?
-//TODO : Handle x when throwing to another juggler.
 //TODO : Consistant this.visit / this.visitSomething ?
 
-// class MusicalSiteswapVisitor {
-//     constructor() {
-//         //TODO: clean the visior
-//     }
-// }
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class MyVisitor extends MJSiteswapParserVisitor<any> {
+export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     beat: Fraction;
     events: [Fraction, PartialEvents][] = [];
     lastTossSyncRhythm = false;
@@ -246,45 +238,55 @@ import { CharStream, CommonTokenStream } from "antlr4";
 import MJSiteswapLexer from "./output/MJSiteswapLexer";
 import MJSiteswapParser from "./output/MJSiteswapParser";
 
-// Sample input
-// const input = "3";
-const input = "R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7";
-// const input = "L404[Sol4 Do'5]1";
-// const input = "{Do B5/4 Vincent x} {Do +B3/4 Vincent x} {Re 3 L}";
-const chars = new CharStream(input); // replace this with a FileStream as required
-const lexer = new MJSiteswapLexer(chars);
-const tokens = new CommonTokenStream(lexer);
-const parser = new MJSiteswapParser(tokens);
-const tree = parser.pattern();
+export function parseMusicalSiteswap(
+    pattern: string,
+    options: { startBeat: Fraction; tempo: Fraction; name: string } = {
+        startBeat: new Fraction(0),
+        tempo: new Fraction(1),
+        name: "NoName"
+    }
+): EventsList {
+    const chars = new CharStream(pattern); // replace this with a FileStream as required
+    const lexer = new MJSiteswapLexer(chars);
+    const tokens = new CommonTokenStream(lexer);
+    const parser = new MJSiteswapParser(tokens);
+    const tree = parser.pattern();
+    const visitor = new MJSVisitor(options.startBeat, options.tempo, options.name);
+    tree.accept(visitor);
+    return visitor.events;
+}
 
-const visitor = new MyVisitor(new Fraction(1), new Fraction(1), "Monsieur");
-tree.accept(visitor);
-const eventss = visitor.events;
-for (const [time, { tosses, useRightHand }] of eventss) {
-    console.log(
-        `Time : ${time.toString()}
-    Event useRightHand : ${useRightHand}`
-    );
-    if (tosses !== undefined) {
-        console.log(`   Event tosses :`);
-        for (const { ball, to, from } of tosses) {
-            console.log(
-                `       Ball :
-            Name : ${ball?.name}
-            ID : ${ball?.id}
-        Catch :
-            Mode : ${to.mode}
-            ${to.mode === "AsHeight" ? `Height : ${to.height}` : `Time: ${to.beat}`}
-        From : 
-            Name : ${from.juggler}
-            Hand : ${from.hand}
-            OnBeat : ${from.beat}
-        To :
-            Name : ${to.juggler}
-            Hand : ${to.hand}`
-            );
+export function prettyPrintEvents(events: EventsList) {
+    for (const [time, { tosses, useRightHand }] of events) {
+        console.log(
+            `Time : ${time.toString()}
+        Event useRightHand : ${useRightHand}`
+        );
+        if (tosses !== undefined) {
+            console.log(`   Event tosses :`);
+            for (const { ball, to, from } of tosses) {
+                console.log(
+                    `       Ball :
+                Name : ${ball?.name}
+                ID : ${ball?.id}
+            Catch :
+                Mode : ${to.mode}
+                ${to.mode === "AsHeight" ? `Height : ${to.height}` : `Time: ${to.beat}`}
+            From : 
+                Name : ${from.juggler}
+                Hand : ${from.hand}
+                OnBeat : ${from.beat}
+            To :
+                Name : ${to.juggler}
+                Hand : ${to.hand}`
+                );
+            }
         }
     }
 }
 
-// console.log("Reconstructed expression:", result);
+// const input = "3";
+// const input = "L404[Sol4 Do'5]1";
+// const input = "{Do B5/4 Vincent x} {Do +B3/4 Vincent x} {Re 3 L}";
+// const input = "R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7";
+// prettyPrintEvents(parseMusicalSiteswap(input));
