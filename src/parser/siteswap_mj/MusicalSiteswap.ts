@@ -102,13 +102,13 @@ export class MyVisitor extends MJSiteswapParserVisitor<any> {
     visitPatternExp = (ctx: PatternExpContext): void => {
         const exp = this.visitNumber(ctx.number_());
         for (let i = 0; i < exp; i++) {
-            this.visitChildren(ctx.pattern_atom());
+            this.visit(ctx.pattern_atom());
         }
     };
 
     visitPatternPar = (ctx: PatternParContext): void => {
         for (const patternAtomCtx of ctx.pattern_atom_list()) {
-            this.visitChildren(patternAtomCtx);
+            this.visit(patternAtomCtx);
         }
     };
 
@@ -205,11 +205,11 @@ export class MyVisitor extends MJSiteswapParserVisitor<any> {
     };
 
     visitAbsBeatOnly = (ctx: AbsBeatOnlyContext): Fraction => {
-        return this.visitChildren(ctx) as Fraction;
+        return this.visit(ctx.beat()) as Fraction;
     };
 
     visitRel_catch = (ctx: Rel_catchContext): Fraction => {
-        return this.beat.add(this.visitChildren(ctx) as Fraction);
+        return this.visit(ctx.beat()) as Fraction;
     };
 
     visitDetailed_toss = (ctx: Detailed_tossContext): PartialToss => {
@@ -248,9 +248,9 @@ import MJSiteswapParser from "./output/MJSiteswapParser";
 
 // Sample input
 // const input = "3";
-// const input = "R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7";
+const input = "R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7";
 // const input = "L404[Sol4 Do'5]1";
-const input = "({Do B5/4 Vincent x}, {Do +B3/4 Vincent x})";
+// const input = "{Do B5/4 Vincent x} {Do +B3/4 Vincent x} {Re 3 L}";
 const chars = new CharStream(input); // replace this with a FileStream as required
 const lexer = new MJSiteswapLexer(chars);
 const tokens = new CommonTokenStream(lexer);
