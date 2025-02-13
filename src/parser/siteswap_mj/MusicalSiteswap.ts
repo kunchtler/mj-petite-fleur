@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+import { CharStream, CommonTokenStream } from "antlr4";
+import MJSiteswapLexer from "./output/MJSiteswapLexer";
+import MJSiteswapParser from "./output/MJSiteswapParser";
 import MJSiteswapParserVisitor from "./output/MJSiteswapParserVisitor";
-import { PartialEvents, PartialToss } from "../../tocategorize/mj_parser";
-import Fraction from "fraction.js";
 import {
     AbsBeatOnlyContext,
     AbsMeasureAndBeatContext,
@@ -26,6 +27,9 @@ import {
     PatternTossContext,
     TossVanillaContext
 } from "./output/MJSiteswapParser";
+import { PartialEvents, PartialToss } from "../../tocategorize/mj_parser";
+import Fraction from "fraction.js";
+import { MusicBeatConverter } from "../../tocategorize/musicBeatConverter";
 
 type EventsList = [Fraction, PartialEvents][];
 
@@ -37,6 +41,17 @@ type EventsList = [Fraction, PartialEvents][];
 //TODO : Bug report that tokens may be null and are not marked as null in types.
 //TODO : Ball Name / ID ?
 //TODO : Consistant this.visit / this.visitSomething ?
+//TODO : Remove as much as possible from the parser : We can add the tempo later, and filter music / beat later too ?
+// What we can do later than parser (possibly changing a bit the format):
+// -Check for time requirements (measure and beat / beat)
+// -Remove empty events / With height 0 / Caught on same beat as thrown
+
+interface MJSVisitorConstructorParameters {
+    startBeat: Fraction;
+    tempo: Fraction;
+    jugglerName: string;
+    musicConverter?: MusicBeatConverter;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class MJSVisitor extends MJSiteswapParserVisitor<any> {
@@ -45,12 +60,19 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     lastTossSyncRhythm = false;
     readonly tempo: Fraction;
     readonly jugglerName: string;
+    readonly musicConverter?: MusicBeatConverter;
 
-    constructor(startBeat: Fraction, tempo: Fraction, jugglerName: string) {
+    constructor({
+        startBeat,
+        tempo,
+        jugglerName,
+        musicConverter
+    }: MJSVisitorConstructorParameters) {
         super();
         this.beat = startBeat.clone();
         this.tempo = tempo.clone();
         this.jugglerName = jugglerName;
+        this.musicConverter = musicConverter;
     }
 
     addTossToEvents(tosses: PartialToss[], newDefaultHand?: "L" | "R"): void {
@@ -192,8 +214,14 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     };
 
     visitAbsMeasureAndBeat = (ctx: AbsMeasureAndBeatContext): Fraction => {
-        //TODO
-        throw Error("Not Implemented");
+        if (this.musicConverter === undefined) {
+            throw Error(
+                "No Signature information was provided to constructor to be able to use measures."
+            );
+        }
+        const measure = this.visitMeasure(ctx.measure());
+        const beat = this.visit(ctx.beat()) as Fraction;
+        return this.musicConverter.convertMeasureBeat([measure, beat]);
     };
 
     visitAbsBeatOnly = (ctx: AbsBeatOnlyContext): Fraction => {
@@ -234,16 +262,12 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     };
 }
 
-import { CharStream, CommonTokenStream } from "antlr4";
-import MJSiteswapLexer from "./output/MJSiteswapLexer";
-import MJSiteswapParser from "./output/MJSiteswapParser";
-
 export function parseMusicalSiteswap(
     pattern: string,
-    options: { startBeat: Fraction; tempo: Fraction; name: string } = {
+    options: MJSVisitorConstructorParameters = {
         startBeat: new Fraction(0),
         tempo: new Fraction(1),
-        name: "NoName"
+        jugglerName: "NoName"
     }
 ): EventsList {
     const chars = new CharStream(pattern); // replace this with a FileStream as required
@@ -251,7 +275,7 @@ export function parseMusicalSiteswap(
     const tokens = new CommonTokenStream(lexer);
     const parser = new MJSiteswapParser(tokens);
     const tree = parser.pattern();
-    const visitor = new MJSVisitor(options.startBeat, options.tempo, options.name);
+    const visitor = new MJSVisitor(options);
     tree.accept(visitor);
     return visitor.events;
 }
@@ -289,4 +313,16 @@ export function prettyPrintEvents(events: EventsList) {
 // const input = "L404[Sol4 Do'5]1";
 // const input = "{Do B5/4 Vincent x} {Do +B3/4 Vincent x} {Re 3 L}";
 // const input = "R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7";
-// prettyPrintEvents(parseMusicalSiteswap(input));
+// const input = "R(3)^3";
+// const input = "{M1B1/4}303{Do M3B1/3}";
+// prettyPrintEvents(
+//     parseMusicalSiteswap(input, {
+//         startBeat: new Fraction(0),
+//         tempo: new Fraction("1/4"),
+//         jugglerName: "Nicolas",
+//         musicConverter: new MusicBeatConverter([
+//             [0, new Fraction("3/4")],
+//             [2, new Fraction("2/3")]
+//         ])
+//     })
+// );
