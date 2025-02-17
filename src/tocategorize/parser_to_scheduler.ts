@@ -7,6 +7,8 @@ import {
 import { MusicBeatConverter } from "./music_beat_converter";
 import { PartialEvent, PartialToss, PartialTossMode, PartialBall } from "./mj_parser";
 import { Deque } from "js-sdsl";
+import { closestWordsTo } from "./levenshtein_distance";
+import { setIntersection } from "../utils/SetOperations";
 
 export interface ParserToSchedulerParams {
     events: ParserJugglingEvent[];
@@ -14,8 +16,8 @@ export interface ParserToSchedulerParams {
     defaultJugglerName: string;
     startBeat: Fraction;
     tempo: Fraction;
-    ballNames: Set<string>;
-    ballIDs: Map<string, string>;
+    ballNames?: Set<string>;
+    ballIDs?: Map<string, string>;
     musicConverter?: MusicBeatConverter;
 }
 
@@ -30,8 +32,15 @@ export function parserToSchedulerEvents({
     musicConverter
 }: ParserToSchedulerParams): [Fraction, PartialEvent][] {
     if (!jugglerNames.has(defaultJugglerName)) {
-        throw Error(`Unknown juggler name : ${defaultJugglerName}`);
+        handleUnkownName(defaultJugglerName, jugglerNames, "juggler");
     }
+    if (ballNames === undefined) {
+        ballNames = new Set(ballIDs !== undefined ? ballIDs.values() : []);
+    }
+    if (ballIDs === undefined) {
+        ballIDs = new Map();
+    }
+    checkDuplicateBallName(ballNames, ballIDs);
     const newEvents: [Fraction, PartialEvent][] = [];
     let beat = startBeat;
     for (const ev of events) {
@@ -63,13 +72,34 @@ export function parserToSchedulerEvents({
     return filterEmptyEvents(newEvents);
 }
 
+function checkDuplicateBallName(ballNames: Set<string>, ballIDs: Map<string, string>): void {
+    const inter = setIntersection(ballNames, new Set(ballIDs.keys()));
+    if (inter.size > 0) {
+        let text = "Some balls are both a name and an ID :";
+        for (const name of inter) {
+            text += ` ${name}`;
+        }
+        text += ".";
+        throw Error(text);
+    }
+}
+
+function handleUnkownName(name: string, namesList: Iterable<string>, nameCategory: string) {
+    let text = `Unknown ${nameCategory} : "${name}".`;
+    const closeMatches = closestWordsTo(name, namesList, 2);
+    if (closeMatches.length > 0) {
+        text += ` Did you mean "${closestWordsTo(name, namesList, 2)}" ?`;
+    }
+    throw Error(text);
+}
+
 function getToJuggler(
     toss: ParserToss,
     defaultJugglerName: string,
     jugglerNames: Set<string>
 ): string {
     if (toss.toJuggler !== undefined && !jugglerNames.has(toss.toJuggler)) {
-        throw Error(`Unknown juggler name : ${toss.toJuggler}`);
+        handleUnkownName(toss.toJuggler, jugglerNames, "juggler");
     }
     return toss.toJuggler ?? defaultJugglerName;
 }
@@ -85,7 +115,7 @@ function getBall(
         } else if (ballIDs.has(toss.ballNameOrID)) {
             return { name: ballIDs.get(toss.ballNameOrID)!, id: toss.ballNameOrID };
         } else {
-            throw Error(`Unrecognized ball name : ${toss.ballNameOrID}`);
+            handleUnkownName(toss.ballNameOrID, [...ballNames, ...ballIDs.keys()], "ball");
         }
     }
     return undefined;
@@ -227,7 +257,6 @@ export function stringifySchedulerEvents(events: [Fraction, PartialEvent][]) {
 // Testing
 // import { parseMusicalSiteswap } from "../parser/siteswap_mj/MusicalSiteswap";
 // const params: ParserToSchedulerParams = {
-//     ballIDs: new Map(),
 //     ballNames: new Set(["Do", "Re", "Mi", "Fa", "Sol", "La", "Si", "Do'"]),
 //     defaultJugglerName: "NoName",
 //     jugglerNames: new Set(["NoName", "Vincent", "Florent"]),
@@ -235,6 +264,7 @@ export function stringifySchedulerEvents(events: [Fraction, PartialEvent][]) {
 //     // events: parseMusicalSiteswap("L404[Sol4 Do'5]1"),
 //     // events: parseMusicalSiteswap("R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7"),
 //     events: parseMusicalSiteswap("{M1B1/4}303{Do B5}{B6/1}{+B2 x}"),
+//     // events: parseMusicalSiteswap("LBo3"), //Should Fail
 //     startBeat: new Fraction(0),
 //     tempo: new Fraction("1"),
 //     musicConverter: new MusicBeatConverter([[0, new Fraction("3")]])
