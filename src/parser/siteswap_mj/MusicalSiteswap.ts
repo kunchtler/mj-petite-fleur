@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import { CharStream, CommonTokenStream, Parser } from "antlr4";
+import { CharStream, CommonTokenStream } from "antlr4";
 import MJSiteswapLexer from "./output/MJSiteswapLexer";
 import MJSiteswapParser from "./output/MJSiteswapParser";
 import MJSiteswapParserVisitor from "./output/MJSiteswapParserVisitor";
@@ -27,9 +27,8 @@ import {
     PatternTossContext,
     TossVanillaContext
 } from "./output/MJSiteswapParser";
-import { PartialEvents, PartialToss } from "../../tocategorize/mj_parser";
 import Fraction from "fraction.js";
-import { MusicBeatConverter, MusicTime } from "../../tocategorize/musicBeatConverter";
+import { MusicTime } from "../../tocategorize/musicBeatConverter";
 
 //TODO : useRightHand ambiguity : is it in the throws or not ?
 // When L/R is specified -> gets fed in the event.
@@ -48,20 +47,20 @@ import { MusicBeatConverter, MusicTime } from "../../tocategorize/musicBeatConve
 //TODO : Rename MusicTime to smth else ? Measure&Beat ?
 //TODO in further checks : Juggler Name + Rel to Abs Beat + Remove empty events (h=0, catchBeat=throwBeat)
 
-type ParserToss = {
+export type ParserToss = {
     ballNameOrID?: string;
     fromHand?: "L" | "R";
     toJuggler?: string;
     toHand?: "L" | "R" | "x";
-} & TossMode;
+} & ParserTossMode;
 
-type TossMode =
+export type ParserTossMode =
     | { mode: "Height"; height: number }
     | { mode: "AbsBeat"; beat: Fraction }
     | { mode: "AbsMeasureBeat"; measureBeat: MusicTime }
     | { mode: "RelBeat"; beat: Fraction };
 
-type ParserJugglingEvent = {
+export type ParserJugglingEvent = {
     newDefaultHand?: "L" | "R";
     tosses?: ParserToss[];
 };
@@ -217,7 +216,7 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
             toJugglerName = names[namesIdx].getText();
             namesIdx++;
         }
-        let tossMode: TossMode;
+        let tossMode: ParserTossMode;
         if (ctx.height() !== null) {
             tossMode = { mode: "Height", height: this.visit(ctx.height()) as number };
         } else if (ctx.abs_catch() !== null) {
@@ -262,18 +261,18 @@ function stringifyFraction(f: Fraction): string {
     return `${f.n}/${f.d}`;
 }
 
-function stringifyEvent(ev: ParserJugglingEvent): string {
+export function stringifyEvent(ev: ParserJugglingEvent): string {
     if (ev.newDefaultHand === undefined && ev.tosses === undefined) {
-        return "\tEmpty Event.";
+        return "Empty Event.";
     }
     let text = "";
     if (ev.newDefaultHand !== undefined) {
-        text += `\tnewDefaultHand: ${ev.newDefaultHand}\n`;
+        text += `newDefaultHand: ${ev.newDefaultHand}\n`;
     }
     if (ev.tosses !== undefined) {
         for (let i = 0; i < ev.tosses.length; i++) {
             const toss = ev.tosses[i];
-            text += `\tToss ${i}: Ball `;
+            text += `Toss ${i}: Ball `;
             if (toss.ballNameOrID !== undefined) {
                 text += `${toss.ballNameOrID} `;
             }
@@ -316,11 +315,13 @@ function stringifyEvent(ev: ParserJugglingEvent): string {
     return text;
 }
 
-function stringifyEvents(events: ParserJugglingEvent[]) {
+export function stringifyEvents(events: ParserJugglingEvent[]) {
     let text = "";
     for (let i = 0; i < events.length; i++) {
-        text += `Time ${i}:\n`;
-        text += stringifyEvent(events[i]) + "\n";
+        text += `Time ${i}:`;
+        text += "\n\t";
+        text += stringifyEvent(events[i]).split("\n").join("\n\t");
+        text += "\n";
     }
     return text;
 }
