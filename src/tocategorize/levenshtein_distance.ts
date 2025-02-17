@@ -93,11 +93,18 @@ function _min(d0: number, d1: number, d2: number, bx: number, ay: number) {
     return d0 < d1 || d2 < d1 ? (d0 > d2 ? d2 + 1 : d0 + 1) : bx === ay ? d1 : d1 + 1;
 }
 
-export function closestWordsTo(target: string, words: string[]): string[] {
+export function closestWordsTo(
+    target: string,
+    words: Iterable<string>,
+    maxDistance?: number
+): string[] {
     let minDistance: number | undefined = undefined;
     let minWords: string[] = [];
     for (const word of words) {
         const dist = levenshteinDistance(target, word);
+        if (maxDistance !== undefined && dist >= maxDistance) {
+            continue;
+        }
         if (minDistance === undefined || minDistance > dist) {
             minDistance = dist;
             minWords = [word];
