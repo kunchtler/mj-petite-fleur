@@ -28,7 +28,7 @@ import {
     TossVanillaContext
 } from "./output/MJSiteswapParser";
 import Fraction from "fraction.js";
-import { MusicTime } from "../../tocategorize/musicBeatConverter";
+import { MusicTime } from "../../tocategorize/music_beat_converter";
 
 //TODO : useRightHand ambiguity : is it in the throws or not ?
 // When L/R is specified -> gets fed in the event.

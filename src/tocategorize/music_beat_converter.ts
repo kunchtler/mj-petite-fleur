@@ -2,7 +2,8 @@ import Fraction from "fraction.js";
 import { Timeline } from "../simulator/Timeline";
 
 //TODO : Make vanilla timeline in utils rather than in simulator folder.
-type MusicTime = [number, Fraction];
+//TODO : Confusion in what a beat is (if sig 3/4 and tempo 1/4. Is beat : 0, 1, 2 or 0/4, 1/4, 2/4 ??)
+export type MusicTime = [number, Fraction];
 
 export class MusicBeatConverter {
     readonly signatureChanges: Timeline<number, Fraction>;
