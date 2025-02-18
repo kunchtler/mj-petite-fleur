@@ -5,7 +5,7 @@ import {
     stringifyFraction
 } from "../parser/siteswap_mj/MusicalSiteswap";
 import { MusicBeatConverter } from "./music_beat_converter";
-import { PartialEvent, PartialToss, PartialTossMode, PartialBall } from "./mj_parser";
+import { SchedulerEvent, PartialToss, PartialTossMode, PartialBall } from "./mj_parser";
 import { Deque } from "js-sdsl";
 import { closestWordsTo } from "./levenshtein_distance";
 import { setIntersection } from "../utils/SetOperations";
@@ -30,7 +30,7 @@ export function parserToSchedulerEvents({
     ballNames,
     ballIDs,
     musicConverter
-}: ParserToSchedulerParams): [Fraction, PartialEvent][] {
+}: ParserToSchedulerParams): [Fraction, SchedulerEvent][] {
     if (!jugglerNames.has(defaultJugglerName)) {
         handleUnkownName(defaultJugglerName, jugglerNames, "juggler");
     }
@@ -41,7 +41,7 @@ export function parserToSchedulerEvents({
         ballIDs = new Map();
     }
     checkDuplicateBallName(ballNames, ballIDs);
-    const newEvents: [Fraction, PartialEvent][] = [];
+    const newEvents: [Fraction, SchedulerEvent][] = [];
     let beat = startBeat;
     for (const ev of events) {
         const newTosses: PartialToss[] = [];
@@ -62,7 +62,7 @@ export function parserToSchedulerEvents({
                 });
             }
         }
-        const newEv: PartialEvent = {
+        const newEv: SchedulerEvent = {
             newDefaultHand: ev.newDefaultHand,
             tosses: newTosses
         };
@@ -142,14 +142,14 @@ function getMode(
     return { mode: "Beat", beat: beat.add(toss.beat) };
 }
 
-function filterEmptyEvents(events: [Fraction, PartialEvent][]): [Fraction, PartialEvent][] {
-    const newEvents: [Fraction, PartialEvent][] = [];
+function filterEmptyEvents(events: [Fraction, SchedulerEvent][]): [Fraction, SchedulerEvent][] {
+    const newEvents: [Fraction, SchedulerEvent][] = [];
     for (const [beat, ev] of events) {
         if (
             ev.tosses === undefined &&
             ev.tempoChange === undefined &&
             ev.newDefaultHand === undefined &&
-            ev.ballsSwap === undefined
+            ev.ballsInHands === undefined
         ) {
             continue;
         }
@@ -170,11 +170,11 @@ function keepToss(toss: PartialToss): boolean {
 }
 
 // Printing Functions
-export function stringifySchedulerEvent(ev: PartialEvent): string {
+export function stringifySchedulerEvent(ev: SchedulerEvent): string {
     if (
         ev.newDefaultHand === undefined &&
         ev.tosses === undefined &&
-        ev.ballsSwap === undefined &&
+        ev.ballsInHands === undefined &&
         ev.tempoChange === undefined
     ) {
         return "Empty Event.";
@@ -186,8 +186,8 @@ export function stringifySchedulerEvent(ev: PartialEvent): string {
     if (ev.tempoChange !== undefined) {
         text += `Tempo Change: ${stringifyFraction(ev.tempoChange)}\n`;
     }
-    if (ev.ballsSwap !== undefined) {
-        text += `New balls in hand: Left${stringifyDeque(ev.ballsSwap.leftHand, stringifyBall)} Right${stringifyDeque(ev.ballsSwap.rightHand, stringifyBall)} \n`;
+    if (ev.ballsInHands !== undefined) {
+        text += `New balls in hand: Left${stringifyDeque(ev.ballsInHands.leftHand, stringifyBall)} Right${stringifyDeque(ev.ballsInHands.rightHand, stringifyBall)} \n`;
     }
     if (ev.tosses !== undefined) {
         for (let i = 0; i < ev.tosses.length; i++) {
@@ -243,7 +243,7 @@ export function stringifyDeque<T>(deque: Deque<T>, stringifyElemFunc: (elem: T) 
     return text;
 }
 
-export function stringifySchedulerEvents(events: [Fraction, PartialEvent][]) {
+export function stringifySchedulerEvents(events: [Fraction, SchedulerEvent][]) {
     let text = "";
     for (const [beat, ev] of events) {
         text += `Beat ${stringifyFraction(beat)}`;

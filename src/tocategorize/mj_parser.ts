@@ -1,7 +1,6 @@
 import { Deque, OrderedMapIterator } from "js-sdsl";
 import { Timeline } from "../simulator/Timeline";
 import Fraction from "fraction.js";
-import { closestWordsTo } from "./levenshtein_distance";
 
 /*
 The time between two tosses / catches of the juggler is called its unit
@@ -29,6 +28,12 @@ the juggling pattern's data.
 //     }
 // }
 
+//TODO : Replace all [Fraction, event][] by this ?
+type SortedList<T> = T[];
+type FracSortedList<T> = SortedList<[Fraction, T]>;
+
+//TODO : Handle x when throwing to another juggler.
+
 export class FracTimeline<EventType> extends Timeline<Fraction, EventType> {
     static cmp = (x: Fraction, y: Fraction) => x.compare(y);
     constructor(container?: [Fraction, EventType][]) {
@@ -49,45 +54,58 @@ export interface PartialBall {
 //TODO : toss.to.juggler => toss.to.name ?
 //TODO : Rename or add namesapces.
 //TODO : Errors or console.log ?
-//TODO : Differentiate name and unique id for balls ?
-//TODO : Rename "mode" -> 'beatMode'
 export interface PartialToss {
     from: { juggler: string; hand?: "R" | "L"; beat: Fraction };
     to: {
-        juggler?: string;
+        juggler: string;
         hand?: "R" | "L" | "x";
-    } & ({ mode: "ToBeat"; beat: Fraction } | { mode: "AsHeight"; height: number });
+    } & PartialTossMode;
     ball?: PartialBall;
 }
 
+export type PartialTossMode = { mode: "Beat"; beat: Fraction } | { mode: "Height"; height: number };
+
+export interface BallsInHands {
+    rightHand: Ball[];
+    leftHand: Ball[];
+}
+// TODO: Rename
 export interface PartialToss2 {
     from: { juggler: string; rightHand: boolean; beat: Fraction };
     to: { juggler: string; rightHand?: boolean; beat: Fraction };
     ball: Ball;
 }
 
-export interface Toss {
+// TODO : Rename to Toss ?
+export interface SimulatorToss {
     from: { juggler: string; rightHand: boolean; beat: Fraction };
     to: { juggler: string; rightHand: boolean; beat: Fraction };
     ball: Ball;
 }
 
-export interface BallsInHands {
-    rightHand: Deque<Ball>;
-    leftHand: Deque<Ball>;
-}
-
-// TODO : Rename
-export interface PartialEvents {
+export interface SchedulerEvent {
     tosses?: PartialToss[];
     tempoChange?: Fraction;
-    ballsSwap?: BallsInHands;
-    useRightHand?: boolean;
+    ballsInHands?: BallsInHands;
+    newDefaultHand?: "L" | "R";
 }
 
-// function validateMusic(computedMusic: MusicTimeline<Note[]>, expectedMusic: any): boolean {}
+export interface SchedulerCompletedEvent {
+    tosses?: PartialToss[];
+    tempo: Fraction;
+    ballsInHands?: BallsInHands;
+}
 
-// function splitTimeline(events: MusicTimeline<Events>, jugglerNames: string[]): {musicEvents: MusicTimel}
+//TODO : Fix
+export interface SimulatorEvent {
+    tosses?: SimulatorToss[];
+    tempoChange?: Fraction;
+    ballsSwap?: BallsInHands;
+    newDefaultHand?: "L" | "R";
+}
+
+export type SchedulerEvents = [Fraction, SchedulerEvent][];
+export type SimulatorEvents = [Fraction, SimulatorEvent][];
 
 //Ball Name -> Time until caught
 //TODO : Create custom errors for Jugglers and scheduler.
@@ -98,6 +116,9 @@ export class SchedulerError extends Error {
     }
 }
 
+// interface PatternReturn {name: string, states: JugglerState}
+
+//TODO : Document that by default hands have LIFO structure.
 //TODO : Make Generic version for the fun of it ?
 //TODO : Rename partialEvents (clashes with JS events ?)
 //TODO : Fail Gracefully
@@ -106,7 +127,9 @@ export class SchedulerError extends Error {
 export class Scheduler {
     jugglers: Map<string, JugglerManager>;
 
-    constructor(jugglers: { name: string; balls: Ball[]; events: FracTimeline<PartialEvents> }[]) {
+    constructor(
+        jugglers: { name: string; balls: PartialBall[]; events: FracTimeline<SchedulerEvent> }[]
+    ) {
         this.jugglers = new Map();
         for (const { name, balls, events } of jugglers) {
             this.jugglers.set(name, new JugglerManager(name, balls, events));
@@ -123,21 +146,22 @@ export class Scheduler {
 
     //TODO : Handle errors.
     //TODO : Add arguments from / to ?
+    //TODO : Add Return type.
     validatePattern(): {
         isValid: boolean;
-        tosses: Toss[];
+        tosses: SimulatorToss[];
         states: Map<string, FracTimeline<JugglerState>>;
     } {
         let failedAcc = false;
         // let failedCritical = false;
-        const completedTosses: Toss[] = [];
+        const completedTosses: SimulatorToss[] = [];
         while (!this.reachedEnd() /*|| !failedCritical*/) {
             // Figure out when the closest next beat is from amongst all jugglers.
             let closestNextBeat: Fraction | undefined = undefined;
             let nextBeatJugglers: string[] = [];
             for (const [name, juggler] of this.jugglers) {
                 //TODO : Rename this method ?
-                const beat = juggler.getNextBeat();
+                const beat = juggler.nextBeatToProcess();
                 if (closestNextBeat === undefined || beat.lt(closestNextBeat)) {
                     closestNextBeat = beat;
                     nextBeatJugglers = [name];
@@ -159,18 +183,6 @@ export class Scheduler {
                 failedAcc ||= failed;
                 for (const toss of tosses) {
                     tossedTo.get(name)!.push(toss);
-                    // //TODO : Remove and handle in lexer / parser ?
-                    // if (!tossedTo.has(toss.to.juggler)) {
-                    //     // const closestNames = closestWordsTo(toss.to.juggler, [...this.jugglers.keys()]);
-                    //     console.error(
-                    //         `Scheduler Error on beat ${closestNextBeat} :
-                    //             Juggler ${name} throws ball ${toss.ball.name} to \
-                    //             unknown juggler ${toss.to.juggler}.`
-                    //     );
-                    //     softFailAcc = true;
-                    // } else {
-                    //     tossedTo.get(name)!.push(toss);
-                    // }
                 }
             }
 
@@ -205,7 +217,7 @@ export class Scheduler {
 //TODO : Methods that have no side effect statr with "get".
 interface JugglerState {
     airborne: Map<
-        string,
+        Ball,
         {
             toRightHand?: boolean;
             remainingBeats: Fraction;
@@ -215,15 +227,45 @@ interface JugglerState {
     >;
     held: BallsInHands;
     onTable: Set<Ball>;
-    useRightHand: boolean;
+    // useRightHand: boolean;
 }
 
 interface BeatInfo {
     state?: JugglerState;
     tempo: Fraction;
-    useRightHand: boolean;
+    newDefaultHand: "L" | "R";
 }
 
+interface EventCache {
+    tempo: Fraction;
+    isNewHandRight: boolean;
+}
+
+type SchedulerEvent2 = SchedulerEvent & { cache: EventCache };
+
+type Severity = "Log" | "Warn" | "Error" | "CriticalError";
+type ErrorLog = [Severity, string];
+
+class ErrorTimedLogger<Time> extends Map<Time, ErrorLog[]> {
+    addError(time: Time, error: ErrorLog): void {
+        let existingErrors = this.get(time);
+        if (existingErrors === undefined) {
+            existingErrors = [];
+            this.set(time, existingErrors);
+        }
+        existingErrors.push(error);
+    }
+
+    sortErrors(compare: (t1: Time, t2: Time) => number): [Time, ErrorLog[]][] {
+        return [...this.entries()].sort((entry1, entry2) => compare(entry1[0], entry2[0]));
+    }
+}
+
+export function isInRhythm(beat: Fraction, startBeat: Fraction, tempo: Fraction): boolean {
+    return beat.sub(startBeat).divisible(tempo);
+}
+
+//TODO : Fuse "beat" with BeatInfo / State ? to avoid events[0][0/1] ? YES URGENT ?
 //TODO : Comment properties use.
 //TODO : Clean interfaces
 //TODO : For juggling, names Signature / Tempo ?
@@ -232,15 +274,17 @@ interface BeatInfo {
 //TODO : Rename 'Tempo' => "unit value"
 //TODO : Rename 'beats' => "states" ?
 //TODO : Array instead of timeline at some points ?
+//TODO : ErrorLogger !
 class JugglerManager {
     name: string;
-    events: FracTimeline<PartialEvents>;
-    beats: FracTimeline<BeatInfo>;
-    private _currentTempo: Fraction;
+    events: FracSortedList<SchedulerEvent2>;
+    beats: FracSortedList<JugglerState>;
+    errorLogger: ErrorTimedLogger<Fraction>;
+    // private _currentTempo: Fraction;
     private _currentState: JugglerState;
-    private _currentBeat: Fraction; //TODO : Redundant with _itBeats ? NO Because it is the "next beat we'll work / we're working on". Change name ?
-    private _itEvents: OrderedMapIterator<Fraction, PartialEvents>;
-    private _itBeats: OrderedMapIterator<Fraction, BeatInfo>;
+    // private _currentBeatIdx: number;
+    // private _currentBeat: Fraction;
+    private _nextEventIdx: number;
     private _hasProcessedFirstBeat = false;
 
     //TODO : FOr the packages in pnpm, if they have modular install, use it !
@@ -252,102 +296,170 @@ class JugglerManager {
     // FIRST ANSWER, reason : to keep the symbolic of the height (hand changing etc)
     //+ Easier to understand in practice (number of actions done before catching it).
     //TODO: Reorder constructor code.
-    constructor(name: string, ballsOnTable: Ball[], events: FracTimeline<PartialEvents>) {
+    constructor(name: string, ballsOnTable: Ball[], events: FracSortedList<SchedulerEvent>) {
         this.name = name;
-        this.events = events;
-        this.beats = new FracTimeline();
-
-        // Check if the events properly begin with a unit value.
-        const it = this.events.begin();
-        if (!it.isAccessible() || it.pointer[1].tempoChange === undefined) {
-            throw Error(`Missing starting tempo indication for juggler ${this.name}`);
-        }
-        this._currentTempo = it.pointer[1].tempoChange;
-        this._currentBeat = it.pointer[0];
-        let startsWithRightHand = it.pointer[1].useRightHand;
-        if (startsWithRightHand === undefined) {
-            startsWithRightHand = true;
-            console.warn(
-                `Juggler ${this.name} :
-                    No starting hand detected. Assumes they will start with their
-                    right hand.
-            `
-            );
-        }
-        this.beats.setElement(this._currentBeat, {
-            tempo: this._currentTempo,
-            useRightHand: startsWithRightHand
-        });
+        this.events = this.pretreatEvents(events);
+        this.beats = [];
+        this._nextEventIdx = 0;
+        // this._currentBeatIdx = 0;
+        this.errorLogger = new ErrorTimedLogger();
         this._currentState = {
             airborne: new Map(),
             held: {
-                rightHand: new Deque(undefined, 3),
-                leftHand: new Deque(undefined, 3)
+                rightHand: [],
+                leftHand: []
             },
-            onTable: new Set(ballsOnTable),
-            useRightHand: startsWithRightHand
+            onTable: new Set(ballsOnTable)
         };
-        this._itEvents = this.events.begin();
-        this._itBeats = this.beats.begin();
     }
 
-    getNextEventsBeat(): Fraction | null {
-        return this._itEvents.isAccessible() ? this._itEvents.pointer[0] : null;
-    }
-
-    getNextBeat(): Fraction {
-        return this._currentBeat; /*.add(this._currentTempo);*/
-    }
-
-    getBeatInfo(beat: Fraction): { tempo: Fraction; useRightHand: boolean } {
-        const currentBeat = structuredClone(this._currentBeat);
-        const itBeats = this._itBeats.copy();
-        const [lastKnownBeat, { tempo, useRightHand }] = this.beats.rBegin().pointer;
-        if (lastKnownBeat.gte(beat)) {
-            const info = this.beats.find(beat);
-        } else {
-            let currentBeat = lastKnownBeat.clone();
-            let currentTempo = tempo.clone();
-            let itEvents = this.events.next_event(beat, true);
+    //TODO : After parsing siteswaps, check that we don't have a conflict in the sens that we have created two events on the same beat if things were not properly defined.
+    //TODO : TempoChange Offset !!!
+    //TODO : Remove from class ?
+    // Document that prefills cache information and checks that events happen on rhythm.
+    pretreatEvents(events: FracSortedList<SchedulerEvent>): FracSortedList<SchedulerEvent2> {
+        //TODO : Move Warnings about first hand and first error throw here.
+        if (events.length === 0 || events[0][1].tempoChange === undefined) {
+            throw Error(`Missing starting tempo indication for juggler ${this.name}`);
         }
+        let startHand = events[0][1].newDefaultHand;
+        if (startHand === undefined) {
+            console.warn(
+                `Juggler ${this.name}:\n\tNo starting hand detected. Assumes they will start with their right hand.`
+            );
+            startHand = "R";
+        }
+        let lastBeat = events[0][0];
+        let lastTempo = events[0][1].tempoChange;
+        let lastNewDefaultHand = startHand;
+        const newEvents: FracSortedList<SchedulerEvent2> = [];
+        for (const [beat, ev] of events) {
+            // 1. Check if event is on rhythm nice and dandy. TODO HANDLE
+            if (!isInRhythm(beat, lastBeat, lastTempo)) {
+                throw Error(`TODO. Event not in rhythm.`);
+            }
+            // 2. Proceed with caching the tempo and hand used at event.
+            if (ev.tempoChange !== undefined) {
+                lastTempo = ev.tempoChange;
+            }
+            if (ev.newDefaultHand !== undefined) {
+                lastNewDefaultHand = ev.newDefaultHand;
+            }
+            const newEvent = {
+                ...ev,
+                cache: { tempo: lastTempo, isNewHandRight: lastNewDefaultHand === "R" }
+            };
+            newEvents.push([beat, newEvent]);
+            lastBeat = beat;
+        }
+        return newEvents;
+    }
 
-        const lastKnownBeatIt = this.beats.end();
+    //TODO : Methods instead of accessors ?
+    // private get _currentBeat(): Fraction {
+    //     return this.beats[this._currentBeatIdx][0];
+    // }
 
-        while (!itBeats.equals(lastKnownBeatIt) && itBeats.pointer[0].lt(beat)) {
-            let currentBeat = this._currentBeat.clone();
-            while (currentBeat.lt(beat)) {
-                if (itEvents.isAccessible() && itEvents.pointer[0] === currentBeat) {
-                    if (itEvents.pointer[1].tempoChange !== undefined) {
-                        currentTempo = itEvents.pointer[1].tempoChange;
-                    }
-                    itEvents.next();
-                }
-                currentBeat = currentBeat.add(currentTempo);
-                nbSteps++;
+    private get _nextEvent(): [Fraction, SchedulerEvent2] | [null, null] {
+        return this._nextEventIdx < this.events.length
+            ? this.events[this._nextEventIdx]
+            : [null, null];
+    }
+
+    private get _lastEvent(): [Fraction, SchedulerEvent2] | [null, null] {
+        return 0 < this._nextEventIdx ? this.events[this._nextEventIdx - 1] : [null, null];
+    }
+
+    getNextEventBeat(): Fraction | null {
+        return this._nextEventIdx >= this.events.length ? null : this.events[this._nextEventIdx][0];
+    }
+
+    getNextCatchBeat(): Fraction | null {
+        let minCatchBeat: Fraction | null = null;
+        for (const [_, { catchBeat }] of this._currentState.airborne) {
+            if (minCatchBeat === null || minCatchBeat.gt(catchBeat)) {
+                minCatchBeat = catchBeat;
             }
         }
+        return minCatchBeat;
     }
 
-    reachedEnd(): boolean {
+    nextBeatToProcess(): Fraction | null {
+        const nextCatchBeat = this.getNextCatchBeat();
+        const nextEventBeat = this.getNextEventBeat();
+        if (nextCatchBeat === null && nextEventBeat === null) {
+            return null;
+        }
+        if (nextCatchBeat === null) {
+            return nextEventBeat!;
+        }
+        if (nextEventBeat === null) {
+            return nextCatchBeat!;
+        }
+        return nextCatchBeat.lt(nextEventBeat) ? nextCatchBeat : nextEventBeat;
+    }
+
+    requiresProcessing(): boolean {
         // The end has been reached if we no longer have events to process, nor
         // do we have balls in the air that need falling.
-        return !this._itEvents.isAccessible() && this._currentState.airborne.size === 0;
+        return this.nextBeatToProcess() !== null;
     }
 
     logError(message: string, severity: "Log" | "Warning" | "Error" = "Warning"): void {
         const formattedMessage = `Juggler ${this.name}, Beat ${this._currentBeat} :
             ${message}`;
-        let consoleFunc: (...data: string[]) => void;
         if (severity === "Log") {
-            consoleFunc = console.log;
+            console.log(formattedMessage);
         } else if (severity === "Warning") {
-            consoleFunc = console.warn;
+            console.warn(formattedMessage);
         } else {
-            consoleFunc = console.error;
+            console.error(formattedMessage);
         }
-        consoleFunc(formattedMessage);
     }
 
+    //TODO2
+    getBeatInfo(targetBeat: Fraction): [Fraction, BeatInfo] {
+        // Case 1 : targetBeat is before the first known beat.
+        if (targetBeat.lt(this.beats[0][0])) {
+            return this.beats[0];
+        }
+
+        // Case 2 : targetBeat is between the first and the last known beats.
+        const [lastKnownBeat, lastKnownBeatInfo] = this.beats[this.beats.length - 1];
+        if (targetBeat.lt(lastKnownBeat)) {
+            //TODO : Make faster version with binsearch ?
+            // Thanks to previous checks, resIdx is >0 (can't be -1 nor 0).
+            const resIdx = this.beats.findIndex(([beat]) => beat.gt(targetBeat));
+            const [prevBeat, prevBeatInfo] = this.beats[resIdx - 1];
+            // We check if targetBeat is off-beat to warn the user.
+            if (!isInRhythm(targetBeat, prevBeat, prevBeatInfo.tempo)) {
+                console.error("TODO Beat is offbeat. Defaults to taking the next beat.");
+            }
+            return [prevBeat, prevBeatInfo];
+        }
+
+        // Case 3 : targetBeat is after the last known beat.
+        // We need to generate the next beats information.
+        let currentBeat = lastKnownBeat;
+        let nextEventIdx = this.events.findIndex(([beat]) => beat.gt(lastKnownBeat));
+        let currentTempo = lastKnownBeatInfo.tempo;
+        let currentNewDefaultHand = lastKnownBeatInfo.newDefaultHand;
+
+        while (currentBeat.lte(targetBeat) && nextEventIdx < this.events.length) {
+            currentBeat = currentBeat.add(currentTempo);
+            if (cur) {
+                if (itEvents.pointer[1].tempoChange !== undefined) {
+                    currentTempo = itEvents.pointer[1].tempoChange;
+                }
+                itEvents.next();
+            }
+            currentBeat = currentBeat.add(currentTempo);
+            nbSteps++;
+        }
+        // If we surpassed the last event,
+    }
+
+    //TODO2
     // Generates beats
     //TODO : Past / Future
     //TODO : 2 versions, when target if height or beat.
@@ -372,6 +484,7 @@ class JugglerManager {
         return currentBeat;
     }
 
+    //TODO2
     //TODO : This method and above, check for sanity that we look into future.
     //TODO Factorize loop's content which are the same in both cases ?
     //Would allow for error handling when somehting is wrong ?
@@ -405,6 +518,8 @@ class JugglerManager {
         };
     }
 
+    //TODO2
+    //TODO : Make all this failing functions return failure in Object instead of raw ?
     // Assumption : we only use this function from the overall state manager
     // that will handle in-between juggler throws. Thus we can advance in beats
     // and the only balls we will receive will be at the latest beat which
@@ -418,16 +533,19 @@ class JugglerManager {
     //If ball was specified, fail gracefully ?
     //TODO : Should the currentBeat have been updated yet or not (currently it is).
     //TODO : Balls not ending on beat have been handled already before adding them to airborne.
-    descendAirborneBalls(): boolean {
-        // Checks which balls have been caught depending on their mode.
+
+    //TODO : Change param name ?
+    descendAirborneBalls(beat: Fraction): boolean {
         let failed = false;
-        const caughtBalls: string[] = [];
+        // Checks which balls have been caught depending on their mode.
+        const caughtBalls: Ball[] = [];
         for (const [ball, status] of this._currentState.airborne) {
             // We should check if the beat the ball falls at has been met.
-            status.remainingBeats = status.remainingBeats.sub(this._currentTempo);
-            status.remainingHeight -= 1;
+            status.remainingBeats = beat.sub(status.remainingBeats);
+            // status.remainingHeight -= 1;
             //TODO : Remove as we already check before if ball will fall ok.
             if (status.remainingBeats.lt(0)) {
+                //TODO: Compare to avoid double computation ?
                 this.logError(
                     `Ball ${ball} is caught \
                     off-beat at beat ${"TODO"} in between beat ${"TODO"} \
@@ -437,29 +555,29 @@ class JugglerManager {
             } else if (status.remainingBeats.equals(0)) {
                 caughtBalls.push(ball);
             }
-            // We should check if the height the ball was thrown is now 0.
-            // if (status.remainingHeight === 0) {
-            //     caughtBalls.push(ball);
-            // }
         }
-        let catchingHand: Deque<string>;
+        let catchingHand: Ball[];
         if (this._currentState.useRightHand) {
             catchingHand = this._currentState.held.rightHand;
         } else {
             catchingHand = this._currentState.held.leftHand;
         }
         if (caughtBalls.length > 1) {
-            console.warn(`Juggler ${this.name} caught balls ${"TODO"} at the \
+            this.logError(
+                `Juggler ${this.name} caught balls ${"TODO"} at the \
                 same time on beat ${"TODO"}. Proceeding, but there may be an \
-                ambiguity and randomness on future throws.`);
+                ambiguity and randomness on future throws.`,
+                "Warning"
+            );
         }
         for (const ball of caughtBalls) {
             this._currentState.airborne.delete(ball);
-            catchingHand.pushFront(ball);
+            catchingHand.push(ball);
         }
         return false;
     }
 
+    //TODO2
     //TODO : When to copy states ? In loop yes, except the last one, which is before the
     //next time the loop is executed.
     //TODO: WHen to update current Beat
@@ -481,14 +599,15 @@ class JugglerManager {
     // TODO : Method to format errors
     // TODO : Misleading name : filledin but not completely. (sender + juggler's dest name, NOT juggler's dest beat.) Change it.
     getFilledInTosses(): { failed: boolean; tosses: PartialToss2[] } {
-        const nextEventsBeat = this.getNextEventsBeat();
+        const nextEventsBeat = this.getNextEventBeat();
         const tosses: PartialToss2[] = [];
         if (nextEventsBeat === null || this._currentBeat.lt(nextEventsBeat)) {
-            return { failed: false, tosses: tosses };
+            return { failed: false, tosses: [] };
         } else if (this._currentBeat.gt(nextEventsBeat)) {
+            //TODO : ??? REMOVE ???
             return { failed: true, tosses: tosses };
         }
-        const events = this._itEvents.pointer[1];
+        const [_, events] = this._nextEvent;
         let failed = false;
         for (const toss of events.tosses) {
             const toJuggler = toss.to.juggler ?? this.name;
@@ -522,17 +641,19 @@ class JugglerManager {
         return { failed: failed, tosses: tosses };
     }
 
+    //TODO2
     //TODO URGENT : WHEN DOES CURRENT BEAT INCREASE ? IS NAME MISLEADING ? OR NAME OF GETNEXTBEATMETHOD ?
     //TODO : In global class handling jugglers, have concerned jugglers for next beat and the ones that have an event.
     //Will mean removing checks in methods ?
     //TODO : Precise in methods doc that the only method having side effect on iterators is advanceState.
 
     needsEventHandling(): boolean {
-        const nextEventsBeat = this.getNextEventsBeat();
+        const nextEventsBeat = this.getNextEventBeat();
         // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
         return nextEventsBeat !== null && nextEventsBeat.equals(this._currentBeat);
     }
 
+    //TODO2
     handleEvent(tosses: PartialToss2[]): boolean {
         // Handle the last beat if this juggler has events to unfold.
         // We first descend the balls, then change hands content and tempo
@@ -594,6 +715,7 @@ class JugglerManager {
         return failed;
     }
 
+    //TODO2
     changeTempo(): boolean {
         if (this.needsEventHandling()) {
             const { tempoChange } = this._itEvents.pointer[1];
@@ -604,6 +726,7 @@ class JugglerManager {
         return false;
     }
 
+    //TODO2
     swapBalls(): boolean {
         if (this.needsEventHandling()) {
             const { ballsSwap } = this._itEvents.pointer[1];
@@ -620,9 +743,10 @@ class JugglerManager {
         return false;
     }
 
+    //TODO2
     changeDefaultHand(): boolean {
         if (this.needsEventHandling()) {
-            const { useRightHand } = this._itEvents.pointer[1];
+            const { newDefaultHand: useRightHand } = this._itEvents.pointer[1];
             if (useRightHand !== undefined) {
                 this._currentState.useRightHand = useRightHand;
             }
@@ -630,6 +754,7 @@ class JugglerManager {
         return false;
     }
 
+    //TODO2
     //TODO : Account for ball ids.
     removeBallsFromHands(tosses: PartialToss2[]): boolean {
         // Removes tossed balls from hand.
@@ -672,10 +797,11 @@ class JugglerManager {
         return failed;
     }
 
-    processBeat(): { failed: boolean; tosses: PartialToss2[] } {
+    //TODO2
+    processUntil(beat: Fraction): { failed: boolean; tosses: PartialToss2[] } {
         let failedAcc = false;
         //TODO : Remove failed from here ?
-        failedAcc ||= this.descendAirborneBalls();
+        failedAcc ||= this.descendAirborneBalls(beat);
         failedAcc ||= this.changeTempo();
         failedAcc ||= this.swapBalls();
         failedAcc ||= this.changeDefaultHand();
@@ -686,12 +812,13 @@ class JugglerManager {
         return { failed: failedAcc, tosses: tosses };
     }
 
+    //TODO2
     //TODO : Change these variable names. (userighthand => righthand ?)
     //TODO : Change name to better illustrate that the balls will appear in the state's airborne ?
-    receiveTosses(tosses: PartialToss2[]): { failed: boolean; tosses: Toss[] } {
+    receiveTosses(tosses: PartialToss2[]): { failed: boolean; tosses: SimulatorToss[] } {
         // Edge case : a ball was tossed to a player and should appear in its airborne state
         // *before* the first beat (which coincides with the beat of the first event).
-        // In that case; the current beat is brought forward, with no special event added.
+        // In that case; the current beat is brought backwards, with no special event added.
         if (!this._hasProcessedFirstBeat) {
             // A first beat always defines tempo, thus we can check if it is being processed as such.
             if (this.needsEventHandling()) {
@@ -712,7 +839,7 @@ class JugglerManager {
         }
 
         let failedAcc = false;
-        let completedTosses: Toss[] = [];
+        let completedTosses: SimulatorToss[] = [];
         for (const toss of tosses) {
             const { failed, nbSteps, endBeat } = this.getNbSteps(toss.to.beat);
             if (failed) {
@@ -737,8 +864,9 @@ class JugglerManager {
         return failedAcc;
     }
 
+    //TODO2
     advanceState(): void {
-        this.beats.setElement(this._currentBeat.clone(), structuredClone(this._currentState));
+        this.beats.push([this._currentBeat, structuredClone(this._currentState)]);
         if (this._itEvents.isAccessible() && this._currentBeat.equals(this._itEvents.pointer[0])) {
             this._itEvents.next();
         }
@@ -746,7 +874,8 @@ class JugglerManager {
         this._currentState.useRightHand = !this._currentState.useRightHand;
     }
 
-    getKnownStates(): FracTimeline<JugglerState> {
+    //TODO2
+    getStates(): FracSortedList<JugglerState> {
         const it = this.beats.begin();
         const knownStates = new FracTimeline<JugglerState>();
         while (it.isAccessible() && it.pointer[1].state !== undefined) {
@@ -838,7 +967,7 @@ class JugglerManager {
     //     for (const toss of endNewAirborne) {
     //         let remainingBeats: Fraction;
     //         let remainingHeight: number;
-    //         if (toss.to.mode === "ToBeat") {
+    //         if (toss.to.mode === "Beat") {
     //             const results = this.getNbSteps(toss.to.beat);
     //             if (results.failed) {
     //                 console.error(`Juggler ${this.name} can't catch ball \
@@ -941,36 +1070,36 @@ interface Notes {
 }
 
 //TODO Add offset to tempo changes to allow two jugglers juggling on the same tempo but with a phase.
-class MusicStructure {
-    measures: Measure[] = [];
-    // notes: Notes[] = [];
+// class MusicStructure {
+//     measures: Measure[] = [];
+//     // notes: Notes[] = [];
 
-    // TODO : Better names ?
-    // TODO : Rename in musicTime measure to measureNb ?
-    beatToMeasureAndBeat(beat: Fraction): MusicTime {
-        let acc = new Fraction(0);
-        for (let i = 0; i < this.measures.length; i++) {
-            const measure = this.measures[i];
-            acc = acc.add(measure.signature);
-            if (beat.lt(acc)) {
-                return [i, beat.sub(acc.sub(measure.signature))];
-            }
-        }
-        // If not in known measures
-        throw Error("Beat is outside of known measures.");
-    }
+//     // TODO : Better names ?
+//     // TODO : Rename in musicTime measure to measureNb ?
+//     beatToMeasureAndBeat(beat: Fraction): MusicTime {
+//         let acc = new Fraction(0);
+//         for (let i = 0; i < this.measures.length; i++) {
+//             const measure = this.measures[i];
+//             acc = acc.add(measure.signature);
+//             if (beat.lt(acc)) {
+//                 return [i, beat.sub(acc.sub(measure.signature))];
+//             }
+//         }
+//         // If not in known measures
+//         throw Error("Beat is outside of known measures.");
+//     }
 
-    measureAndBeatToBeat([measureNb, beat]: MusicTime): Fraction {
-        if (measureNb >= this.measures.length) {
-            throw Error("Beat and Measure are outside of known measures.");
-        }
-        let acc = beat.clone();
-        for (let i = 0; i < measureNb; i++) {
-            acc = acc.add(this.measures[i].signature);
-        }
-        return acc;
-    }
-}
+//     measureAndBeatBeat([measureNb, beat]: MusicTime): Fraction {
+//         if (measureNb >= this.measures.length) {
+//             throw Error("Beat and Measure are outside of known measures.");
+//         }
+//         let acc = beat.clone();
+//         for (let i = 0; i < measureNb; i++) {
+//             acc = acc.add(this.measures[i].signature);
+//         }
+//         return acc;
+//     }
+// }
 
 // class MusicTime {
 //     readonly musicStructure: MusicStructure;
@@ -985,7 +1114,10 @@ class MusicStructure {
 // }
 
 //TODO rename throw to toss everywhere
-function getMusic(pattern: FracTimeline<Toss[]>, measures: Measure[]): MusicTimeline<Note[]> {
+function getMusic(
+    pattern: FracTimeline<SimulatorToss[]>,
+    measures: Measure[]
+): MusicTimeline<Note[]> {
     const music = new MusicTimeline<Notes[]>();
     for (const [, tosses] of pattern) {
         for (const toss of tosses) {
