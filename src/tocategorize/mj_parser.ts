@@ -69,10 +69,15 @@ export interface BallsInHands {
     rightHand: Ball[];
     leftHand: Ball[];
 }
+
+export interface PartialBallsInHands {
+    rightHand: PartialBall[];
+    leftHand: PartialBall[];
+}
 // TODO: Rename
 export interface PartialToss2 {
     from: { juggler: string; rightHand: boolean; beat: Fraction };
-    to: { juggler: string; rightHand?: boolean; beat: Fraction };
+    to: { juggler: string; hand?: "R" | "L" | "x"; beat: Fraction };
     ball: Ball;
 }
 
@@ -86,7 +91,7 @@ export interface SimulatorToss {
 export interface SchedulerEvent {
     tosses?: PartialToss[];
     tempoChange?: Fraction;
-    ballsInHands?: BallsInHands;
+    ballsInHands?: PartialBallsInHands;
     newDefaultHand?: "L" | "R";
 }
 
@@ -215,18 +220,20 @@ export class Scheduler {
 }
 
 //TODO : Methods that have no side effect statr with "get".
+//TODO : Hash/Equality sketchy with map and set and objects.
 interface JugglerState {
     airborne: Map<
-        Ball,
+        string,
         {
             toRightHand?: boolean;
-            remainingBeats: Fraction;
+            ball: Ball;
+            // remainingBeats: Fraction;
             catchBeat: Fraction;
-            remainingSteps: number;
+            // remainingSteps: number;
         }
     >;
     held: BallsInHands;
-    onTable: Set<Ball>;
+    onTable: Map<string, Ball>;
     // useRightHand: boolean;
 }
 
@@ -263,6 +270,10 @@ class ErrorTimedLogger<Time> extends Map<Time, ErrorLog[]> {
 
 export function isInRhythm(beat: Fraction, startBeat: Fraction, tempo: Fraction): boolean {
     return beat.sub(startBeat).divisible(tempo);
+}
+
+export function XOR(a: boolean, b: boolean): boolean {
+    return a !== b;
 }
 
 //TODO : Fuse "beat" with BeatInfo / State ? to avoid events[0][0/1] ? YES URGENT ?
@@ -376,7 +387,7 @@ class JugglerManager {
 
     getNextCatchBeat(): Fraction | null {
         let minCatchBeat: Fraction | null = null;
-        for (const [_, { catchBeat }] of this._currentState.airborne) {
+        for (const [, { catchBeat }] of this._currentState.airborne) {
             if (minCatchBeat === null || minCatchBeat.gt(catchBeat)) {
                 minCatchBeat = catchBeat;
             }
@@ -405,6 +416,7 @@ class JugglerManager {
         return this.nextBeatToProcess() !== null;
     }
 
+    //TODO Change to use ErrorLogger.
     logError(message: string, severity: "Log" | "Warning" | "Error" = "Warning"): void {
         const formattedMessage = `Juggler ${this.name}, Beat ${this._currentBeat} :
             ${message}`;
@@ -417,108 +429,118 @@ class JugglerManager {
         }
     }
 
-    //TODO2
-    getBeatInfo(targetBeat: Fraction): [Fraction, BeatInfo] {
-        // Case 1 : targetBeat is before the first known beat.
-        if (targetBeat.lt(this.beats[0][0])) {
-            return this.beats[0];
+    //TODO : consistant evBeat / eventBeat ?
+    //TODO : Document that works with prevEventIdx after targetBeat in special case ?
+    //TODO : Possibly needs to recompute the prevEventIdx.
+    //TODO : Really need to know about the next event ? Or just the previous rather ?
+    //TODO : Remake functions to possibly take prevEventIdx argument.
+    correctOffbeatBeat(
+        targetBeat: Fraction,
+        prevEventIdx?: number
+    ): { beat: Fraction; prevEventIdx: number } {
+        if (prevEventIdx === undefined) {
+            prevEventIdx = this.getPreviousEventIdx(targetBeat);
         }
-
-        // Case 2 : targetBeat is between the first and the last known beats.
-        const [lastKnownBeat, lastKnownBeatInfo] = this.beats[this.beats.length - 1];
-        if (targetBeat.lt(lastKnownBeat)) {
-            //TODO : Make faster version with binsearch ?
-            // Thanks to previous checks, resIdx is >0 (can't be -1 nor 0).
-            const resIdx = this.beats.findIndex(([beat]) => beat.gt(targetBeat));
-            const [prevBeat, prevBeatInfo] = this.beats[resIdx - 1];
-            // We check if targetBeat is off-beat to warn the user.
-            if (!isInRhythm(targetBeat, prevBeat, prevBeatInfo.tempo)) {
-                console.error("TODO Beat is offbeat. Defaults to taking the next beat.");
-            }
-            return [prevBeat, prevBeatInfo];
+        const { eventBeat, tempo } = this.getEventInfo(prevEventIdx);
+        const nbSteps = targetBeat.sub(eventBeat).div(tempo).ceil();
+        const newBeat = eventBeat.add(tempo.mul(nbSteps));
+        let newPrevEventIdx = prevEventIdx;
+        if (
+            prevEventIdx + 1 < this.events.length &&
+            this.events[prevEventIdx + 1][0].lte(newBeat)
+        ) {
+            newPrevEventIdx++;
         }
-
-        // Case 3 : targetBeat is after the last known beat.
-        // We need to generate the next beats information.
-        let currentBeat = lastKnownBeat;
-        let nextEventIdx = this.events.findIndex(([beat]) => beat.gt(lastKnownBeat));
-        let currentTempo = lastKnownBeatInfo.tempo;
-        let currentNewDefaultHand = lastKnownBeatInfo.newDefaultHand;
-
-        while (currentBeat.lte(targetBeat) && nextEventIdx < this.events.length) {
-            currentBeat = currentBeat.add(currentTempo);
-            if (cur) {
-                if (itEvents.pointer[1].tempoChange !== undefined) {
-                    currentTempo = itEvents.pointer[1].tempoChange;
-                }
-                itEvents.next();
-            }
-            currentBeat = currentBeat.add(currentTempo);
-            nbSteps++;
-        }
-        // If we surpassed the last event,
+        return { beat: newBeat, prevEventIdx: newPrevEventIdx };
     }
 
-    //TODO2
-    // Generates beats
-    //TODO : Past / Future
-    //TODO : 2 versions, when target if height or beat.
-    //TODO : FOR NOW, We first generate the beat, then advance.
-    //TODO : Per method, precise if there are side effects ?
-    //TODO : MAKE SURE TEMPO CHANGES HAPPEN ON BEATS ?! WITH OFFSET ? HOW TO HANDLE ?
-    // From where we are at the point in the search, figures out what beat we will be
-    // nbSteps in the future.
-    getFutureBeat(nbSteps: number): Fraction {
-        const itEvents = this._itEvents.copy();
-        let currentTempo = this._currentTempo.clone();
-        let currentBeat = this._currentBeat.clone();
-        for (let i = 0; i < nbSteps; i++) {
-            if (itEvents.isAccessible() && itEvents.pointer[0] === currentBeat) {
-                if (itEvents.pointer[1].tempoChange !== undefined) {
-                    currentTempo = itEvents.pointer[1].tempoChange;
-                }
-                itEvents.next();
-            }
-            currentBeat = currentBeat.add(currentTempo);
+    getEventInfo(eventIdx: number): {
+        eventBeat: Fraction;
+        tempo: Fraction;
+        isNewHandRight: boolean;
+    } {
+        const [evBeat, { cache }] = this.events[eventIdx];
+        return { eventBeat: evBeat, ...cache };
+    }
+
+    //TODO : Check if beat is on time.
+    //TODO : Misleading "previous" as it can return future beat if targetBeat is too small.
+    getPreviousEventInfo(beat: Fraction): {
+        eventBeat: Fraction;
+        tempo: Fraction;
+        isNewHandRight: boolean;
+    } {
+        // To get the beat info, we get the cached event that preceeds it.
+        return this.getEventInfo(this.getPreviousEventIdx(beat));
+    }
+
+    getPreviousEventIdx(beat: Fraction): number {
+        if (beat.lt(this.events[0][0])) {
+            return 0;
+        } else if (beat.gte(this.events[this.events.length - 1][0])) {
+            return this.events.length - 1;
         }
-        return currentBeat;
+        // Thanks to previous checks, the findIndex method won't return -1.
+        // TODO : Faster bin search version ?
+        return this.events.findIndex(([evBeat]) => evBeat.gt(beat));
+    }
+
+    //TODO : Check beat is on rhythm ? When should that be done ?
+    //TODO : Check all functions when beat received before first event. Here, this function is called when tossing ball, so No Problemo :D
+    //TODO : MAKE SURE TEMPO CHANGES HAPPEN ON BEATS ?! WITH OFFSET ? HOW TO HANDLE ?
+    //TODO : Document functions with prevEvent, startBeat etc. Limit side effects. If side effects, document them.
+    getCatchBeatFromHeight(height: number, startBeat: Fraction, prevEventIdx?: number): Fraction {
+        if (prevEventIdx === undefined) {
+            prevEventIdx = this.getPreviousEventIdx(startBeat);
+        }
+        let beat = startBeat;
+        let eventIdx = prevEventIdx;
+        for (let i = 0; i < height; i++) {
+            if (eventIdx + 1 < this.events.length) {
+                if (beat.equals(this.events[eventIdx + 1][0])) {
+                    eventIdx++;
+                } else if (beat.gt(this.events[eventIdx + 1][0])) {
+                    throw new Error("Shouldn't happen (sanity check).");
+                }
+            }
+            const tempo = this.events[eventIdx][1].cache.tempo;
+            beat = beat.add(tempo);
+        }
+        return beat;
     }
 
     //TODO2
     //TODO : This method and above, check for sanity that we look into future.
     //TODO Factorize loop's content which are the same in both cases ?
     //Would allow for error handling when somehting is wrong ?
-    getNbSteps(beat: Fraction): {
-        failed: boolean;
-        nbSteps: number;
-        endBeat: Fraction;
-    } {
-        // if (beat.lt(this._currentBeat)) {
-        //     throw Error("Exaù")
-        // }
-        let nbSteps = 0;
-        const itEvents = this._itEvents.copy();
-        let currentTempo = this._currentTempo.clone();
-        let currentBeat = this._currentBeat.clone();
-        while (currentBeat.lt(beat)) {
-            if (itEvents.isAccessible() && itEvents.pointer[0] === currentBeat) {
-                if (itEvents.pointer[1].tempoChange !== undefined) {
-                    currentTempo = itEvents.pointer[1].tempoChange;
-                }
-                itEvents.next();
-            }
-            currentBeat = currentBeat.add(currentTempo);
-            nbSteps++;
-        }
-        // We need to check if the ball will fall on a beat.
-        return {
-            failed: !currentBeat.equals(beat),
-            nbSteps: nbSteps,
-            endBeat: currentBeat
-        };
-    }
+    //TODO : When to check if beats on rhythm ?
+    //TODO : Remove the fact that prevEventIdx is optional ?
+    // getHeightFromBeats(startBeat: Fraction, endBeat: Fraction, prevEventIdx?: number): number {
+    //     if (prevEventIdx === undefined) {
+    //         prevEventIdx = this.getPreviousEventIdx(startBeat);
+    //     }
+    //     let nbSteps = 0;
+    //     const itEvents = this._itEvents.copy();
+    //     let currentTempo = this._currentTempo.clone();
+    //     let currentBeat = this._currentBeat.clone();
+    //     while (currentBeat.lt(beat)) {
+    //         if (itEvents.isAccessible() && itEvents.pointer[0] === currentBeat) {
+    //             if (itEvents.pointer[1].tempoChange !== undefined) {
+    //                 currentTempo = itEvents.pointer[1].tempoChange;
+    //             }
+    //             itEvents.next();
+    //         }
+    //         currentBeat = currentBeat.add(currentTempo);
+    //         nbSteps++;
+    //     }
+    //     // We need to check if the ball will fall on a beat.
+    //     return {
+    //         failed: !currentBeat.equals(beat),
+    //         nbSteps: nbSteps,
+    //         endBeat: currentBeat
+    //     };
+    // }
 
-    //TODO2
     //TODO : Make all this failing functions return failure in Object instead of raw ?
     // Assumption : we only use this function from the overall state manager
     // that will handle in-between juggler throws. Thus we can advance in beats
@@ -533,48 +555,71 @@ class JugglerManager {
     //If ball was specified, fail gracefully ?
     //TODO : Should the currentBeat have been updated yet or not (currently it is).
     //TODO : Balls not ending on beat have been handled already before adding them to airborne.
-
+    //TODO : Handle event change.
     //TODO : Change param name ?
-    descendAirborneBalls(beat: Fraction): boolean {
-        let failed = false;
-        // Checks which balls have been caught depending on their mode.
-        const caughtBalls: Ball[] = [];
-        for (const [ball, status] of this._currentState.airborne) {
-            // We should check if the beat the ball falls at has been met.
-            status.remainingBeats = beat.sub(status.remainingBeats);
-            // status.remainingHeight -= 1;
-            //TODO : Remove as we already check before if ball will fall ok.
-            if (status.remainingBeats.lt(0)) {
-                //TODO: Compare to avoid double computation ?
-                this.logError(
-                    `Ball ${ball} is caught \
-                    off-beat at beat ${"TODO"} in between beat ${"TODO"} \
-                    and ${"TODO"}`
-                );
-                return true;
-            } else if (status.remainingBeats.equals(0)) {
-                caughtBalls.push(ball);
+    //TODO : private or protected functions with side effects that are order dependent.
+    //TODO : pass jugglerstate as argument to avoid side effect / dependency on private fields. (have more information to deduce prevEventIdx ?).
+    //TODO : Before calling, compute right prevEventIdx
+    //TODO : Be carfeul : Catch hand is determined at throw time if thrown to self only ?
+    //TODO : Handle hand target that is x !!!
+    descendAirborneBalls(
+        toBeat: Fraction,
+        prevEventIdx: number,
+        state: JugglerState
+    ): JugglerState {
+        // Identify caught balls.
+        const caughtBalls: [Ball[], Ball[]] = [[], []];
+        const defaultCatchWithRightHand = this.defaultCatchWithRightHand(toBeat, prevEventIdx);
+        for (const { catchBeat, toRightHand, ball } of state.airborne.values()) {
+            if (catchBeat.equals(toBeat)) {
+                // If a ball has a given catching hand, it has precedence over the
+                // default one computed earlier.
+                const catchWithRightHand = toRightHand ?? defaultCatchWithRightHand;
+                if (catchWithRightHand) {
+                    caughtBalls[1].push(ball);
+                } else {
+                    caughtBalls[0].push(ball);
+                }
+            } else if (catchBeat.gt(toBeat)) {
+                throw Error("Shouldn't happen (sanity check).");
             }
         }
-        let catchingHand: Ball[];
-        if (this._currentState.useRightHand) {
-            catchingHand = this._currentState.held.rightHand;
-        } else {
-            catchingHand = this._currentState.held.leftHand;
+
+        // Put the caught balls in hand.
+        for (const ball of caughtBalls[0]) {
+            state.airborne.delete(ball.id);
+            state.held.leftHand.push(ball);
         }
-        if (caughtBalls.length > 1) {
+        for (const ball of caughtBalls[1]) {
+            state.airborne.delete(ball.id);
+            state.held.rightHand.push(ball);
+        }
+
+        // If two balls are caught at the same time in the same hand,
+        // We don't know necessarily know how to arrange them in the hand.
+        if (caughtBalls[0].length > 1) {
             this.logError(
-                `Juggler ${this.name} caught balls ${"TODO"} at the \
-                same time on beat ${"TODO"}. Proceeding, but there may be an \
-                ambiguity and randomness on future throws.`,
+                `Juggler ${this.name} caught ${"TODO"} balls on the same beat with their left hand.\nProceeding, but there may be an ambiguity and randomness on future throws.`,
                 "Warning"
             );
         }
-        for (const ball of caughtBalls) {
-            this._currentState.airborne.delete(ball);
-            catchingHand.push(ball);
+        if (caughtBalls[1].length > 1) {
+            this.logError(
+                `Juggler ${this.name} caught ${"TODO"} balls on the same beat with their right hand.\nProceeding, but there may be an ambiguity and randomness on future throws.`,
+                "Warning"
+            );
         }
-        return false;
+
+        return state;
+    }
+
+    defaultCatchWithRightHand(beat: Fraction, prevEventIdx: number): boolean {
+        const { eventBeat, tempo, isNewHandRight } = this.getEventInfo(prevEventIdx);
+        const nbSteps = beat.sub(eventBeat).div(tempo);
+        if (!nbSteps.divisible(1)) {
+            throw Error("Souldn't happen (sanity check).");
+        }
+        return XOR(nbSteps.divisible(2), isNewHandRight);
     }
 
     //TODO2
@@ -598,47 +643,112 @@ class JugglerManager {
     // TODO : Decouple method to get throwing/catching hand ?
     // TODO : Method to format errors
     // TODO : Misleading name : filledin but not completely. (sender + juggler's dest name, NOT juggler's dest beat.) Change it.
-    getFilledInTosses(): { failed: boolean; tosses: PartialToss2[] } {
-        const nextEventsBeat = this.getNextEventBeat();
-        const tosses: PartialToss2[] = [];
-        if (nextEventsBeat === null || this._currentBeat.lt(nextEventsBeat)) {
-            return { failed: false, tosses: [] };
-        } else if (this._currentBeat.gt(nextEventsBeat)) {
-            //TODO : ??? REMOVE ???
-            return { failed: true, tosses: tosses };
-        }
-        const [_, events] = this._nextEvent;
-        let failed = false;
-        for (const toss of events.tosses) {
-            const toJuggler = toss.to.juggler ?? this.name;
-            const fromRightHand = toss.from.rightHand ?? this._currentState.useRightHand;
-            let ballName = toss.ball?.name;
-            if (ballName === undefined) {
-                const hand = fromRightHand
-                    ? this._currentState.held.rightHand
-                    : this._currentState.held.leftHand;
-                ballName = hand.popFront();
-                if (ballName === undefined) {
-                    this.logError(
-                        `Can't infer the ball tossed : no ball in the \
-                        ${fromRightHand ? "right" : "left"} hand.`,
-                        "Error"
-                    );
-                    failed = true;
-                    continue;
-                }
+    //TODO : Unify this toss format (to / from) with earlier ones to reuse printing function.
+    //TODO : Error handling.
+    //TODO: No Ball removal in this function...
+    tossBalls(
+        tosses: PartialToss[],
+        state: JugglerState,
+        beat: Fraction,
+        prevEventIdx: number
+    ): { tosses: PartialToss2[]; state: JugglerState } {
+        const defaultCatchWithRightHand = this.defaultCatchWithRightHand(beat, prevEventIdx);
+        const newTosses: PartialToss2[] = [];
+        for (const toss of tosses) {
+            // Compute the throwing hand.
+            let fromRightHand: boolean;
+            if (toss.from.hand !== undefined) {
+                fromRightHand = toss.from.hand === "R";
+            } else {
+                fromRightHand = defaultCatchWithRightHand;
             }
-            tosses.push({
+            const tossHand = fromRightHand ? state.held.rightHand : state.held.leftHand;
+
+            // Compute the ball thrown.
+            let ball: Ball;
+            if (toss.ball === undefined) {
+                if (tossHand.length === 0) {
+                    throw Error("TODO and break");
+                }
+                ball = tossHand.pop()!;
+            } else if (toss.ball.id !== undefined) {
+                const ballIdx = tossHand.findIndex((ball) => ball.id === toss.ball!.id);
+                if (ballIdx === -1) {
+                    throw Error("TODO and break");
+                }
+                // Remove the ball from tossHand and store it.
+                ball = tossHand.splice(ballIdx, 1)[0];
+            } else {
+                // We look for the ball with the right name
+                const matches: Ball[] = [];
+                for (const ball of tossHand) {
+                    if (ball.name === toss.ball.name) {
+                        matches.push(ball);
+                    }
+                }
+                if (matches.length === 0) {
+                    throw Error("TODO and break");
+                } else if (matches.length > 1) {
+                    throw Error("TODO but take ball closest to be thrown");
+                }
+                ball = matches[matches.length - 1];
+            }
+
+            // Compute the catching beat
+            let toBeat: Fraction;
+            if (toss.to.mode === "Height") {
+                toBeat = this.getCatchBeatFromHeight(toss.to.height, beat, prevEventIdx);
+            } else {
+                toBeat = toss.to.beat;
+            }
+
+            // Complete the toss info.
+            newTosses.push({
                 from: {
-                    juggler: this.name,
-                    beat: this._currentBeat,
+                    beat: toss.from.beat,
+                    juggler: toss.from.juggler,
                     rightHand: fromRightHand
                 },
-                to: { ...toss.to, juggler: toJuggler },
-                ball: { name: ballName }
+                to: { beat: toBeat, juggler: toss.to.juggler, hand: toss.to.hand },
+                ball: ball
             });
         }
-        return { failed: failed, tosses: tosses };
+
+        // this.logError(
+        //     `Can't infer the ball tossed : no ball in the \
+        //     ${fromRightHand ? "right" : "left"} hand.`,
+        //     "Error"
+        // );
+        // this.logError(
+        //     `Can't toss ball ${toss.ball.name} from the \
+        //     ${toss.from.rightHand ? "right" : "left"} hand as it not present.
+        //     Right hand contains : [${rightHandContent}].
+        //     Left hand contains : [${rightHandContent}].`,
+        //     "Error"
+        // );
+        // We log that the required ball to throw was missing.
+        //             let rightHandContent = "";
+        //             let leftHandContent = "";
+        //             for (const ball of heldClone.rightHand) {
+        //                 rightHandContent += ball + ", ";
+        //             }
+        //             for (const ball of heldClone.leftHand) {
+        //                 leftHandContent += ball + ", ";
+        //             }
+        //             if (rightHandContent.endsWith(", ")) {
+        //                 rightHandContent = rightHandContent.slice(0, -2);
+        //             }
+        //             if (leftHandContent.endsWith(", ")) {
+        //                 leftHandContent = leftHandContent.slice(0, -2);
+        //             }
+        //             this.logError(
+        //                 `Can't toss ball ${toss.ball.name} from the \
+        //                 ${toss.from.rightHand ? "right" : "left"} hand as it not present.
+        //                 Right hand contains : [${rightHandContent}].
+        //                 Left hand contains : [${rightHandContent}].`,
+        //                 "Error"
+        //             );
+        return { tosses: newTosses, state: state };
     }
 
     //TODO2
@@ -653,166 +763,82 @@ class JugglerManager {
         return nextEventsBeat !== null && nextEventsBeat.equals(this._currentBeat);
     }
 
-    //TODO2
-    handleEvent(tosses: PartialToss2[]): boolean {
-        // Handle the last beat if this juggler has events to unfold.
-        // We first descend the balls, then change hands content and tempo
-        // and lastly we make the possible throws with those new parameters.
-        // (ie the balls thrown dissapear from the hands, and the received balls
-        // (from this juggler or others) are contained in endNewAirborneBalls).
-        if (!this.needsEventHandling()) {
-            return false;
+    //TODO : document that state is not copied ?
+    //TODO : Lefthand / Righthand : make Array. It is simpler to manipulate.
+    //and document the convention that left cell = left, right cell = right.
+    //Function to unify the id/name search here and in fillTossesInformation ?
+    swapBalls(state: JugglerState, newHands: PartialBallsInHands): JugglerState {
+        // 1. Put all held balls on the table.
+        for (const ball of state.held.rightHand) {
+            state.onTable.set(ball.id, ball);
         }
-        let failed = false;
-        const { tempoChange, ballsSwap } = this._itEvents.pointer[1];
-        if (tempoChange !== undefined) {
-            this._currentTempo = tempoChange;
+        for (const ball of state.held.leftHand) {
+            state.onTable.set(ball.id, ball);
         }
-        if (ballsSwap !== undefined) {
-            for (const ball of this._currentState.held.rightHand) {
-                this._currentState.onTable.add(ball);
-            }
-            for (const ball of this._currentState.held.leftHand) {
-                this._currentState.onTable.add(ball);
-            }
-            this._currentState.held = structuredClone(ballsSwap);
-        }
-        // Removes tossed balls from hand.
-        // Uses the filled-in tossed data instead than events.tosses
-        const heldClone = structuredClone(this._currentState.held);
-        for (const toss of tosses) {
-            const hand = toss.from.rightHand
-                ? this._currentState.held.rightHand
-                : this._currentState.held.leftHand;
-            if (hand.find(toss.ball.name) !== hand.end()) {
-                hand.eraseElementByValue(toss.ball.name);
-            } else {
-                // We log that the required ball to throw was missing.
-                let rightHandContent = "";
-                let leftHandContent = "";
-                for (const ball of heldClone.rightHand) {
-                    rightHandContent += ball + ", ";
+
+        // 2. Put the according balls from the table in the hands.
+        for (const handName of ["leftHand", "rightHand"]) {
+            for (const ballPartial of newHands[handName] as PartialBall[]) {
+                let ball: Ball;
+                if (ballPartial.id !== undefined) {
+                    if (!state.onTable.has(ballPartial.id)) {
+                        throw Error("TODO and break");
+                    }
+                    ball = state.onTable.get(ballPartial.id)!;
+                } else {
+                    const matches: Ball[] = [];
+                    for (const ball of state.onTable.values()) {
+                        if (ball.name === ballPartial.name) {
+                            matches.push(ball);
+                        }
+                    }
+                    if (matches.length === 0) {
+                        throw Error("TODO and break");
+                    } else if (matches.length > 1) {
+                        throw Error("TODO but take ball closest to be thrown");
+                    }
+                    ball = matches[0];
                 }
-                for (const ball of heldClone.leftHand) {
-                    leftHandContent += ball + ", ";
-                }
-                if (rightHandContent.endsWith(", ")) {
-                    rightHandContent = rightHandContent.slice(0, -2);
-                }
-                if (leftHandContent.endsWith(", ")) {
-                    leftHandContent = leftHandContent.slice(0, -2);
-                }
-                this.logError(
-                    `Can't toss ball ${toss.ball.name} from the \
-                    ${toss.from.rightHand ? "right" : "left"} hand as it not present.
-                    Right hand contains : [${rightHandContent}].
-                    Left hand contains : [${rightHandContent}].`,
-                    "Error"
-                );
-                failed = true;
+                state.onTable.delete(ball.id);
+                state.held[handName].push(ball);
             }
         }
-        return failed;
+        return state;
     }
 
-    //TODO2
-    changeTempo(): boolean {
-        if (this.needsEventHandling()) {
-            const { tempoChange } = this._itEvents.pointer[1];
-            if (tempoChange !== undefined) {
-                this._currentTempo = tempoChange;
-            }
-        }
-        return false;
-    }
-
-    //TODO2
-    swapBalls(): boolean {
-        if (this.needsEventHandling()) {
-            const { ballsSwap } = this._itEvents.pointer[1];
-            if (ballsSwap !== undefined) {
-                for (const ball of this._currentState.held.rightHand) {
-                    this._currentState.onTable.add(ball);
-                }
-                for (const ball of this._currentState.held.leftHand) {
-                    this._currentState.onTable.add(ball);
-                }
-                this._currentState.held = structuredClone(ballsSwap);
-            }
-        }
-        return false;
-    }
-
-    //TODO2
-    changeDefaultHand(): boolean {
-        if (this.needsEventHandling()) {
-            const { newDefaultHand: useRightHand } = this._itEvents.pointer[1];
-            if (useRightHand !== undefined) {
-                this._currentState.useRightHand = useRightHand;
-            }
-        }
-        return false;
-    }
-
-    //TODO2
-    //TODO : Account for ball ids.
-    removeBallsFromHands(tosses: PartialToss2[]): boolean {
-        // Removes tossed balls from hand.
-        // Uses the filled-in tossed data instead than events.tosses
-        let failed = false;
-        const heldClone = structuredClone(this._currentState.held);
-        for (const toss of tosses) {
-            const hand = toss.from.rightHand
-                ? this._currentState.held.rightHand
-                : this._currentState.held.leftHand;
-            if (hand.find(toss.ball.name) !== hand.end()) {
-                //TODO : The eq function might not work on objects !
-                hand.eraseElementByValue(toss.ball.name);
-            } else {
-                // We log that the required ball to throw was missing.
-                let rightHandContent = "";
-                let leftHandContent = "";
-                for (const ball of heldClone.rightHand) {
-                    rightHandContent += ball + ", ";
-                }
-                for (const ball of heldClone.leftHand) {
-                    leftHandContent += ball + ", ";
-                }
-                if (rightHandContent.endsWith(", ")) {
-                    rightHandContent = rightHandContent.slice(0, -2);
-                }
-                if (leftHandContent.endsWith(", ")) {
-                    leftHandContent = leftHandContent.slice(0, -2);
-                }
-                this.logError(
-                    `Can't toss ball ${toss.ball.name} from the \
-                    ${toss.from.rightHand ? "right" : "left"} hand as it not present.
-                    Right hand contains : [${rightHandContent}].
-                    Left hand contains : [${rightHandContent}].`,
-                    "Error"
-                );
-                failed = true;
-            }
-        }
-        return failed;
-    }
-
-    //TODO2
+    //TODO : Rename method.
+    //TODO : Make it so it is the scheduler that stores the last state and event idx ?
+    //TODO : Make it so if smaller beat is given it restarts from earlier and discard laters steps
     processUntil(beat: Fraction): { failed: boolean; tosses: PartialToss2[] } {
-        let failedAcc = false;
-        //TODO : Remove failed from here ?
-        failedAcc ||= this.descendAirborneBalls(beat);
-        failedAcc ||= this.changeTempo();
-        failedAcc ||= this.swapBalls();
+        // Increase this._nextEventIdx if needed.
+        let hasEvent: boolean;
+        if (this.getNextEventBeat()?.equals(beat)) {
+            this._nextEventIdx++;
+            hasEvent = true;
+            if (!this._hasProcessedFirstBeat) {
+                this._hasProcessedFirstBeat = true;
+            }
+        } else if (this.getNextEventBeat()?.lt(beat)) {
+            throw Error("Shouldn't happen (sanity check).")
+        } else {
+            hasEvent = false;
+        }
+
+        // Manage state.
+        let state = this._currentState;
+        state = this.descendAirborneBalls(beat, this., state);
+        if (hasEvent) {
+            const newBalls = this.getPreviousEventIdx
+            state = this.swapBalls(state, this.events);
+        }
         failedAcc ||= this.changeDefaultHand();
-        const { failed, tosses } = this.getFilledInTosses();
+        const { failed, tosses } = this.fillTossInformation();
         failedAcc ||= failed;
         failedAcc ||= this.removeBallsFromHands(tosses); //TODO : Remove this method ? Or remove its parameter by adding way to easily compute
         // hand's sign ?
         return { failed: failedAcc, tosses: tosses };
     }
 
-    //TODO2
     //TODO : Change these variable names. (userighthand => righthand ?)
     //TODO : Change name to better illustrate that the balls will appear in the state's airborne ?
     receiveTosses(tosses: PartialToss2[]): { failed: boolean; tosses: SimulatorToss[] } {
