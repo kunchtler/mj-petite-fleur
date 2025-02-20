@@ -6,7 +6,6 @@ import {
 } from "../parser/siteswap_mj/MusicalSiteswap";
 import { MusicBeatConverter } from "./music_beat_converter";
 import { SchedulerEvent, PartialToss, PartialTossMode, PartialBall } from "./mj_parser";
-import { Deque } from "js-sdsl";
 import { closestWordsTo } from "./levenshtein_distance";
 import { setIntersection } from "../utils/SetOperations";
 
@@ -187,7 +186,7 @@ export function stringifySchedulerEvent(ev: SchedulerEvent): string {
         text += `Tempo Change: ${stringifyFraction(ev.tempoChange)}\n`;
     }
     if (ev.ballsInHands !== undefined) {
-        text += `New balls in hand: Left${stringifyDeque(ev.ballsInHands.leftHand, stringifyBall)} Right${stringifyDeque(ev.ballsInHands.rightHand, stringifyBall)} \n`;
+        text += `New balls in hand: Left${stringifyHand(ev.ballsInHands[0])} Right${stringifyHand(ev.ballsInHands[1])} \n`;
     }
     if (ev.tosses !== undefined) {
         for (let i = 0; i < ev.tosses.length; i++) {
@@ -234,14 +233,22 @@ export function stringifyBall(ball: PartialBall): string {
     return text;
 }
 
-export function stringifyDeque<T>(deque: Deque<T>, stringifyElemFunc: (elem: T) => string): string {
-    let text = "[";
-    for (const elem of deque) {
-        text += stringifyElemFunc(elem);
+export function stringifyHand(hand: PartialBall[]): string {
+    let text = "";
+    for (const ball of hand) {
+        text += `${stringifyBall(ball)}, `;
     }
-    text += "]";
     return text;
 }
+
+// export function stringifyDeque<T>(deque: Deque<T>, stringifyElemFunc: (elem: T) => string): string {
+//     let text = "[";
+//     for (const elem of deque) {
+//         text += stringifyElemFunc(elem);
+//     }
+//     text += "]";
+//     return text;
+// }
 
 export function stringifySchedulerEvents(events: [Fraction, SchedulerEvent][]) {
     let text = "";
