@@ -26,7 +26,7 @@ the juggling pattern's data.
 
 //TODO : Replace all [Fraction, event][] by this ?
 type SortedList<T> = T[];
-type FracSortedList<T> = SortedList<[Fraction, T]>;
+export type FracSortedList<T> = SortedList<[Fraction, T]>;
 
 //TODO : Rename or add namesapces.
 
@@ -76,26 +76,23 @@ export interface SimulatorToss {
 
 export interface SchedulerEvent {
     tosses?: PartialToss[];
-    tempoChange?: Fraction;
-    ballsInHands?: PartialBallsInHands;
+    tempo?: Fraction;
+    hands?: PartialBallsInHands;
     newDefaultHand?: "L" | "R";
 }
 
 export interface SchedulerCompletedEvent {
     tosses?: PartialToss[];
     tempo: Fraction;
-    ballsInHands?: BallsInHands;
+    hands?: BallsInHands;
 }
 
 export interface SimulatorEvent {
     tosses?: SimulatorToss[];
-    tempoChange?: Fraction;
-    ballsSwap?: BallsInHands;
+    tempo?: Fraction;
+    hands?: BallsInHands;
     newDefaultHand?: "L" | "R";
 }
-
-export type SchedulerEvents = [Fraction, SchedulerEvent][];
-export type SimulatorEvents = [Fraction, SimulatorEvent][];
 
 //TODO : Create custom errors for Jugglers and scheduler.
 export class SchedulerError extends Error {
@@ -285,8 +282,8 @@ class JugglerManager {
     // Document that prefills cache information and checks that events happen on rhythm.
     pretreatEvents(events: FracSortedList<SchedulerEvent>): FracSortedList<SchedulerEvent2> {
         // Check that we have a starting tempo and a starting hand.
-        if (events.length === 0 || events[0][1].tempoChange === undefined) {
-            this.logError(events[0][0], "CriticalError", "Missing starting tempo indication");
+        if (events.length === 0 || events[0][1].tempo === undefined) {
+            this.logError(events[0][0], "CriticalError", "Missing starting tempo indication.");
             return [];
         }
         let startHand = events[0][1].newDefaultHand;
@@ -301,7 +298,7 @@ class JugglerManager {
 
         // Compute all tempos and default hands on all events.
         let beat = events[0][0];
-        let tempo = events[0][1].tempoChange;
+        let tempo = events[0][1].tempo;
         let newDefaultHand = startHand;
         const newEvents: FracSortedList<SchedulerEvent2> = [];
         for (const [eventBeat, ev] of events) {
@@ -317,9 +314,10 @@ class JugglerManager {
                 //TODO : Check if alright ?
             }
             // 2. Proceed with caching the tempo and hand used at event.
-            if (ev.tempoChange !== undefined) {
-                tempo = ev.tempoChange;
+            if (ev.tempo !== undefined) {
+                tempo = ev.tempo;
             }
+            //TODO : DOES NOT WORK !
             if (ev.newDefaultHand !== undefined) {
                 newDefaultHand = ev.newDefaultHand;
             }
@@ -699,7 +697,7 @@ class JugglerManager {
     ): { tosses: PartialToss2[]; state: JugglerState; nextEventIdx: number } {
         // Manage state.
         const eventBeat = this.events[nextEventIdx][0];
-        const { ballsInHands: newHands, tosses } = this.events[nextEventIdx][1];
+        const { hands: newHands, tosses } = this.events[nextEventIdx][1];
         state = this.descendAirborneBalls(eventBeat, state);
         if (newHands !== undefined) {
             state = this.swapBalls(eventBeat, state, newHands);
