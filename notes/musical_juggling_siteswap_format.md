@@ -49,8 +49,7 @@ Examples are given in _italic_.
 **Naming Ball and Juggler Convention :**
 They must:
 - start with an uppercase letter.
-- not end with a digit.
-- other than that, they may contain lowercase letters, ', _ and digits.
+- contain lowercase letters, ', _ and #.
 
 - Throw inference: When some information about a throw are not present, sensible information will be inferred, i.e.:
 
