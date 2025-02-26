@@ -3,7 +3,7 @@ import {
     parseMusicalSiteswap,
     ParserJugglingEvent,
     ParserToss,
-    stringifyFraction
+    ParserTossMode
 } from "../parser/siteswap_mj/MusicalSiteswap";
 import { MusicBeatConverter } from "./music_beat_converter";
 import {
@@ -13,11 +13,13 @@ import {
     PartialBall,
     FracSortedList,
     isInRhythm,
-    XOR
+    XOR,
+    FracTimeline
 } from "./mj_parser";
 import { closestWordsTo } from "./levenshtein_distance";
 import { setIntersection } from "../utils/SetOperations";
 import { TimedErrorLogger } from "./ErrorLogger";
+import { OrderedMap } from "js-sdsl";
 
 //TODO : add beat to the object rather than have a 2-array element.
 //TODO : useHand ?
@@ -37,8 +39,8 @@ type PreParserEvent = {
 //TODO : Rename InputEvent as part of MDN.
 export interface ParserToSchedulerParams {
     jugglers: Map<string, FracSortedList<PreParserEvent>>;
-    ballNames: Set<string>;
-    ballIDs: Map<string, string>;
+    ballNames?: Set<string>;
+    ballIDs?: Map<string, string>;
     musicConverter?: MusicBeatConverter;
     // events: PreParserEvent[];
     // jugglerNames: Set<string>;
@@ -50,38 +52,43 @@ export interface ParserToSchedulerParams {
 function theWholeThing({ jugglers, ballNames, ballIDs, musicConverter }: ParserToSchedulerParams): {
     events: FracSortedList<SchedulerEvent>;
 } {
+    // 1. Fill ballNames / ballIDs if they don't exist.
+    ({ ballNames, ballIDs } = formatBallNamesAndIDs({ ballNames: ballNames, ballIDs: ballIDs }));
+    // 2. Check if ballIDs correctly refer to ballNames and that they aren't duplicates.
+    checkBallNamesAndIDs(ballNames, ballIDs);
+
     const errorLogger = new TimedErrorLogger();
     for (const [jugglerName, events] of jugglers) {
-        events.sort((ev1, ev2) => ev1[0].compare(ev2[0]));
         // 1. Add beat to each pattern event
         // 2. Add tempo + hands to the first if needed.
-        const events0 = sortEvents(events);
-        const events1 = parsePatterns(events, errorLogger);
-        const events1b = addBeatToTosses();
+        const events1 = parsePatterns(events);
+        const events2 = fuseDuplicateBeats(events1, errorLogger);
+        const events3 = filterEmptyEvents(events2);
+        const events4;
+        addJugglerNames();
+        checkJugglerNames();
+        formatBalls();
+        formatMode();
+        addFromBeat();
+        addDefaultHandToAllEvents();
+        // addBeatToTosses();
+        // checkEventsInRhythm();
         // 3. Sort events.
-        const events2 = sortEvents(events1);
         // 4. Check no duplicate beat.
-        const events3 = fuseDuplicateBeats(events2, errorLogger);
+        // 4b. Filter empty events.
         // 5. Check events in Rhythm.
-        const events4 = checkEventsInRhythm(events3);
         // 5. Check and fill juggler names
-        const events5 = addJugglerNames(events4);
-        const events6 = checkJugglerNames(events5);
         // 6. Check and fill Ball
-        const events7 = formatBalls(events6);
         // 7. Check and fill Mode.
-        const events8 = formatMode(events7);
-        // 8. Add.
+        // 8. Add Default Hand
     }
 
-    // 3. Already store tempo cache info ?
     // 8. Filter empty events.
     // 10. Infer.
     return { events: [] };
 }
 
-//Rename param ?
-function compareEvents<T>(ev1: [Fraction, T], ev2: [Fraction, T]) {
+export function compareEvents<T>(ev1: [Fraction, T], ev2: [Fraction, T]) {
     return ev1[0].compare(ev2[0]);
 }
 
@@ -89,34 +96,66 @@ function sortEvents<T>(events: FracSortedList<T>): FracSortedList<T> {
     return [...events].sort(compareEvents);
 }
 
-type Pattern = {pattern: string};
+// type Pattern = { pattern: string };
 
-//TODO : Type
-function parsePatterns<T extends Partial<Pattern>>(events: FracSortedList<T>, errorLogger: TimedErrorLogger): any {
-    const newEvents: FracSortedList<T> = [];
-    let biggestBeat: Fraction | undefined;
+type EventT<TossT, HandT> = Partial<NewDefaultHand & Tosses<TossT> & Tempo & Hands<HandT>>;
+type Events<EventTT> = FracSortedList<EventTT>;
+
+//TODO : Pass juggler name to help with errorlogger ?
+//TODO : ErrorLogger so that if a juggler fails, we can keep going with other juggler.
+function parsePatterns(
+    events: FracSortedList<PreParserEvent>
+): FracSortedList<EventT<ParserToss, string>> {
+    const tempoChangesArray: [Fraction, Fraction][] = [];
     for (const [beat, ev] of events) {
-        if (ev.pattern !== undefined) {
-            const patternEvents = parseMusicalSiteswap(ev.pattern);
-            // This condition is met if a pattern is so big another event happens before it ends, which is probably unwanted.
-            if (biggestBeat !== undefined && beat.lte(biggestBeat)) {
-                errorLogger.addError(beat, "Warn", "TODO");
-            }
-            for (const ev of patternEvents) {
-                //TODO
-                newEvents.push([beat, {...ev, tosses: }])
-            }
-            if (biggestBeat === undefined || biggestBeat.gt(beat))
+        if (ev.tempo !== undefined) {
+            tempoChangesArray.push([beat, ev.tempo]);
         }
     }
+    if (tempoChangesArray.length === 0) {
+        throw Error("No Tempo indication was given. TODO JugglerName");
+    }
+    const tempoChanges = new FracTimeline(tempoChangesArray);
+    const newEvents: FracSortedList<EventT<ParserToss, string>> = [];
+    // let lastPatternBeat: Fraction | null = null;
+    for (const [beat, ev] of events) {
+        let currentBeat = beat;
+        if (ev.pattern !== undefined) {
+            const patternEvents = parseMusicalSiteswap(ev.pattern);
+            // Create an event with no toss that has the tempo and hands information.
+            // It will be fused in a later function.
+            newEvents.push([beat, { tempo: ev.tempo, hands: ev.hands }]);
+            // Fill in each pattern event beat.
+            for (const patternEv of patternEvents) {
+                newEvents.push([currentBeat, patternEv]);
+                let [, tempo] = tempoChanges.prev_event(beat);
+                if (tempo === null) {
+                    tempo = tempoChanges.begin().pointer[1];
+                }
+                currentBeat = beat.add(tempo);
+            }
+
+            // Warn if a pattern is intertwined with another.
+            // if (lastPatternBeat !== null && beat.lte(lastPatternBeat)) {
+            //     errorLogger.addError(beat, "Warn", "TODO");
+            // }
+            // if (lastPatternBeat === null || lastPatternBeat.gt(beat)) {
+            //     lastPatternBeat = beat;
+            // }
+        }
+    }
+    return sortEvents(newEvents);
 }
 
 type Tosses<TossT> = { tosses: TossT[] };
 type Tempo = { tempo: Fraction };
-type NewDefaultHand = { newDefaultHand: "L" | "R"}
+type NewDefaultHand = { newDefaultHand: "L" | "R" };
 
 //TODO : Rename newDefaulHand to defaultHand everywhere ?
-function fuseDuplicateBeats<TossT, T extends Partial<Tosses<TossT> & Tempo & NewDefaultHand>>(events: FracSortedList<T>, errorLogger: TimedErrorLogger): FracSortedList<T> {
+function fuseDuplicateBeats<TossT, T extends Partial<Tosses<TossT> & Tempo & NewDefaultHand>>(
+    events: FracSortedList<T>,
+    errorLogger: TimedErrorLogger
+): FracSortedList<T> {
     if (events.length === 0) {
         return [];
     }
@@ -127,37 +166,53 @@ function fuseDuplicateBeats<TossT, T extends Partial<Tosses<TossT> & Tempo & New
         if (!newEvents[newEvents.length - 1][0].equals(beat)) {
             newEvents.push([beat, ev]);
         } else {
-            const {tosses: tosses1, tempo: tempo1, newDefaultHand: newDefaultHand1} = ev;
-            const {tosses: tosses2, tempo: tempo2, newDefaultHand: newDefaultHand2} = newEvents[newEvents.length - 1][1];
-            
+            const { tosses: tosses1, tempo: tempo1, newDefaultHand: newDefaultHand1 } = ev;
+            const {
+                tosses: tosses2,
+                tempo: tempo2,
+                newDefaultHand: newDefaultHand2
+            } = newEvents[newEvents.length - 1][1];
+
             let newTosses: TossT[] | undefined = undefined;
             if (tosses1 !== undefined && tosses2 !== undefined) {
                 newTosses = tosses1.concat(tosses2);
             } else {
                 newTosses = tosses1 ?? tosses2;
             }
-            
+
             let newTempo: Fraction | undefined = undefined;
             if (tempo1 !== undefined && tempo2 !== undefined) {
                 if (tempo1 !== tempo2) {
-                    errorLogger.addError(beat, "Error", "TODO. Two different tempos defined on same beat. Proceeding by taking the first one.");
+                    errorLogger.addError(
+                        beat,
+                        "Error",
+                        "TODO. Two different tempos defined on same beat. Proceeding by taking the first one."
+                    );
                 }
                 newTempo = tempo2;
             } else {
                 newTempo = tempo1 ?? tempo2;
             }
-            
+
             let newNewDefaultHand: "L" | "R" | undefined = undefined;
             if (newDefaultHand1 !== undefined && newDefaultHand2 !== undefined) {
                 if (newDefaultHand1 !== newDefaultHand2) {
-                    errorLogger.addError(beat, "Error", "TODO. Two different newDefaultHands defined on same beat. Proceeding by taking the first one.");
+                    errorLogger.addError(
+                        beat,
+                        "Error",
+                        "TODO. Two different newDefaultHands defined on same beat. Proceeding by taking the first one."
+                    );
                 }
                 newNewDefaultHand = newDefaultHand2;
             } else {
                 newNewDefaultHand = newDefaultHand1 ?? newDefaultHand2;
             }
 
-            newEvents[newEvents.length - 1][1] = {tosses: newTosses, tempo: newTempo, newDefaultHand: newNewDefaultHand} as T;
+            newEvents[newEvents.length - 1][1] = {
+                tosses: newTosses,
+                tempo: newTempo,
+                newDefaultHand: newNewDefaultHand
+            } as T;
         }
     }
     return newEvents;
@@ -167,21 +222,17 @@ function fuseDuplicateBeats<TossT, T extends Partial<Tosses<TossT> & Tempo & New
 //TODO : Make sure empty list events works.
 function addTempoToAllEvents<T extends Partial<Tempo>>(
     events: FracSortedList<T>,
-    errorLogger: TimedErrorLogger;
+    errorLogger: TimedErrorLogger
 ): FracSortedList<T & Tempo> {
     if (events.length === 0) {
         return [];
     }
     if (events[0][1].tempo === undefined) {
-        errorLogger.addError(
-            events[0][0],
-            "CriticalError",
-            "Missing starting tempo indication"
-        );
+        errorLogger.addError(events[0][0], "CriticalError", "Missing starting tempo indication");
         return [];
     }
     let tempo = events[0][1].tempo;
-    const newEvents: FracSortedList<T & { tempo: Fraction }> = []; //TODO Type
+    const newEvents: FracSortedList<T & Tempo> = [];
     for (const [beat, ev] of events) {
         if (ev.tempo !== undefined) {
             tempo = ev.tempo;
@@ -194,10 +245,10 @@ function addTempoToAllEvents<T extends Partial<Tempo>>(
 //Rename TimedErrorLogger.logError/addError method. Misleading name.
 function addDefaultHandToAllEvents<T extends Partial<NewDefaultHand> & Tempo>(
     events: FracSortedList<T>,
-    errorLogger: TimedErrorLogger;
+    errorLogger: TimedErrorLogger
 ): FracSortedList<T & NewDefaultHand> {
     if (events.length === 0) {
-        return []
+        return [];
     }
     let lastDefaultHand: "L" | "R";
     if (events[0][1].newDefaultHand === undefined) {
@@ -224,13 +275,12 @@ function addDefaultHandToAllEvents<T extends Partial<NewDefaultHand> & Tempo>(
         //         "Error",
         //         `An event happens offbeat.\n$TODO's previous beat: ${prevBeat.toString()}.\nTempo: ${stringifyFraction(ev.tempo)}.\nEvent's beat: ${beat.toString()}.`
         //     );
-            //TODO : Check if alright ?
+        //TODO : Check if alright ?
         // }
-        let defaultHand: "L" | "R";
         if (ev.newDefaultHand !== undefined) {
-            defaultHand = ev.newDefaultHand;
+            lastDefaultHand = ev.newDefaultHand;
         } else {
-            const nbSteps = beat.sub(lastBeat).div(ev.tempo);
+            const nbSteps = beat.sub(lastBeat).div(lastTempo);
             if (!nbSteps.divisible(1)) {
                 //TODO : Handle elsewhere, or gracefully here (by taking next event).
                 // errorLogger.addError(beat, "Error", )
@@ -238,17 +288,19 @@ function addDefaultHandToAllEvents<T extends Partial<NewDefaultHand> & Tempo>(
             }
             lastDefaultHand = XOR(nbSteps.divisible(2), lastDefaultHand === "R") ? "L" : "R";
         }
-        newEvents.push([beat, {...ev, newDefaultHand: lastDefaultHand}]);
+        newEvents.push([beat, { ...ev, newDefaultHand: lastDefaultHand }]);
         lastBeat = beat;
         lastTempo = ev.tempo;
     }
     return newEvents;
 }
 
-function addTossesToAllEvents<TossT, T extends Partial<Tosses<TossT>>> (events: FracSortedList<T>): FracSortedList<T & Tosses<TossT>> {
-    const newEvents: FracSortedList<T & Tosses<TossT>> = []
+function addTossesToAllEvents<TossT, T extends Partial<Tosses<TossT>>>(
+    events: FracSortedList<T>
+): FracSortedList<T & Tosses<TossT>> {
+    const newEvents: FracSortedList<T & Tosses<TossT>> = [];
     for (const [beat, ev] of events) {
-        newEvents.push([beat, {...ev, tosses: ev.tosses ?? []}]);
+        newEvents.push([beat, { ...ev, tosses: ev.tosses ?? [] }]);
     }
     return newEvents;
 }
@@ -269,13 +321,17 @@ function addMissingJugglerNames<TossT extends DeepPartial<TossJuggler>, T extend
 ): FracSortedList<T & Tosses<TossJuggler>> {
     const newEvents: FracSortedList<T & Tosses<TossJuggler>> = [];
     for (const [beat, ev] of events) {
-        const newTosses: TossJuggler[] = []
+        const newTosses: TossJuggler[] = [];
         for (const toss of ev.tosses) {
             const toJuggler = toss.to.juggler ?? defaultJugglerName;
             const fromJuggler = toss.from.juggler ?? defaultJugglerName;
-            newTosses.push({...toss, to: {...toss.to, juggler: toJuggler}, from: {...toss.from, juggler: fromJuggler}})
-            }
-        newEvents.push([beat, {...ev, tosses: newTosses}])
+            newTosses.push({
+                ...toss,
+                to: { ...toss.to, juggler: toJuggler },
+                from: { ...toss.from, juggler: fromJuggler }
+            });
+        }
+        newEvents.push([beat, { ...ev, tosses: newTosses }]);
     }
     return newEvents;
 }
@@ -297,101 +353,93 @@ function checkJugglerNames<TossT extends TossJuggler, T extends Tosses<TossT>>(
     }
 }
 
-//TODO : Her copy the code that identifies the ball as name or id.
-function IdentifyBallNames<TossT extends TossBall, T extends Tosses<TossT>>(
-    events: FracSortedList<T>,
-    jugglerNames: Set<string>,
+type BallNameOrID = { ballNameOrID: string };
+type BallNameAndID = { name: string; id?: string };
+type TossBall<BallT> = { ball: BallT };
+type Hands<BallT> = { hands: [BallT[], BallT[]] };
+
+//TODO : Fuse TossBallNameOrId so that it uses field ball in objetc to have one huge printing function.
+//TODO : Check that ballIDs values are valid ballNames in another function.
+//TODO : Unconsistent way across functions of defining generic type.
+function formatThrownBalls<TossT>(
+    events: FracSortedList<Tosses<TossT & Partial<TossBall<string>>>>,
+    ballNames: Set<string>,
+    ballIDs: Map<string, string>,
     errorLogger: TimedErrorLogger
-): void {
+): FracSortedList<Tosses<TossT & Partial<TossBall<BallNameAndID>>>> {
+    const newEvents: FracSortedList<Tosses<TossT & Partial<BallNameAndID>>> = [];
     for (const [beat, ev] of events) {
+        const newTosses: (TossT & Partial<BallNameAndID>)[] = [];
         for (const toss of ev.tosses) {
-            if (!jugglerNames.has(toss.from.juggler)) {
-                handleUnkownName(toss.from.juggler, jugglerNames, "juggler", errorLogger, beat);
-            }
-            if (!jugglerNames.has(toss.to.juggler)) {
-                handleUnkownName(toss.to.juggler, jugglerNames, "juggler", errorLogger, beat);
-            }
+            const ball =
+                toss.ball === undefined
+                    ? undefined
+                    : getBall(toss.ball, ballNames, ballIDs, errorLogger, beat);
+            newTosses.push({ ...toss, ball: ball });
         }
+        newEvents.push([beat, { ...ev, tosses: newTosses }]);
     }
+    return newEvents;
 }
 
-
-
-// export interface ParserToSchedulerParams {
-//     events: ParserJugglingEvent[];
-//     jugglerNames: Set<string>;
-//     defaultJugglerName: string;
-//     startBeat: Fraction;
-//     tempo: Fraction;
-//     ballNames?: Set<string>;
-//     ballIDs?: Map<string, string>;
-//     musicConverter?: MusicBeatConverter;
-// }
-
-export function parserToSchedulerEvents({
-    events,
-    jugglerNames,
-    defaultJugglerName,
-    startBeat,
-    tempo,
-    ballNames,
-    ballIDs,
-    musicConverter
-}: ParserToSchedulerParams): [Fraction, SchedulerEvent][] {
-    if (!jugglerNames.has(defaultJugglerName)) {
-        handleUnkownName(defaultJugglerName, jugglerNames, "juggler");
+function getBall(
+    ballNameOrID: string | undefined,
+    ballNames: Set<string>,
+    ballIDs: Map<string, string>,
+    errorLogger: TimedErrorLogger,
+    beat: Fraction
+): { name: string; id?: string } | undefined {
+    if (ballNameOrID === undefined) {
+        return undefined;
+    } else if (ballNames.has(ballNameOrID)) {
+        return { name: ballNameOrID };
+    } else if (ballIDs.has(ballNameOrID)) {
+        // const ballID = toss.ballNameOrID;
+        // const ballName = ballIDs.get(toss.ballNameOrID)!;
+        // if (!ballNames.has(ballName)) {
+        //     errorLogger.addError(beat, "CriticalError", `Ball with ID`)
+        // }
+        return { name: ballIDs.get(ballNameOrID)!, id: ballNameOrID };
     }
-    if (ballNames === undefined) {
-        ballNames = new Set(ballIDs !== undefined ? ballIDs.values() : []);
-    }
-    if (ballIDs === undefined) {
-        ballIDs = new Map();
-    }
-    checkDuplicateBallName(ballNames, ballIDs);
-    const newEvents: [Fraction, SchedulerEvent][] = [];
-    let beat = startBeat;
-    for (const ev of events) {
-        const newTosses: PartialToss[] = [];
-        if (ev.tosses !== undefined) {
-            for (const toss of ev.tosses) {
-                const mode = getMode(toss, beat, musicConverter);
-                const ball = getBall(toss, ballNames, ballIDs);
-                const fromJuggler = defaultJugglerName;
-                const toJuggler = getToJuggler(toss, defaultJugglerName, jugglerNames);
-                newTosses.push({
-                    from: { juggler: fromJuggler, hand: toss.fromHand, beat: beat },
-                    to: {
-                        juggler: toJuggler,
-                        hand: toss.toHand,
-                        ...mode
-                    },
-                    ball: ball
-                });
+    handleUnkownName(ballNameOrID, [...ballNames, ...ballIDs.keys()], "ball", errorLogger, beat);
+    return undefined;
+}
+
+function formatHeldBalls<T>(
+    events: FracSortedList<T & Partial<Hands<string>>>,
+    ballNames: Set<string>,
+    ballIDs: Map<string, string>,
+    errorLogger: TimedErrorLogger
+): FracSortedList<T & Partial<Hands<BallNameAndID>>> {
+    const newEvents: FracSortedList<T & Partial<Hands<BallNameAndID>>> = [];
+    for (const [beat, ev] of events) {
+        let newHands: [BallNameAndID[], BallNameAndID[]] | undefined;
+        if (ev.hands !== undefined) {
+            newHands = [[], []];
+            for (let i = 0; i < 2; i++) {
+                for (const ball of ev.hands[i]) {
+                    const newBall = getBall(ball, ballNames, ballIDs, errorLogger, beat);
+                    if (newBall === undefined) {
+                        continue;
+                    }
+                    newHands[i].push(newBall);
+                }
             }
+        } else {
+            newHands = undefined;
         }
-        const newEv: SchedulerEvent = {
-            newDefaultHand: ev.newDefaultHand,
-            tosses: newTosses
-        };
-        newEvents.push([beat, newEv]);
-        beat = beat.add(tempo);
+        newEvents.push([beat, { ...ev, hands: newHands }]);
     }
-    return filterEmptyEvents(newEvents);
+    return newEvents;
 }
 
-function checkDuplicateBallName(ballNames: Set<string>, ballIDs: Map<string, string>): void {
-    const inter = setIntersection(ballNames, new Set(ballIDs.keys()));
-    if (inter.size > 0) {
-        let text = "Some balls are both a name and an ID :";
-        for (const name of inter) {
-            text += ` ${name}`;
-        }
-        text += ".";
-        throw Error(text);
-    }
-}
-
-function handleUnkownName(name: string, namesList: Iterable<string>, nameCategory: string, errorLogger: TimedErrorLogger, beat: Fraction) {
+function handleUnkownName(
+    name: string,
+    namesList: Iterable<string>,
+    nameCategory: string,
+    errorLogger: TimedErrorLogger,
+    beat: Fraction
+): void {
     let text = `Unknown ${nameCategory} : "${name}".`;
     const closeMatches = closestWordsTo(name, namesList, 2);
     if (closeMatches.length > 0) {
@@ -400,173 +448,113 @@ function handleUnkownName(name: string, namesList: Iterable<string>, nameCategor
     errorLogger.addError(beat, "CriticalError", text);
 }
 
-function getToJuggler(
-    toss: ParserToss,
-    defaultJugglerName: string,
-    jugglerNames: Set<string>
-): string {
-    if (toss.toJuggler !== undefined && !jugglerNames.has(toss.toJuggler)) {
-        handleUnkownName(toss.toJuggler, jugglerNames, "juggler");
+function filterEmptyEvents<T extends SchedulerEvent>(events: FracSortedList<EventT<T>): FracSortedList<T> {
+    // Static function to filter tosses.
+    function keepToss(toss: PartialToss): boolean {
+        return (
+            (toss.to.mode === "Height" && toss.to.height > 0) ||
+            (toss.to.mode === "Beat" && toss.to.beat.gt(toss.from.beat))
+        );
     }
-    return toss.toJuggler ?? defaultJugglerName;
-}
 
-function getBall(
-    toss: ParserToss,
-    ballNames: Set<string>,
-    ballIDs: Map<string, string>
-): PartialBall | undefined {
-    if (toss.ballNameOrID !== undefined) {
-        if (ballNames.has(toss.ballNameOrID)) {
-            return { name: toss.ballNameOrID };
-        } else if (ballIDs.has(toss.ballNameOrID)) {
-            return { name: ballIDs.get(toss.ballNameOrID)!, id: toss.ballNameOrID };
-        } else {
-            handleUnkownName(toss.ballNameOrID, [...ballNames, ...ballIDs.keys()], "ball");
-        }
-    }
-    return undefined;
-}
-
-function getMode(
-    toss: ParserToss,
-    beat: Fraction,
-    musicConverter?: MusicBeatConverter
-): PartialTossMode {
-    if (toss.mode === "Height") {
-        return { mode: "Height", height: toss.height };
-    } else if (toss.mode === "AbsBeat") {
-        return { mode: "Beat", beat: toss.beat };
-    } else if (toss.mode === "AbsMeasureBeat") {
-        if (musicConverter === undefined) {
-            throw Error("No Signature information was provided to be able to use measures");
-        }
-        return {
-            mode: "Beat",
-            beat: musicConverter.convertMeasureBeat(toss.measureBeat)
-        };
-    }
-    return { mode: "Beat", beat: beat.add(toss.beat) };
-}
-
-function filterEmptyEvents(events: [Fraction, SchedulerEvent][]): [Fraction, SchedulerEvent][] {
-    const newEvents: [Fraction, SchedulerEvent][] = [];
+    // Remove events with no usefull toss and other information.
+    const newEvents: FracSortedList<T> = [];
+    let lastTempo: Fraction | null = null;
     for (const [beat, ev] of events) {
-        if (
-            ev.tosses === undefined &&
-            ev.tempo === undefined &&
-            ev.newDefaultHand === undefined &&
-            ev.hands === undefined
-        ) {
-            continue;
-        }
         const newTosses = ev.tosses?.filter(keepToss);
-        if (newTosses?.length === 0) {
-            continue;
+        if (
+            !(
+                (newTosses === undefined || newTosses.length === 0) &&
+                (ev.tempo === undefined || lastTempo?.equals(ev.tempo)) &&
+                ev.newDefaultHand === undefined &&
+                ev.hands === undefined
+            )
+        ) {
+            newEvents.push([beat, { ...ev, tosses: newTosses }]);
+        }
+        lastTempo = ev.tempo ?? lastTempo;
+    }
+    return newEvents;
+}
+
+function formatMode<TossT>(
+    events: FracSortedList<Tosses<TossT & ParserTossMode>>,
+    errorLogger: TimedErrorLogger,
+    musicConverter?: MusicBeatConverter
+): FracSortedList<Tosses<TossT & PartialTossMode>> {
+    const newEvents: FracSortedList<Tosses<TossT & PartialTossMode>> = [];
+    for (const [beat, ev] of events) {
+        const newTosses: (TossT & PartialTossMode)[] = [];
+        for (const toss of ev.tosses) {
+            let mode: PartialTossMode;
+            if (toss.mode === "Height") {
+                mode = { mode: "Height", height: toss.height };
+            } else if (toss.mode === "AbsBeat") {
+                mode = { mode: "Beat", beat: toss.beat };
+            } else if (toss.mode === "AbsMeasureBeat") {
+                if (musicConverter === undefined) {
+                    errorLogger.addError(
+                        beat,
+                        "CriticalError",
+                        "No Signature information was provided to be able to use measures. TODO."
+                    );
+                    continue;
+                }
+                mode = {
+                    mode: "Beat",
+                    beat: musicConverter.convertMeasureBeat(toss.measureBeat)
+                };
+            } else {
+                mode = { mode: "Beat", beat: beat.add(toss.beat) };
+            }
+            newTosses.push({ ...toss, ...mode });
         }
         newEvents.push([beat, { ...ev, tosses: newTosses }]);
     }
     return newEvents;
 }
 
-function keepToss(toss: PartialToss): boolean {
-    return (
-        (toss.to.mode === "Height" && toss.to.height > 0) ||
-        (toss.to.mode === "Beat" && toss.to.beat.gt(toss.from.beat))
-    );
-}
-
-// Printing Functions
-export function stringifySchedulerEvent(ev: SchedulerEvent): string {
-    if (
-        ev.newDefaultHand === undefined &&
-        ev.tosses === undefined &&
-        ev.hands === undefined &&
-        ev.tempo === undefined
-    ) {
-        return "Empty Event.";
-    }
-    let text = "";
-    if (ev.newDefaultHand !== undefined) {
-        text += `New default hand: ${ev.newDefaultHand}\n`;
-    }
-    if (ev.tempo !== undefined) {
-        text += `Tempo Change: ${stringifyFraction(ev.tempo)}\n`;
-    }
-    if (ev.hands !== undefined) {
-        text += `New balls in hand: Left${stringifyHand(ev.hands[0])} Right${stringifyHand(ev.hands[1])} \n`;
-    }
-    if (ev.tosses !== undefined) {
-        for (let i = 0; i < ev.tosses.length; i++) {
-            const toss = ev.tosses[i];
-            text += `Toss ${i} (beat ${stringifyFraction(toss.from.beat)}): Ball`;
-            if (toss.ball !== undefined) {
-                text += ` ${stringifyBall(toss.ball)}`;
-            }
-            if (toss.to.mode === "Height") {
-                text += ` tossed at height ${toss.to.height}`;
-            } else {
-                text += ` tossed to beat ${stringifyFraction(toss.to.beat)}`;
-            }
-            text += ` from ${toss.from.juggler}`;
-            if (toss.from.hand !== undefined) {
-                const hand = toss.from.hand === "L" ? "left" : "right";
-                text += `'s ${hand} hand`;
-            }
-            text += ` to ${toss.to.juggler}`;
-            if (toss.to.hand !== undefined) {
-                let hand: string;
-                if (toss.to.hand === "L") {
-                    hand = "left";
-                } else if (toss.to.hand === "R") {
-                    hand = "right";
-                } else {
-                    hand = "other";
-                }
-                text += `'s ${hand} hand`;
-            }
-            if (i < ev.tosses.length - 1) {
-                text += "\n";
-            }
-        }
-    }
-    return text;
-}
-
-export function stringifyBall(ball: PartialBall): string {
-    let text = ball.name;
-    if (ball.id !== undefined) {
-        text += `(ID : ${ball.id})`;
-    }
-    return text;
-}
-
-export function stringifyHand(hand: PartialBall[]): string {
-    let text = "";
-    for (const ball of hand) {
-        text += `${stringifyBall(ball)}, `;
-    }
-    return text;
-}
-
-// export function stringifyDeque<T>(deque: Deque<T>, stringifyElemFunc: (elem: T) => string): string {
-//     let text = "[";
-//     for (const elem of deque) {
-//         text += stringifyElemFunc(elem);
+//TODO : Mode loop / loops out of the way into main function if possible !
+// function checkEventsInRhythm<TossT extends Tempo, T extends Tosses<TossT>>(events: FracSortedList<T>, errorLogger: TimedErrorLogger): FracSortedList<T> {
+//     const newEvents: FracSortedList<T> = [];
+//     for (const [beat, ev] of events) {
+//         if ()
 //     }
-//     text += "]";
-//     return text;
+
 // }
 
-export function stringifySchedulerEvents(events: [Fraction, SchedulerEvent][]) {
+function checkBallNamesAndIDs(ballNames: Set<string>, ballIDs: Map<string, string>): void {
+    const inter = setIntersection(ballNames, new Set(ballIDs.keys()));
     let text = "";
-    for (const [beat, ev] of events) {
-        text += `Beat ${stringifyFraction(beat)}`;
-        text += "\n\t";
-        text += stringifySchedulerEvent(ev).split("\n").join("\n\t");
-        text += "\n";
+    if (inter.size > 0) {
+        for (const name of inter) {
+            text += `Ball ${name} is both a name and an ID.\n`;
+        }
     }
-    return text;
+    for (const [ballID, ballName] of ballIDs) {
+        if (!ballNames.has(ballName)) {
+            text += `Ball with ID ${ballID} has unknown ball name ${ballName}.\n`;
+        }
+    }
+    if (text !== "") {
+        throw Error(text);
+    }
+}
+
+function formatBallNamesAndIDs({
+    ballNames,
+    ballIDs
+}: {
+    ballNames?: Set<string>;
+    ballIDs?: Map<string, string>;
+}): { ballNames: Set<string>; ballIDs: Map<string, string> } {
+    if (ballNames === undefined) {
+        ballNames = new Set(ballIDs !== undefined ? ballIDs.values() : []);
+    }
+    if (ballIDs === undefined) {
+        ballIDs = new Map();
+    }
+    return { ballNames: ballNames, ballIDs: ballIDs };
 }
 
 // Testing
