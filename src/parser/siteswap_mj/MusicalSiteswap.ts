@@ -36,8 +36,6 @@ import { MusicTime } from "../../tocategorize/music_beat_converter";
 //TODO : Make custom class with no mutation ? (but composition)
 //By passing time, and returning correct things ?
 //TODO : Bug report that tokens may be null and are not marked as null in types.
-//TODO : Ball Name / ID ?
-//TODO : Consistant this.visit / this.visitSomething ?
 //TODO : Remove as much as possible from the parser : We can add the tempo later, and filter music / beat later too ?
 // What we can do later than parser (possibly changing a bit the format):
 // -Check for time requirements (measure and beat / beat)
@@ -85,7 +83,7 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     };
 
     visitPatternToss = (ctx: PatternTossContext): void => {
-        this.visitToss(ctx.toss());
+        this.visit(ctx.toss());
     };
 
     visitPatternExp = (ctx: PatternExpContext): void => {
@@ -137,7 +135,7 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     };
 
     visitTossDetailed = (ctx: TossDetailedContext): ParserToss => {
-        return this.visitDetailed_toss(ctx.detailed_toss());
+        return this.visit(ctx.detailed_toss()) as ParserToss;
     };
 
     visitAsyncToss = (ctx: AsyncTossContext): ParserToss[] => {
@@ -172,25 +170,25 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
     };
 
     visitMeasure = (ctx: MeasureContext): number => {
-        return this.visitNumber(ctx.number_());
+        return this.visit(ctx.number_()) as number;
     };
 
     visitFrac = (ctx: FracContext): Fraction => {
-        const num = this.visitNumber(ctx.number_(0));
-        const den = this.visitNumber(ctx.number_(1));
+        const num = this.visit(ctx.number_(0)) as number;
+        const den = this.visit(ctx.number_(1)) as number;
         return new Fraction(num, den);
     };
 
     visitBeatFrac = (ctx: BeatFracContext): Fraction => {
-        return this.visitFrac(ctx.frac());
+        return this.visit(ctx.frac()) as Fraction;
     };
 
     visitBeatWholeNumber = (ctx: BeatWholeNumberContext): Fraction => {
-        return new Fraction(this.visitNumber(ctx.number_()));
+        return new Fraction(this.visit(ctx.number_()) as number);
     };
 
     visitAbsMeasureAndBeat = (ctx: AbsMeasureAndBeatContext): MusicTime => {
-        const measure = this.visitMeasure(ctx.measure());
+        const measure = this.visit(ctx.measure()) as number;
         const beat = this.visit(ctx.beat()) as Fraction;
         return [measure, beat];
     };
