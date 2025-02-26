@@ -255,72 +255,8 @@ export function parseMusicalSiteswap(pattern: string): ParserJugglingEvent[] {
     return visitor.events;
 }
 
-// export function stringifyParserEvent(ev: ParserJugglingEvent): string {
-//     if (ev.newDefaultHand === undefined && ev.tosses === undefined) {
-//         return "Empty Event.";
-//     }
-//     let text = "";
-//     if (ev.newDefaultHand !== undefined) {
-//         text += `newDefaultHand: ${ev.newDefaultHand}\n`;
-//     }
-//     if (ev.tosses !== undefined) {
-//         for (let i = 0; i < ev.tosses.length; i++) {
-//             const toss = ev.tosses[i];
-//             text += `Toss ${i}: Ball`;
-//             if (toss.ball.nameOrID !== undefined) {
-//                 text += `${toss.ball.nameOrID} `;
-//             }
-//             if (toss.mode === "Height") {
-//                 text += ` tossed at height ${toss.height}`;
-//             } else if (toss.mode === "AbsBeat") {
-//                 text += ` tossed to beat ${stringifyFraction(toss.beat)}`;
-//             } else if (toss.mode === "AbsMeasureBeat") {
-//                 const [measure, beat] = toss.measureBeat;
-//                 text += ` tossed to measure ${measure} beat ${stringifyFraction(beat)}`;
-//             } else {
-//                 text += ` tossed to be caught in ${stringifyFraction(toss.beat)} beats`;
-//             }
-//             if (toss.from.hand !== undefined) {
-//                 const hand = toss.fromHand === "L" ? "left" : "right";
-//                 text += ` from the ${hand} hand`;
-//             }
-//             if (toss.toHand !== undefined || toss.toJuggler !== undefined) {
-//                 text += ` to`;
-//                 if (toss.toJuggler !== undefined) {
-//                     text += ` ${toss.toJuggler}'s`;
-//                 }
-//                 if (toss.toHand !== undefined) {
-//                     let hand: string;
-//                     if (toss.toHand === "L") {
-//                         hand = "left";
-//                     } else if (toss.toHand === "R") {
-//                         hand = "right";
-//                     } else {
-//                         hand = "other";
-//                     }
-//                     text += ` ${hand} hand`;
-//                 }
-//             }
-//             if (i < ev.tosses.length - 1) {
-//                 text += "\n";
-//             }
-//         }
-//     }
-//     return text;
-// }
-//
-// export function stringifyParserEvents(events: ParserJugglingEvent[]) {
-//     let text = "";
-//     for (let i = 0; i < events.length; i++) {
-//         text += `Time ${i}:`;
-//         text += "\n\t";
-//         text += stringifyParserEvent(events[i]).split("\n").join("\n\t");
-//         text += "\n";
-//     }
-//     return text;
-// }
-
 // Testing
+// import { stringifyEvents } from "../../utils/stringifyEvent";
 // const input = "3";
 // const input = "L404[Sol4 Do'5]1";
 // const input = "{Do B5/4 Vincent x} {Do +B3/4 Vincent x} {Re 3 L}";
