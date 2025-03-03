@@ -1,8 +1,8 @@
 import { Timeline } from "../simulator/Timeline";
 import Fraction from "fraction.js";
-import { stringifyFraction } from "../parser/siteswap_mj/MusicalSiteswap";
+import { stringifyFraction } from "../utils/stringifyEvent";
 import { Severity, TimedErrorLogger } from "./ErrorLogger";
-import { stringifyBall, stringifyHand } from "./parser_to_scheduler";
+import { compareEvents, stringifyBall, stringifyHand } from "./parser_to_scheduler";
 
 /*
 The time between two tosses / catches of the juggler is called its unit
@@ -52,11 +52,12 @@ export interface PartialToss {
     to: {
         juggler: string;
         hand?: "R" | "L" | "x";
-    } & PartialTossMode;
+    };
     ball?: PartialBall;
+    mode: PartialTossMode;
 }
 
-export type PartialTossMode = { mode: "Beat"; beat: Fraction } | { mode: "Height"; height: number };
+export type PartialTossMode = { type: "Beat"; beat: Fraction } | { type: "Height"; height: number };
 
 export type BallsInHands = [Ball[], Ball[]];
 export type PartialBallsInHands = [PartialBall[], PartialBall[]];
@@ -75,10 +76,10 @@ export interface SimulatorToss {
 }
 
 export interface SchedulerEvent {
-    tosses?: PartialToss[];
-    tempo?: Fraction;
+    tosses: PartialToss[];
+    tempo: Fraction;
     hands?: PartialBallsInHands;
-    newDefaultHand?: "L" | "R";
+    newDefaultHand: "L" | "R";
 }
 
 export interface SchedulerCompletedEvent {
@@ -219,10 +220,6 @@ export function isInRhythm(beat: Fraction, startBeat: Fraction, tempo: Fraction)
 
 export function XOR(a: boolean, b: boolean): boolean {
     return a !== b;
-}
-
-export function compareFracSortedListFunc<T>(elem1: [Fraction, T], elem2: [Fraction, T]) {
-    return elem1[0].compare(elem2[0]);
 }
 
 //TODO : Fuse "beat" with BeatInfo / State ? to avoid events[0][0/1] ? YES URGENT ?
@@ -502,7 +499,7 @@ class JugglerManager {
 
         // Add the balls in the order they've fallen.
         for (let i = 0; i < 2; i++) {
-            handCatches[i].sort(compareFracSortedListFunc);
+            handCatches[i].sort(compareEvents);
             for (const [catchBeat, balls] of handCatches[i]) {
                 // If two balls are caught at the same time in the same hand,
                 // we can't know how to arrange them in the hand.
@@ -610,7 +607,7 @@ class JugglerManager {
 
             // Compute the catching beat
             let toBeat: Fraction;
-            if (toss.to.mode === "Height") {
+            if (toss.to.type === "Height") {
                 toBeat = this.getCatchBeatFromHeight(toss.to.height, beat, eventIdx);
             } else {
                 toBeat = toss.to.beat;

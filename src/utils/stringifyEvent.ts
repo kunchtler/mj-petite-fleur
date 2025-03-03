@@ -13,7 +13,8 @@ type TossType = {
     from: { hand?: "L" | "R"; juggler?: string; beat?: Fraction };
     to: { hand?: "L" | "R" | "x"; juggler?: string; beat?: Fraction };
     ball: { name: string; id?: string } | { nameOrID?: string };
-} & (ParserTossMode | PartialTossMode);
+    mode?: ParserTossMode | PartialTossMode;
+};
 
 //TODO : Find a way to fuse all similar types ?
 type EventType = {
@@ -144,15 +145,17 @@ function stringifyToFrom({
 
 export function stringifyToss(toss: TossType): string {
     let text = stringifyBall(toss.ball);
-    if (toss.mode === "Height") {
-        text += ` tossed at height ${toss.height}`;
-    } else if (toss.mode === "AbsBeat" || toss.mode === "Beat") {
-        text += ` tossed to beat ${stringifyFraction(toss.beat)}`;
-    } else if (toss.mode === "AbsMeasureBeat") {
-        const [measure, beat] = toss.measureBeat;
+    if (toss.mode === undefined) {
+        text += "";
+    } else if (toss.mode.type === "Height") {
+        text += ` tossed at height ${toss.mode.height}`;
+    } else if (toss.mode.type === "AbsBeat" || toss.mode.type === "Beat") {
+        text += ` tossed to beat ${stringifyFraction(toss.mode.beat)}`;
+    } else if (toss.mode.type === "AbsMeasureBeat") {
+        const [measure, beat] = toss.mode.measureBeat;
         text += ` tossed to measure ${measure} beat ${stringifyFraction(beat)}`;
     } else {
-        text += ` tossed to be caught in ${stringifyFraction(toss.beat)} beats`;
+        text += ` tossed to be caught in ${stringifyFraction(toss.mode.beat)} beats`;
     }
     const textFrom = stringifyToFrom(toss.from);
     if (textFrom !== "") {

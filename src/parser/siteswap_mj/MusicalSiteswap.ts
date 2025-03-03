@@ -48,14 +48,15 @@ import { MusicTime } from "../../tocategorize/music_beat_converter";
 export type ParserToss = {
     from: { hand?: "L" | "R" };
     to: { juggler?: string; hand?: "L" | "R" | "x" };
-    ball: { nameOrID?: string };
-} & ParserTossMode;
+    ball?: { nameOrID: string };
+    mode: ParserTossMode;
+};
 
 export type ParserTossMode =
-    | { mode: "Height"; height: number }
-    | { mode: "AbsBeat"; beat: Fraction }
-    | { mode: "AbsMeasureBeat"; measureBeat: MusicTime }
-    | { mode: "RelBeat"; beat: Fraction };
+    | { type: "Height"; height: number }
+    | { type: "AbsBeat"; beat: Fraction }
+    | { type: "AbsMeasureBeat"; measureBeat: MusicTime }
+    | { type: "RelBeat"; beat: Fraction };
 
 export type ParserJugglingEvent = {
     newDefaultHand?: "L" | "R";
@@ -129,8 +130,7 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
             from: {},
             to: { hand: toHand },
             ball: { nameOrID: ballNameOrID },
-            mode: "Height",
-            height: height
+            mode: { type: "Height", height: height }
         };
     };
 
@@ -216,16 +216,16 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
         }
         let tossMode: ParserTossMode;
         if (ctx.height() !== null) {
-            tossMode = { mode: "Height", height: this.visit(ctx.height()) as number };
+            tossMode = { type: "Height", height: this.visit(ctx.height()) as number };
         } else if (ctx.abs_catch() !== null) {
             const absTime = this.visit(ctx.abs_catch()) as Fraction | MusicTime;
             if (Array.isArray(absTime)) {
-                tossMode = { mode: "AbsMeasureBeat", measureBeat: absTime };
+                tossMode = { type: "AbsMeasureBeat", measureBeat: absTime };
             } else {
-                tossMode = { mode: "AbsBeat", beat: absTime };
+                tossMode = { type: "AbsBeat", beat: absTime };
             }
         } else {
-            tossMode = { mode: "RelBeat", beat: this.visit(ctx.rel_catch()) as Fraction };
+            tossMode = { type: "RelBeat", beat: this.visit(ctx.rel_catch()) as Fraction };
         }
         let toHand: "L" | "R" | "x" | undefined;
         if (ctx.HAND_MOD() !== null) {
@@ -238,8 +238,8 @@ export class MJSVisitor extends MJSiteswapParserVisitor<any> {
         return {
             from: {},
             to: { hand: toHand, juggler: toJuggler },
-            ball: { nameOrID: ballNameOrID },
-            ...tossMode
+            ball: ballNameOrID === undefined ? undefined : { nameOrID: ballNameOrID },
+            mode: tossMode
         };
     };
 }
