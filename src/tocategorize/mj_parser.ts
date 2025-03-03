@@ -1,8 +1,8 @@
 import { Timeline } from "../simulator/Timeline";
 import Fraction from "fraction.js";
-import { stringifyFraction } from "../utils/stringifyEvent";
+import { stringifyBall, stringifyHand } from "../utils/stringifyEvent";
 import { Severity, TimedErrorLogger } from "./ErrorLogger";
-import { compareEvents, stringifyBall, stringifyHand } from "./parser_to_scheduler";
+import { compareEvents } from "./parser_to_scheduler";
 
 /*
 The time between two tosses / catches of the juggler is called its unit
@@ -108,6 +108,10 @@ interface JugglerCache {
     nextEventIdx: number;
 }
 
+export interface SchedulerParams {
+    jugglers: Map<string, { events: FracSortedList<SchedulerEvent>; balls: Ball[] }>;
+}
+
 //TODO : Document that by default hands have LIFO structure.
 //TODO : Make Generic version for the fun of it ?
 //TODO : Rename partialEvents (clashes with JS events ?)
@@ -120,11 +124,9 @@ interface JugglerCache {
 export class Scheduler {
     jugglers: Map<string, { manager: JugglerManager; cache: JugglerCache }>;
 
-    constructor(
-        jugglers: { name: string; balls: Ball[]; events: FracSortedList<SchedulerEvent> }[]
-    ) {
+    constructor({ jugglers }: SchedulerParams) {
         this.jugglers = new Map();
-        for (const { name, balls, events } of jugglers) {
+        for (const [name, { balls, events }] of jugglers) {
             const manager = new JugglerManager(name, balls, events);
             const cache = manager.generateInitialCache();
             this.jugglers.set(name, { manager: manager, cache: cache });
@@ -207,13 +209,6 @@ interface JugglerState {
     onTable: Map<string, Ball>;
 }
 
-interface EventCache {
-    tempo: Fraction;
-    isNewHandRight: boolean;
-}
-
-type SchedulerEvent2 = SchedulerEvent & { cache: EventCache };
-
 export function isInRhythm(beat: Fraction, startBeat: Fraction, tempo: Fraction): boolean {
     return beat.sub(startBeat).divisible(tempo);
 }
@@ -235,7 +230,7 @@ export function XOR(a: boolean, b: boolean): boolean {
 //TODO : Instead of having error text clutter code and its comprehension, make special error classes that will format that given message.
 class JugglerManager {
     name: string;
-    events: FracSortedList<SchedulerEvent2>;
+    events: FracSortedList<SchedulerEvent>;
     errorLogger: TimedErrorLogger;
     ballsOnTable: Ball[];
     // catches: FracSortedList<SimulatorToss>;
@@ -256,7 +251,7 @@ class JugglerManager {
     //TODO: Reorder constructor code.
     constructor(name: string, ballsOnTable: Ball[], events: FracSortedList<SchedulerEvent>) {
         this.name = name;
-        this.events = this.pretreatEvents(events);
+        this.events = events;
         this.errorLogger = new TimedErrorLogger();
         this.ballsOnTable = ballsOnTable;
     }
@@ -274,63 +269,10 @@ class JugglerManager {
         return { state: this.generateIntialState(), nextEventIdx: 0 };
     }
 
-    //TODO : After parsing siteswaps, check that we don't have a conflict in the sens that we have created two events on the same beat if things were not properly defined.
     //TODO : TempoChange Offset !!!
-    // Document that prefills cache information and checks that events happen on rhythm.
-    pretreatEvents(events: FracSortedList<SchedulerEvent>): FracSortedList<SchedulerEvent2> {
-        // Check that we have a starting tempo and a starting hand.
-        if (events.length === 0 || events[0][1].tempo === undefined) {
-            this.logError(events[0][0], "CriticalError", "Missing starting tempo indication.");
-            return [];
-        }
-        let startHand = events[0][1].newDefaultHand;
-        if (startHand === undefined) {
-            this.logError(
-                events[0][0],
-                "Warn",
-                `No starting hand detected. Assumes ${this.name} will start with their right hand.`
-            );
-            startHand = "R";
-        }
-
-        // Compute all tempos and default hands on all events.
-        let beat = events[0][0];
-        let tempo = events[0][1].tempo;
-        let newDefaultHand = startHand;
-        const newEvents: FracSortedList<SchedulerEvent2> = [];
-        for (const [eventBeat, ev] of events) {
-            // 1. Check if event is on rhythm nice and dandy.
-            if (!isInRhythm(eventBeat, beat, tempo)) {
-                const nbSteps = eventBeat.sub(beat).div(tempo).floor();
-                const prevBeat = eventBeat.add(tempo).mul(nbSteps);
-                this.logError(
-                    eventBeat,
-                    "Error",
-                    `An event happens offbeat.\n${this.name}'s previous beat: ${prevBeat.toString()}.\nTempo: ${stringifyFraction(tempo)}.\nEvent's beat: ${eventBeat.toString()}.`
-                );
-                //TODO : Check if alright ?
-            }
-            // 2. Proceed with caching the tempo and hand used at event.
-            if (ev.tempo !== undefined) {
-                tempo = ev.tempo;
-            }
-            //TODO : DOES NOT WORK !
-            if (ev.newDefaultHand !== undefined) {
-                newDefaultHand = ev.newDefaultHand;
-            }
-            const newEvent = {
-                ...ev,
-                cache: { tempo: tempo, isNewHandRight: newDefaultHand === "R" }
-            };
-            newEvents.push([eventBeat, newEvent]);
-            beat = eventBeat;
-        }
-        return newEvents;
-    }
-
-    hasEventsLeftAfterBeat(beat: Fraction) {
-        return beat.lt(this.events[this.events.length - 1][0]);
-    }
+    // hasEventsLeftAfterBeat(beat: Fraction) {
+    //     return beat.lt(this.events[this.events.length - 1][0]);
+    // }
 
     //TODO : Opt by having the scheduler handle some of that ?
     getEventBeat(eventIdx: number): Fraction {
@@ -347,7 +289,6 @@ class JugglerManager {
     //     return this.nextBeatToProcess() !== null;
     // }
 
-    //TODO Change to use ErrorLogger.
     logError(beat: Fraction, severity: Severity, message: string): void {
         this.errorLogger.addError(beat, severity, `Juggler ${this.name}:\n\t${message}`);
     }
@@ -361,7 +302,7 @@ class JugglerManager {
         targetBeat: Fraction,
         prevEventIdx: number
     ): { beat: Fraction; prevEventIdx: number } {
-        const { eventBeat, tempo } = this.getEventInfo(prevEventIdx);
+        const [eventBeat, { tempo }] = this.events[prevEventIdx];
         const nbSteps = targetBeat.sub(eventBeat).div(tempo).ceil();
         const newBeat = eventBeat.add(tempo.mul(nbSteps));
         let newPrevEventIdx = prevEventIdx;
@@ -372,15 +313,6 @@ class JugglerManager {
             newPrevEventIdx++;
         }
         return { beat: newBeat, prevEventIdx: newPrevEventIdx };
-    }
-
-    getEventInfo(eventIdx: number): {
-        eventBeat: Fraction;
-        tempo: Fraction;
-        isNewHandRight: boolean;
-    } {
-        const [evBeat, { cache }] = this.events[eventIdx];
-        return { eventBeat: evBeat, ...cache };
     }
 
     getPreviousEventIdx(beat: Fraction): number {
@@ -412,7 +344,7 @@ class JugglerManager {
                     // throw new Error("Shouldn't happen (sanity check).");
                 }
             }
-            const tempo = this.events[eventIdx][1].cache.tempo;
+            const tempo = this.events[eventIdx][1].tempo;
             beat = beat.add(tempo);
         }
         return beat;
@@ -524,12 +456,12 @@ class JugglerManager {
     }
 
     defaultCatchWithRightHand(beat: Fraction, eventIdx: number): boolean {
-        const { eventBeat, tempo, isNewHandRight } = this.getEventInfo(eventIdx);
+        const [eventBeat, { tempo, newDefaultHand }] = this.events[eventIdx];
         const nbSteps = beat.sub(eventBeat).div(tempo);
         if (!nbSteps.divisible(1)) {
             throw Error("Souldn't happen (sanity check).");
         }
-        return XOR(nbSteps.divisible(2), isNewHandRight);
+        return XOR(nbSteps.divisible(2), newDefaultHand === "R");
     }
 
     // TODO : When to copy states ? In loop yes, except the last one, which is before the
@@ -607,10 +539,10 @@ class JugglerManager {
 
             // Compute the catching beat
             let toBeat: Fraction;
-            if (toss.to.type === "Height") {
-                toBeat = this.getCatchBeatFromHeight(toss.to.height, beat, eventIdx);
+            if (toss.mode.type === "Height") {
+                toBeat = this.getCatchBeatFromHeight(toss.mode.height, beat, eventIdx);
             } else {
-                toBeat = toss.to.beat;
+                toBeat = toss.mode.beat;
             }
 
             // Complete the toss info.
@@ -700,14 +632,8 @@ class JugglerManager {
             state = this.swapBalls(eventBeat, state, newHands);
         }
         let newTosses: PartialToss2[];
-        if (tosses !== undefined) {
-            const res = this.tossBalls(tosses, state, eventBeat, nextEventIdx);
-            state = res.state;
-            newTosses = res.tosses;
-        } else {
-            newTosses = [];
-        }
-        return { tosses: newTosses, state: state, nextEventIdx: nextEventIdx++ };
+        const res = this.tossBalls(tosses, state, eventBeat, nextEventIdx);
+        return { tosses: res.tosses, state: res.state, nextEventIdx: nextEventIdx++ };
     }
 
     addTossesToState(
@@ -718,7 +644,7 @@ class JugglerManager {
         for (const toss of tosses) {
             // Check if the ball would be received off-beat.
             let prevEventIdx = this.getPreviousEventIdx(toss.to.beat);
-            const { eventBeat, tempo } = this.getEventInfo(prevEventIdx);
+            const [eventBeat, { tempo }] = this.events[prevEventIdx];
             let toBeat = toss.to.beat;
             if (!isInRhythm(toBeat, eventBeat, tempo)) {
                 const correction = this.correctOffbeatBeat(toBeat, prevEventIdx);
