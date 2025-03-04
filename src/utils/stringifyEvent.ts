@@ -8,11 +8,12 @@ import {
     PartialBallsInHands,
     PartialTossMode
 } from "../tocategorize/mj_parser";
+import { MusicBeatConverter } from "../tocategorize/music_beat_converter";
 
 type TossType = {
-    from: { hand?: "L" | "R"; juggler?: string; beat?: Fraction };
-    to: { hand?: "L" | "R" | "x"; juggler?: string; beat?: Fraction };
-    ball: { name: string; id?: string } | { nameOrID?: string };
+    from: { hand?: "L" | "R"; rightHand?: boolean; juggler?: string; beat?: Fraction };
+    to: { hand?: "L" | "R" | "x"; rightHand?: boolean; juggler?: string; beat?: Fraction };
+    ball?: { name: string; id?: string } | { nameOrID?: string };
     mode?: ParserTossMode | PartialTossMode;
 };
 
@@ -24,14 +25,22 @@ type EventType = {
     newDefaultHand?: "L" | "R";
 };
 
-export function stringifyEvents<T extends EventType>(events: FracSortedList<T> | T[]): string {
+export function stringifyEvents<T extends EventType>(
+    events: FracSortedList<T> | T[],
+    musicConverter?: MusicBeatConverter
+): string {
     if (events.length === 0) {
         return "";
     }
     let text = "";
     if (Array.isArray(events[0])) {
         for (const [beat, ev] of events as FracSortedList<T>) {
-            text += `Beat ${stringifyFraction(beat)}`;
+            if (musicConverter === undefined) {
+                text += `Beat ${stringifyFraction(beat)}`;
+            } else {
+                const [measure, relBeat] = musicConverter.convertAbsoluteBeat(beat);
+                text += `Measure ${measure}, Beat ${stringifyFraction(relBeat)}`;
+            }
             text += "\n\t";
             text += stringifyEvent(ev).split("\n").join("\n\t");
             text += "\n";
@@ -63,51 +72,62 @@ export function stringifyEvent(ev: EventType): string {
         text += `New default hand: ${ev.newDefaultHand}.\n`;
     }
     if (ev.tempo !== undefined) {
-        text += `Tempo Change: ${stringifyFraction(ev.tempo)}.\n`;
+        text += `Tempo: ${stringifyFraction(ev.tempo)}.\n`;
     }
     if (ev.hands !== undefined) {
-        text += `New balls in hand: Left${stringifyHand(ev.hands[0])} Right${stringifyHand(ev.hands[1])}.\n`;
+        text += `New balls in hand:\n\tLeft: ${stringifyHand(ev.hands[0])}.\n\tRight: ${stringifyHand(ev.hands[1])}.\n`;
     }
-    if (ev.tosses !== undefined) {
-        for (let i = 0; i < ev.tosses.length; i++) {
-            const toss = ev.tosses[i];
-            text += `Toss ${i}: ${stringifyToss(toss)}.`;
-            if (i < ev.tosses.length - 1) {
-                text += "\n";
-            }
-        }
+    if (ev.tosses !== undefined && ev.tosses.length > 0) {
+        text += stringifyTosses(ev.tosses);
     }
     return text;
 }
 
-export function stringifyBall(ball: { name?: string; id?: string; nameOrID?: string }): string {
-    let text = "Ball";
-    if (ball.nameOrID !== undefined) {
-        text += ` ${ball.nameOrID}`;
-    } else if (ball.name !== undefined) {
-        text += ` ${ball.name}`;
-        if (ball.id !== undefined) {
-            text += `(ID : ${ball.id})`;
-        }
-    } else if (ball.id !== undefined) {
-        text += `(ID : ${ball.id})`;
+export function stringifyBall(
+    ball: { name?: string; id?: string; nameOrID?: string } | undefined
+): string {
+    if (ball === undefined) {
+        return "Ball";
     }
-    return text;
+    if (ball.nameOrID !== undefined) {
+        return ball.nameOrID;
+    } else if (ball.name !== undefined) {
+        let text = ball.name;
+        if (ball.id !== undefined) {
+            text += ` (ID : ${ball.id})`;
+        }
+        return text;
+    } else if (ball.id !== undefined) {
+        return `(ID : ${ball.id})`;
+    }
+    return "Ball";
 }
 
 export function stringifyHand(hand: PartialBall[]): string {
+    if (hand.length === 0) {
+        return "Empty";
+    }
     let text = "";
-    for (const ball of hand) {
-        text += `${stringifyBall(ball)}, `;
+    for (let i = 0; i < hand.length; i++) {
+        text += stringifyBall(hand[i]);
+        if (i < hand.length - 1) {
+            text += ", ";
+        }
     }
     return text;
 }
 
-export function stringifyFraction(f: Fraction, den: number | bigint = 1n): string {
-    if (typeof den === "number") {
-        den = BigInt(den);
+export function stringifyFraction(f: Fraction, den?: number): string {
+    if (den !== undefined) {
+        return `${(Number(f.n) / Number(f.d)) * den}/${den}`;
     }
-    return `${f.n * den}/${f.d * den}`;
+    if (f.n === 0n) {
+        return "0";
+    }
+    if (f.d === 1n) {
+        return f.n.toString();
+    }
+    return `${f.n}/${f.d}`;
 }
 
 export function stringifyHandSide(handSide: "L" | "R" | "x"): string {
@@ -122,10 +142,12 @@ export function stringifyHandSide(handSide: "L" | "R" | "x"): string {
 
 function stringifyToFrom({
     hand,
+    rightHand,
     juggler,
     beat
 }: {
     hand?: "L" | "R" | "x";
+    rightHand?: boolean;
     juggler?: string;
     beat?: Fraction;
 }): string {
@@ -133,9 +155,15 @@ function stringifyToFrom({
     if (juggler !== undefined) {
         text += juggler;
     }
-    if (hand !== undefined) {
+    let handSide: "L" | "R" | "x" | undefined;
+    if (rightHand !== undefined) {
+        handSide = rightHand ? "R" : "L";
+    } else {
+        handSide = hand;
+    }
+    if (handSide !== undefined) {
         const fromJugglerText = text === "" ? "" : "'s";
-        text += `${fromJugglerText}${stringifyHandSide(hand)} hand`;
+        text += `${fromJugglerText} ${stringifyHandSide(handSide)} hand`;
     }
     if (beat !== undefined) {
         text += ` (beat ${beat})`;
@@ -163,7 +191,24 @@ export function stringifyToss(toss: TossType): string {
     }
     const textTo = stringifyToFrom(toss.to);
     if (textTo !== "") {
-        text += ` from ${textTo}`;
+        text += ` to ${textTo}`;
+    }
+    return text;
+}
+
+export function stringifyTosses(tosses: TossType[], showIdx = false): string {
+    let text = "";
+    text += "Tosses:\n";
+    for (let i = 0; i < tosses.length; i++) {
+        const toss = tosses[i];
+        text += "\t";
+        if (showIdx) {
+            text += `Toss ${i}: `;
+        }
+        text += `${stringifyToss(toss)}.`;
+        if (i < tosses.length - 1) {
+            text += "\n";
+        }
     }
     return text;
 }
