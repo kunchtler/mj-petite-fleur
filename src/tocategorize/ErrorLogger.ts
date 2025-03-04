@@ -20,8 +20,9 @@ export class TimedErrorLogger {
         const it = this.timeline.find(time);
         if (!it.isAccessible()) {
             this.timeline.setElement(time, [error]);
+        } else {
+            it.pointer[1].push(error);
         }
-        it.pointer[1].push(error);
     }
 
     sortErrors(): [Fraction, ErrorLog[]][] {
