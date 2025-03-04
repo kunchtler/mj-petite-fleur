@@ -112,6 +112,10 @@ export interface SchedulerParams {
     jugglers: Map<string, { events: FracSortedList<SchedulerEvent>; balls: Ball[] }>;
 }
 
+export type SchedulerRes = Map<
+    string,
+    { tosses: SimulatorToss[]; states: FracSortedList<JugglerState> }
+>;
 //TODO : Document that by default hands have LIFO structure.
 //TODO : Make Generic version for the fun of it ?
 //TODO : Rename partialEvents (clashes with JS events ?)
@@ -137,14 +141,18 @@ export class Scheduler {
     //TODO : Add arguments from / to ?
     //TODO : Add Return type.
     //TODO : State copy to not have problems ?
-    validatePattern(): SimulatorToss[] {
+    validatePattern(): SchedulerRes {
         // First reset the cache.
         for (const [, juggler] of this.jugglers) {
             juggler.cache = juggler.manager.generateInitialCache();
         }
 
+        //TODO : Change name.
+        const simulatorEvents: SchedulerRes = new Map();
+        for (const jugglerName of this.jugglers.keys()) {
+            simulatorEvents.set(jugglerName, { tosses: [], states: [] });
+        }
         // Loop until we've seen all jugglers' events.
-        const completedTosses: SimulatorToss[] = [];
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         while (true) {
             // Identify which jugglers have the closest next event.
@@ -187,11 +195,15 @@ export class Scheduler {
                 const partialTosses = tossedTo.get(name)!;
                 const res = manager.addTossesToState(partialTosses, cache.state);
                 cache.state = res.state;
-                completedTosses.push(...res.tosses);
+                simulatorEvents.get(name)!.tosses.push(...res.tosses);
+                simulatorEvents.get(name)!.states.push([closestNextEvent, res.state]);
             }
         }
 
-        return completedTosses;
+        for (const { manager } of this.jugglers.values()) {
+            manager.errorLogger.logErrors();
+        }
+        return simulatorEvents;
     }
 }
 
@@ -207,6 +219,14 @@ interface JugglerState {
     >;
     held: BallsInHands;
     onTable: Map<string, Ball>;
+}
+
+function cloneState(state: JugglerState): JugglerState {
+    return {
+        airborne: new Map(state.airborne),
+        held: [[...state.held[0]], [...state.held[1]]],
+        onTable: new Map(state.onTable)
+    };
 }
 
 export function isInRhythm(beat: Fraction, startBeat: Fraction, tempo: Fraction): boolean {
@@ -316,14 +336,14 @@ class JugglerManager {
     }
 
     getPreviousEventIdx(beat: Fraction): number {
-        if (beat.lt(this.events[0][0])) {
+        if (beat.lte(this.events[0][0])) {
             return 0;
         } else if (beat.gte(this.events[this.events.length - 1][0])) {
             return this.events.length - 1;
         }
         // Thanks to previous checks, the findIndex method won't return -1.
         // TODO : Faster bin search version ?
-        return this.events.findIndex(([evBeat]) => evBeat.gt(beat));
+        return this.events.findIndex(([evBeat]) => evBeat.gt(beat)) - 1;
     }
 
     //TODO : Check beat is on rhythm ? When should that be done ?
@@ -405,6 +425,7 @@ class JugglerManager {
     //TODO : Handle hand target that is x !!!
     descendAirborneBalls(toBeat: Fraction, state: JugglerState): JugglerState {
         // Identify caught balls by hand and by catch time.
+        state = cloneState(state);
         const handCatches: [
             [Fraction, { ball: Ball; catchBeat: Fraction; throwBeat: Fraction }[]][],
             [Fraction, { ball: Ball; catchBeat: Fraction; throwBeat: Fraction }[]][]
@@ -461,7 +482,7 @@ class JugglerManager {
         if (!nbSteps.divisible(1)) {
             throw Error("Souldn't happen (sanity check).");
         }
-        return XOR(nbSteps.divisible(2), newDefaultHand === "R");
+        return !XOR(nbSteps.divisible(2), newDefaultHand === "R");
     }
 
     // TODO : When to copy states ? In loop yes, except the last one, which is before the
@@ -476,6 +497,7 @@ class JugglerManager {
         beat: Fraction,
         eventIdx: number
     ): { tosses: PartialToss2[]; state: JugglerState } {
+        state = cloneState(state);
         const defaultCatchWithRightHand = this.defaultCatchWithRightHand(beat, eventIdx);
         const newTosses: PartialToss2[] = [];
         for (const toss of tosses) {
@@ -564,12 +586,14 @@ class JugglerManager {
     // and document the convention that left cell = left, right cell = right.
     // TODO : Unify some of the behaviour here with tossBalls ?
     swapBalls(beat: Fraction, state: JugglerState, newHands: PartialBallsInHands): JugglerState {
+        state = cloneState(state);
         // 1. Put all held balls on the table.
         for (const hand of state.held) {
             for (const ball of hand) {
                 state.onTable.set(ball.id, ball);
             }
         }
+        state.held = [[], []];
 
         // 2. Put the according balls from the table in the hands.
         for (let i = 0; i < 2; i++) {
@@ -620,6 +644,7 @@ class JugglerManager {
     //TODO : Change this.events type to only hold nexecaary things.
     //TODO : In all methods, check if what is needed is prevEventIdx or the currentEventIdx we're handling ?
     //TODO : If needs be, also return the event idx to save a bit of calculation time.
+    //TODO : What cloneState can be removed ?
     processEvent(
         nextEventIdx: number,
         state: JugglerState
@@ -631,15 +656,15 @@ class JugglerManager {
         if (newHands !== undefined) {
             state = this.swapBalls(eventBeat, state, newHands);
         }
-        let newTosses: PartialToss2[];
         const res = this.tossBalls(tosses, state, eventBeat, nextEventIdx);
-        return { tosses: res.tosses, state: res.state, nextEventIdx: nextEventIdx++ };
+        return { tosses: res.tosses, state: res.state, nextEventIdx: nextEventIdx + 1 };
     }
 
     addTossesToState(
         tosses: PartialToss2[],
         state: JugglerState
     ): { tosses: SimulatorToss[]; state: JugglerState } {
+        state = cloneState(state);
         const completedTosses: SimulatorToss[] = [];
         for (const toss of tosses) {
             // Check if the ball would be received off-beat.
