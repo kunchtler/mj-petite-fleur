@@ -1,7 +1,6 @@
 import Fraction from "fraction.js";
 import {
     parseMusicalSiteswap,
-    ParserJugglingEvent,
     ParserToss,
     ParserTossMode
 } from "../parser/siteswap_mj/MusicalSiteswap";
@@ -15,22 +14,26 @@ import {
     isInRhythm,
     XOR,
     FracTimeline,
-    PartialBallsInHands
+    Ball,
+    SchedulerParams,
+    Scheduler,
+    SimulatorToss
 } from "./mj_parser";
 import { closestWordsTo } from "./levenshtein_distance";
 import { setIntersection } from "../utils/SetOperations";
 import { TimedErrorLogger } from "./ErrorLogger";
-import { OrderedMap } from "js-sdsl";
+import { formatRawEventInput } from "./the_whole_thing";
+import { stringifyEvents, stringifyTosses } from "../utils/stringifyEvent";
 
 //TODO : add beat to the object rather than have a 2-array element.
 //TODO : useHand ?
-type RawPreParserEvent = {
+export type RawPreParserEvent = {
     tempo?: string;
     hands?: [string[], string[]];
     pattern?: string /*; useHand?: "L" | "R" */;
 };
 
-type PreParserEvent = {
+export type PreParserEvent = {
     tempo?: Fraction;
     hands?: [string[], string[]];
     pattern?: string /*; useHand?: "L" | "R" */;
@@ -38,34 +41,39 @@ type PreParserEvent = {
 
 //TODO : Rename
 //TODO : Rename InputEvent as part of MDN.
+//TODO : Handle Jugglers having different balls at start.
+// export interface ParserToSchedulerParams {
+//     jugglers: Map<string, FracSortedList<PreParserEvent>>;
+//     ballNames?: Set<string>;
+//     ballIDs?: Map<string, string>;
+//     musicConverter?: MusicBeatConverter;
+// }
+
 export interface ParserToSchedulerParams {
-    jugglers: Map<string, FracSortedList<PreParserEvent>>;
-    ballNames?: Set<string>;
-    ballIDs?: Map<string, string>;
+    jugglers: Map<string, { events: FracSortedList<PreParserEvent>; balls: Ball[] }>;
+    ballNames: Set<string>;
+    ballIDs: Map<string, string>;
     musicConverter?: MusicBeatConverter;
-    // events: PreParserEvent[];
-    // jugglerNames: Set<string>;
-    // jugglerName: string;
 }
 
 //Add to Raw -> Not Raw that time can be a Fraction already, or a normal number, or a bigint.
 
-export function theWholeThing({
+export function transformParserParamsToSchedulerParams({
     jugglers,
     ballNames,
     ballIDs,
     musicConverter
-}: ParserToSchedulerParams): {
-    events: FracSortedList<SchedulerEvent>;
-} {
+}: ParserToSchedulerParams): SchedulerParams {
+    // TODO : Handle elsewhere. We should give properly formatted ballNames and IDs.
+    // TODO : Handle Error flow.
     // 1. Fill ballNames / ballIDs if they don't exist.
     ({ ballNames, ballIDs } = formatBallNamesAndIDs({ ballNames: ballNames, ballIDs: ballIDs }));
     // 2. Check if ballIDs correctly refer to ballNames and that they aren't duplicates.
     checkBallNamesAndIDs(ballNames, ballIDs);
 
     const errorLogger = new TimedErrorLogger();
-    const jugglersEvents = new Map<string, FracSortedList<SchedulerEvent>>();
-    for (const [jugglerName, events] of jugglers) {
+    const newParams: SchedulerParams = { jugglers: new Map() };
+    for (const [jugglerName, { balls, events }] of jugglers) {
         // 1. Parse each pattern
         // + order them chronoligically (two events or patterns might clash)
         // + add the right beat / tempo information.
@@ -125,6 +133,8 @@ export function theWholeThing({
 
         // 6. Some events may be useless (height 0 for instance). Remove them.
         const events6 = filterEmptyEvents(events5);
+
+        // 7. If a juggler name is missing, fill it in with the current juggler.
         const events7: FracSortedList<{
             tempo: Fraction;
             newDefaultHand?: "L" | "R";
@@ -181,9 +191,11 @@ export function theWholeThing({
 
         // TODO ? checkEventsInRhythm();
 
-        jugglersEvents.set(jugglerName, events10);
+        // 11. Format the jugglers balls.
+        errorLogger.logErrors();
+        newParams.jugglers.set(jugglerName, { events: events10, balls: balls });
     }
-    return { events: [] };
+    return newParams;
 }
 
 export function compareEvents<T>(ev1: [Fraction, T], ev2: [Fraction, T]) {
@@ -193,11 +205,6 @@ export function compareEvents<T>(ev1: [Fraction, T], ev2: [Fraction, T]) {
 function sortEvents<T>(events: FracSortedList<T>): FracSortedList<T> {
     return [...events].sort(compareEvents);
 }
-
-// type Pattern = { pattern: string };
-
-type EventT<TossT, HandT> = Partial<NewDefaultHand & Tosses<TossT> & Tempo & Hands<HandT>>;
-type Events<EventTT> = FracSortedList<EventTT>;
 
 //TODO : Pass juggler name to help with errorlogger ?
 //TODO : ErrorLogger so that if a juggler fails, we can keep going with other juggler.
@@ -229,14 +236,16 @@ function parsePatterns(
     > = [];
     // let lastPatternBeat: Fraction | null = null;
     for (const [beat, ev] of events) {
-        let currentBeat = beat;
+        // We have to add the hands information to the first element of the pattern.
+        // We remember its position to add them later.
         const lastEventsLength = newEvents.length;
         if (ev.pattern !== undefined) {
+            let currentBeat = beat;
             const patternEvents = parseMusicalSiteswap(ev.pattern);
             for (const patternEv of patternEvents) {
-                const tempo = tempoChanges.prev_event(beat)[1] ?? initialTempo;
+                const tempo = tempoChanges.prev_event(currentBeat)[1] ?? initialTempo;
                 newEvents.push([currentBeat, { ...patternEv, tempo: tempo }]);
-                currentBeat = beat.add(tempo);
+                currentBeat = currentBeat.add(tempo);
             }
             // Warn if a pattern is intertwined with another.
             // if (lastPatternBeat !== null && beat.lte(lastPatternBeat)) {
@@ -247,6 +256,8 @@ function parsePatterns(
             // }
         }
         if (lastEventsLength === newEvents.length) {
+            // If no events were added, we should still add an event with the
+            // new tempo (and with the new hands, which we'll add later).
             const tempo = tempoChanges.prev_event(beat)[1] ?? initialTempo;
             newEvents.push([beat, { tempo: tempo }]);
         }
@@ -680,19 +691,49 @@ function formatBallNamesAndIDs({
 }
 
 // Testing
-// import { parseMusicalSiteswap } from "../parser/siteswap_mj/MusicalSiteswap";
+// const ballNames = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si", "Do'"];
+// const ballIDs = ["Do?1", "Re?1", "Mi?1", "Fa?1", "Sol?1", "La?1", "Si?1", "Do'?1"];
+// const balls: Ball[] = [];
+// for (let i = 0; i < ballNames.length; i++) {
+//     balls.push({ name: ballNames[i], id: ballIDs[i] });
+// }
+// const rawPattern = "3";
+// const rawPattern = "L404[Sol4 Do'5]1";
+// const rawPattern = "R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7";
+// const rawPattern = "{M1B1/4}303{Do B5}{B6/1}{+B2 x}";
+// const rawPattern = "LBo3"; //Should Fail
+// const rawEvents: [string, RawPreParserEvent][] = [
+//     ["0", {tempo: "1", pattern: rawPattern}]
+// ];
+// const musicConverter = undefined;
+// const musicConverter = new MusicBeatConverter([[0, new Fraction("3/4")]]);
+// prettier-ignore
+// const rawEvents: [string, RawPreParserEvent][] = [
+    //     ["-1, 1/4", { tempo: "1/4", hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
+    //     ["3, 1/4", { hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
+//     ["7, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+//     ["11, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+//     ["15, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
+//     ["19, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
+//     ["23, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+//     ["28, 2/4", { hands: [["Re"], ["Do'"]], pattern: "R2201" }],
+//     ["31, 2/4", { hands: [["Do"], []], pattern: "L1" }],
+//     ["32, 0", { tempo: "1/8", pattern: "11" }],
+//     ["32, 1/4", { tempo: "1/4", pattern: "1"}],
+// ]
+// const events = formatRawEventInput(rawEvents, musicConverter);
 // const params: ParserToSchedulerParams = {
-//     ballNames: new Set(["Do", "Re", "Mi", "Fa", "Sol", "La", "Si", "Do'"]),
-//     defaultJugglerName: "NoName",
-//     jugglerNames: new Set(["NoName", "Vincent", "Florent"]),
-//     // events: parseMusicalSiteswap("3"),
-//     // events: parseMusicalSiteswap("L404[Sol4 Do'5]1"),
-//     // events: parseMusicalSiteswap("R3 (1x {12} e)^3 (4,[82x]) (1, 0)! L5x 7"),
-//     events: parseMusicalSiteswap("{M1B1/4}303{Do B5}{B6/1}{+B2 x}"),
-//     // events: parseMusicalSiteswap("LBo3"), //Should Fail
-//     startBeat: new Fraction(0),
-//     tempo: new Fraction("1"),
-//     musicConverter: new MusicBeatConverter([[0, new Fraction("3")]])
+//     ballNames: new Set(ballNames),
+//     ballIDs: new Map(balls.map((ball) => [ball.id, ball.name])),
+//     jugglers: new Map([
+//         ["NoName", { events: events, balls: balls }]
+//         // ["Vincent", { events: [], balls: [] }],
+//         // ["Florent", { events: [], balls: [] }]
+//     ]),
+//     musicConverter: musicConverter
 // };
-// const events = parserToSchedulerEvents(params);
-// console.log(stringifySchedulerEvents(events));
+// const preSchedulerEvents = transformParserParamsToSchedulerParams(params);
+// console.log(stringifyEvents<SchedulerEvent>(preSchedulerEvents.jugglers.get("NoName")!.events, musicConverter));
+// const scheduler = new Scheduler(preSchedulerEvents);
+// const res = scheduler.validatePattern();
+// console.log(stringifyTosses(res.get("NoName")!.tosses, true));
