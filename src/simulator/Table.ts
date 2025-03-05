@@ -1,71 +1,74 @@
 import * as THREE from "three";
 import { Ball } from "./Ball";
+import { Object3DHelper } from "../utils/Object3DHelper";
 
 //TODO : Rename Ball_placement en balls_spot
 //TODO : Change THREE.Vector2 to [number, number]
 export interface TableConstructorParameters {
-    height?: number;
-    surface_real_dimensions?: [number, number];
-    surface_internal_dimensions?: [number, number];
-    balls_placement?: Record<string, THREE.Vector2>;
+    tableObject: TableObject;
+    surfaceInternalSize: [number, number];
+    ballsPlacement: Map<string, [number, number]>;
+    unkownBallPosition?: [number, number];
+    debug?: boolean;
 }
 
-class Table {
-    geometry: THREE.BufferGeometry;
-    material: THREE.Material;
+interface TableObject {
     mesh: THREE.Mesh;
-    height: number;
-    width: number;
-    depth: number;
-    balls_placement: Record<string, THREE.Vector2>;
-    _surface_internal: THREE.Object3D;
+    bottomLeftCorner: THREE.Object3D;
+    upRightCorner: THREE.Object3D;
+}
+
+export class Table {
+    mesh: THREE.Mesh;
+    bottomLeftCorner: THREE.Object3D;
+    upRightCorner: THREE.Object3D;
+    ballsPlacement: Map<string, [number, number]>;
+    unkownBallPosition: [number, number];
+    private _surfaceInternal: THREE.Object3D;
 
     constructor({
-        height = 1,
-        surface_real_dimensions = [1.1, 0.7],
-        surface_internal_dimensions = [1, 1],
-        balls_placement = {}
-    }: TableConstructorParameters = {}) {
-        this.height = height;
-        this.width = surface_real_dimensions[1];
-        this.depth = surface_real_dimensions[0];
-        this.balls_placement = balls_placement;
-        this.geometry = new THREE.BoxGeometry(this.width, this.height, this.depth);
-        this.geometry.translate(0, this.height / 2, 0);
-        this.material = new THREE.MeshPhongMaterial({ color: "brown" });
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this._surface_internal = new THREE.Object3D();
-        this._surface_internal.position.set(-this.width / 2, this.height, -this.depth / 2);
-        // this._surface_internal.add(new Object3DHelper(true, undefined, true));
-        this.mesh.add(this._surface_internal);
-        this._surface_internal.scale.set(
-            this.width / surface_internal_dimensions[1],
+        tableObject: { mesh, bottomLeftCorner, upRightCorner },
+        surfaceInternalSize,
+        ballsPlacement,
+        unkownBallPosition,
+        debug
+    }: TableConstructorParameters) {
+        this.mesh = mesh;
+        this.bottomLeftCorner = bottomLeftCorner.clone();
+        this.upRightCorner = upRightCorner.clone();
+        this.ballsPlacement = ballsPlacement;
+        this.unkownBallPosition = unkownBallPosition ?? [0, 0];
+        this._surfaceInternal = new THREE.Object3D();
+        this._surfaceInternal.position.copy(bottomLeftCorner.position);
+        if (debug === true) {
+            this._surfaceInternal.add(new Object3DHelper(true, undefined, true));
+            this._surfaceInternal.add(new THREE.GridHelper(10, 10, "orange", "orange"));
+        }
+
+        const surfaceRealSize = [
+            this.upRightCorner.position.x - this.bottomLeftCorner.position.x,
+            this.upRightCorner.position.z - this.bottomLeftCorner.position.z
+        ];
+        this._surfaceInternal.scale.set(
+            surfaceRealSize[1] / surfaceInternalSize[1],
             1,
-            this.depth / surface_internal_dimensions[0]
+            surfaceRealSize[0] / surfaceInternalSize[0]
         );
-        // this._surface_internal.add(new THREE.GridHelper(10, 10, "orange", "orange"));
+
+        this.mesh.add(this._surfaceInternal);
+        this.mesh.add(this.bottomLeftCorner);
+        this.mesh.add(this.upRightCorner);
     }
 
-    ball_position(ball: Ball): THREE.Vector3 {
-        let pos: THREE.Vector2;
-        if (ball.name in this.balls_placement) {
-            pos = this.balls_placement[ball.name];
-        } else {
-            pos = new THREE.Vector2(0, 0);
-        }
-        return this._surface_internal.localToWorld(new THREE.Vector3(pos.y, ball.radius, pos.x));
+    ballPosition(ball: Ball): THREE.Vector3 {
+        const pos = this.ballsPlacement.get(ball.name) ?? this.unkownBallPosition;
+        return this._surfaceInternal.localToWorld(new THREE.Vector3(pos[1], ball.radius, pos[0]));
     }
 
-    hand_position(ball: Ball): THREE.Vector3 {
-        let pos: THREE.Vector2;
-        if (ball.name in this.balls_placement) {
-            pos = this.balls_placement[ball.name];
-        } else {
-            pos = new THREE.Vector2(0, 0);
-        }
-        return this._surface_internal.localToWorld(
-            new THREE.Vector3(pos.y, ball.radius * 3, pos.x)
-        );
+    handPositionOverBall(ball: Ball): THREE.Vector3 {
+        const pos = this.ballPosition(ball);
+        pos.y = 3 * pos.y;
+        return pos;
     }
 
     //TODO
@@ -73,9 +76,53 @@ class Table {
         if (this.mesh.parent !== null) {
             this.mesh.parent.remove(this.mesh);
         }
-        this.geometry.dispose();
-        this.material.dispose();
+        this.mesh.geometry.dispose();
+        if (Array.isArray(this.mesh.material)) {
+            for (const material of this.mesh.material) {
+                material.dispose();
+            }
+        } else {
+            this.mesh.material.dispose();
+        }
     }
 }
 
-export { Table };
+export function createTableGeometry(height = 1, width = 1.1, depth = 0.7) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    geometry.translate(0, height / 2, 0);
+    const bottomLeftObj = new THREE.Object3D();
+    bottomLeftObj.position.set(-width / 2, height, -depth / 2);
+    const upperRightObj = new THREE.Object3D();
+    upperRightObj.position.set(-width / 2, height, -depth / 2);
+    return { geometry: geometry, bottomLeftCorner: bottomLeftObj, upRightCorner: upperRightObj };
+}
+
+export function createTableMaterial(color = "brown") {
+    return new THREE.MeshPhongMaterial({ color: color });
+}
+
+// TODO : Document that parpendicular to the juggler is the width,
+// parallel is the depth.
+export function createTableMesh(
+    geometries?: {
+        geometry: THREE.BufferGeometry;
+        bottomLeftCorner: THREE.Object3D;
+        upRightCorner: THREE.Object3D;
+    },
+    material?: THREE.Material
+): TableObject {
+    if (geometries === undefined) {
+        geometries = createTableGeometry();
+    }
+    if (material === undefined) {
+        material = createTableMaterial();
+    }
+    const { geometry, bottomLeftCorner, upRightCorner } = geometries;
+    const mesh = new THREE.Mesh(geometry, material);
+    return {
+        mesh: mesh,
+        bottomLeftCorner: bottomLeftCorner,
+        upRightCorner: upRightCorner
+    };
+}
+
