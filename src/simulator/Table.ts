@@ -5,9 +5,9 @@ import { Object3DHelper } from "../utils/Object3DHelper";
 //TODO : Rename Ball_placement en balls_spot
 //TODO : Change THREE.Vector2 to [number, number]
 export interface TableConstructorParameters {
-    tableObject: TableObject;
-    surfaceInternalSize: [number, number];
-    ballsPlacement: Map<string, [number, number]>;
+    tableObject?: TableObject;
+    surfaceInternalSize?: [number, number];
+    ballsPlacement?: Map<string, [number, number]>;
     unkownBallPosition?: [number, number];
     debug?: boolean;
 }
@@ -27,17 +27,20 @@ export class Table {
     private _surfaceInternal: THREE.Object3D;
 
     constructor({
-        tableObject: { mesh, bottomLeftCorner, upRightCorner },
+        tableObject,
         surfaceInternalSize,
         ballsPlacement,
         unkownBallPosition,
         debug
     }: TableConstructorParameters) {
+        tableObject ??= createTableObject();
+        const { mesh, bottomLeftCorner, upRightCorner } = tableObject;
         this.mesh = mesh;
         this.bottomLeftCorner = bottomLeftCorner.clone();
         this.upRightCorner = upRightCorner.clone();
-        this.ballsPlacement = ballsPlacement;
+        this.ballsPlacement = ballsPlacement ?? new Map<string, [number, number]>();
         this.unkownBallPosition = unkownBallPosition ?? [0, 0];
+        surfaceInternalSize ??= [1, 1];
         this._surfaceInternal = new THREE.Object3D();
         this._surfaceInternal.position.copy(bottomLeftCorner.position);
         if (debug === true) {
@@ -97,13 +100,13 @@ export function createTableGeometry(height = 1, width = 1.1, depth = 0.7) {
     return { geometry: geometry, bottomLeftCorner: bottomLeftObj, upRightCorner: upperRightObj };
 }
 
-export function createTableMaterial(color = "brown") {
+export function createTableMaterial(color: THREE.ColorRepresentation = "brown") {
     return new THREE.MeshPhongMaterial({ color: color });
 }
 
 // TODO : Document that parpendicular to the juggler is the width,
 // parallel is the depth.
-export function createTableMesh(
+export function createTableObject(
     geometries?: {
         geometry: THREE.BufferGeometry;
         bottomLeftCorner: THREE.Object3D;
@@ -125,4 +128,3 @@ export function createTableMesh(
         upRightCorner: upRightCorner
     };
 }
-
