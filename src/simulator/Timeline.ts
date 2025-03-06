@@ -47,14 +47,14 @@ export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType>
     //TODO : Methods to create / modify / delete events without interacting with OrderedMap directly ?
     //TODO : Rename key to time ?
     // (and to not mess up modifying or fusing of events for instance)
-    prev_event(time: KeyType, strict = false): [KeyType, EventType] | [null, null] {
+    prevEvent(time: KeyType, strict = false): [KeyType, EventType] | [null, null] {
         const it = strict ? this.reverseUpperBound(time) : this.reverseLowerBound(time);
         //We make a copy of the contents of the list because the list itself
         //is a proxy otherwise (which has unexpected console.logs to watch out for)
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
 
-    next_event(time: KeyType, strict = true): [KeyType, EventType] | [null, null] {
+    nextEvent(time: KeyType, strict = true): [KeyType, EventType] | [null, null] {
         const it = strict ? this.upperBound(time) : this.lowerBound(time);
         return it.isAccessible() ? [...it.pointer] : [null, null];
     }
@@ -65,7 +65,7 @@ export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType>
         }
     }
 
-    pretty_print(
+    prettyPrint(
         stringifyKey?: (key: KeyType) => string,
         stringifyElem?: (elem: EventType) => string
     ): void {
@@ -80,19 +80,19 @@ export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType>
 
 export class BaseEvent {
     time: number;
-    sound_name: string[] | string | null;
+    soundName: string[] | string | null;
 
-    constructor({ time, sound_name }: { time: number; sound_name?: string[] | string | null }) {
+    constructor({ time, soundName }: { time: number; soundName?: string[] | string | null }) {
         this.time = time;
-        this.sound_name = sound_name === undefined ? null : sound_name;
+        this.soundName = soundName === undefined ? null : soundName;
     }
 
     random_sound_name(): string {
-        if (Array.isArray(this.sound_name)) {
-            const random_idx = Math.floor(Math.random() * this.sound_name.length);
-            return this.sound_name[random_idx];
-        } else if (typeof this.sound_name === "string") {
-            return this.sound_name;
+        if (Array.isArray(this.soundName)) {
+            const random_idx = Math.floor(Math.random() * this.soundName.length);
+            return this.soundName[random_idx];
+        } else if (typeof this.soundName === "string") {
+            return this.soundName;
         } else {
             throw new Error("No sound_names have been provided.");
         }
@@ -101,9 +101,9 @@ export class BaseEvent {
 
 export interface BallEventInterface extends BaseEvent {
     ball: Ball;
-    error_ball_status: string;
-    next_ball_event(): [number, BallTimelineEvent] | [null, null];
-    prev_ball_event(): [number, BallTimelineEvent] | [null, null];
+    errorBallStatus: string;
+    nextBallEvent(): [number, BallTimelineEvent] | [null, null];
+    prevBallEvent(): [number, BallTimelineEvent] | [null, null];
 }
 
 //TODO : Handle unit_time ?
@@ -111,42 +111,39 @@ export interface BallEventInterface extends BaseEvent {
 //TODO : Remove next_hand_event and prev_hand_event from Catch/Throw ? (instead only have hand)
 export interface HandEventInterface extends BaseEvent {
     hand: Hand;
-    unit_time: number;
-    next_hand_event(): [number, HandTimelineEvent] | [null, null];
-    prev_hand_event(): [number, HandTimelineEvent] | [null, null];
+    unitTime: number;
+    nextHandEvent(): [number, HandTimelineEvent] | [null, null];
+    prevHandEvent(): [number, HandTimelineEvent] | [null, null];
 }
 
-export class AbstractBallHandEvent
-    extends BaseEvent
-    implements BallEventInterface, HandEventInterface
-{
-    private _ball_ref: WeakRef<Ball>;
-    private _hand_ref: WeakRef<Hand>;
-    unit_time: number;
-    readonly error_ball_status: string = "unnamed attribute";
+export class AbstractBallHandEvent extends BaseEvent implements BallEventInterface, HandEventInterface {
+    private _ballRef: WeakRef<Ball>;
+    private _handRef: WeakRef<Hand>;
+    unitTime: number;
+    readonly errorBallStatus: string = "unnamed attribute";
     // private _cached_tree_iterator:
 
     constructor({
         time,
-        unit_time,
-        sound_name,
+        unitTime,
+        soundName,
         ball,
         hand
     }: {
         time: number;
-        unit_time: number;
-        sound_name?: string[] | string | null;
+        unitTime: number;
+        soundName?: string[] | string | null;
         ball: Ball;
         hand: Hand;
     }) {
-        super({ time, sound_name });
-        this.unit_time = unit_time;
-        this._ball_ref = new WeakRef(ball);
-        this._hand_ref = new WeakRef(hand);
+        super({ time, soundName });
+        this.unitTime = unitTime;
+        this._ballRef = new WeakRef(ball);
+        this._handRef = new WeakRef(hand);
     }
 
     get ball(): Ball {
-        const obj = this._ball_ref.deref();
+        const obj = this._ballRef.deref();
         if (obj === undefined) {
             throw new Error("hand is undefined");
         }
@@ -154,11 +151,11 @@ export class AbstractBallHandEvent
     }
 
     set ball(new_ball: Ball) {
-        this._ball_ref = new WeakRef(new_ball);
+        this._ballRef = new WeakRef(new_ball);
     }
 
     get hand(): Hand {
-        const obj = this._hand_ref.deref();
+        const obj = this._handRef.deref();
         if (obj === undefined) {
             throw new Error("hand is undefined");
         }
@@ -166,50 +163,50 @@ export class AbstractBallHandEvent
     }
 
     set hand(new_hand: Hand) {
-        this._hand_ref = new WeakRef(new_hand);
+        this._handRef = new WeakRef(new_hand);
     }
 
-    prev_ball_event(): [number, BallTimelineEvent] | [null, null] {
-        return this.ball.timeline.prev_event(this.time, true);
+    prevBallEvent(): [number, BallTimelineEvent] | [null, null] {
+        return this.ball.timeline.prevEvent(this.time, true);
     }
 
-    next_ball_event(): [number, BallTimelineEvent] | [null, null] {
-        return this.ball.timeline.next_event(this.time);
+    nextBallEvent(): [number, BallTimelineEvent] | [null, null] {
+        return this.ball.timeline.nextEvent(this.time);
     }
 
-    prev_hand_event(): [number, HandTimelineEvent] | [null, null] {
-        return this.hand.timeline.prev_event(this.time, true);
+    prevHandEvent(): [number, HandTimelineEvent] | [null, null] {
+        return this.hand.timeline.prevEvent(this.time, true);
     }
 
-    next_hand_event(): [number, HandTimelineEvent] | [null, null] {
-        return this.hand.timeline.next_event(this.time);
+    nextHandEvent(): [number, HandTimelineEvent] | [null, null] {
+        return this.hand.timeline.nextEvent(this.time);
     }
 }
 
 //TODO : Move sound_name to AbstractBallEvent as we don't want hand to make sound.
 export class AbstractHandEvent extends BaseEvent implements HandEventInterface {
-    private _hand_ref: WeakRef<Hand>;
-    unit_time: number;
+    private _handRef: WeakRef<Hand>;
+    unitTime: number;
     // private _cached_tree_iterator:
 
     constructor({
         time,
-        unit_time,
-        sound_name,
+        unitTime,
+        soundName,
         hand
     }: {
         time: number;
-        unit_time: number;
-        sound_name?: string[] | string | null;
+        unitTime: number;
+        soundName?: string[] | string | null;
         hand: Hand;
     }) {
-        super({ time, sound_name });
-        this._hand_ref = new WeakRef(hand);
-        this.unit_time = unit_time;
+        super({ time, soundName });
+        this._handRef = new WeakRef(hand);
+        this.unitTime = unitTime;
     }
 
     get hand(): Hand {
-        const obj = this._hand_ref.deref();
+        const obj = this._handRef.deref();
         if (obj === undefined) {
             throw new Error("hand is undefined");
         }
@@ -217,15 +214,15 @@ export class AbstractHandEvent extends BaseEvent implements HandEventInterface {
     }
 
     set hand(new_hand: Hand) {
-        this._hand_ref = new WeakRef(new_hand);
+        this._handRef = new WeakRef(new_hand);
     }
 
-    prev_hand_event(): [number, HandTimelineEvent] | [null, null] {
-        return this.hand.timeline.prev_event(this.time, true);
+    prevHandEvent(): [number, HandTimelineEvent] | [null, null] {
+        return this.hand.timeline.prevEvent(this.time, true);
     }
 
-    next_hand_event(): [number, HandTimelineEvent] | [null, null] {
-        return this.hand.timeline.next_event(this.time);
+    nextHandEvent(): [number, HandTimelineEvent] | [null, null] {
+        return this.hand.timeline.nextEvent(this.time);
     }
 }
 
@@ -234,56 +231,56 @@ export class AbstractTableEvent extends AbstractBallHandEvent {
 
     constructor({
         time,
-        unit_time,
-        sound_name,
+        unitTime,
+        soundName,
         ball,
         hand,
         table
     }: {
         time: number;
-        unit_time: number;
-        sound_name?: string[] | string | null;
+        unitTime: number;
+        soundName?: string[] | string | null;
         ball: Ball;
         hand: Hand;
         table: Table;
     }) {
-        super({ time, unit_time, sound_name, ball, hand });
+        super({ time, unitTime, soundName, ball, hand });
         this.table = table;
     }
 }
 
 export class ThrowEvent extends AbstractBallHandEvent {
-    readonly error_ball_status = "thrown";
+    readonly errorBallStatus = "thrown";
 }
 
 export class CatchEvent extends AbstractBallHandEvent {
-    readonly error_ball_status = "caught";
+    readonly errorBallStatus = "caught";
 }
 
 export class TablePutEvent extends AbstractTableEvent {
-    readonly error_ball_status = "put on table";
+    readonly errorBallStatus = "put on table";
 }
 
 export class TableTakeEvent extends AbstractTableEvent {
-    readonly error_ball_status = "taken from table";
+    readonly errorBallStatus = "taken from table";
 }
 
 export class HandMultiEvent<T extends HandEventInterface> extends AbstractHandEvent {
     events: T[];
     constructor({
         time,
-        unit_time,
-        sound_name,
+        unitTime,
+        soundName,
         hand,
         events
     }: {
         time: number;
-        unit_time: number;
-        sound_name?: string[] | string | null;
+        unitTime: number;
+        soundName?: string[] | string | null;
         hand: Hand;
         events?: T[];
     }) {
-        super({ time, unit_time, sound_name, hand });
+        super({ time, unitTime, soundName, hand });
         this.events = events ?? [];
     }
 }

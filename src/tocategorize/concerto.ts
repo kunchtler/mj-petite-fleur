@@ -76,15 +76,15 @@ for (const [note, , [x, y]] of balls_info) {
 }
 
 const table_options: TableConstructorParameters = {
-    balls_placement: balls_placement,
-    surface_real_dimensions: [2.5, 1],
-    surface_internal_dimensions: [13, 5]
+    ballsPlacement: balls_placement,
+    surfaceRealDimensions: [2.5, 1],
+    surfaceInternalSize: [13, 5]
 };
 const martin_table = new Table(table_options);
 const vincent_table = new Table(table_options);
 const nina_table = new Table(table_options);
 const laurent_table = new Table(table_options);
-simulator.table = [martin_table, vincent_table, nina_table, laurent_table];
+simulator.tables = [martin_table, vincent_table, nina_table, laurent_table];
 const martin = new Juggler({ default_table: martin_table });
 const vincent = new Juggler({ default_table: vincent_table });
 const nina = new Juggler({ default_table: nina_table });
@@ -150,7 +150,7 @@ function lance(
     } else {
         const source_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
             time: ev1.time,
-            unit_time: ev1.unit_time,
+            unit_time: ev1.unitTime,
             hand: ev1.hand,
             events: [ev1]
         });
@@ -162,7 +162,7 @@ function lance(
     } else {
         const target_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
             time: ev2.time,
-            unit_time: ev2.unit_time,
+            unit_time: ev2.unitTime,
             hand: ev2.hand,
             events: [ev2]
         });
@@ -206,7 +206,7 @@ function lance_rev(
         console.log("2");
         const source_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
             time: ev1.time,
-            unit_time: ev1.unit_time,
+            unit_time: ev1.unitTime,
             hand: ev1.hand,
             events: [ev1]
         });
@@ -218,7 +218,7 @@ function lance_rev(
     } else {
         const target_ev = new HandMultiEvent<CatchEvent | ThrowEvent>({
             time: ev2.time,
-            unit_time: ev2.unit_time,
+            unit_time: ev2.unitTime,
             hand: ev2.hand,
             events: [ev2]
         });
@@ -311,38 +311,38 @@ function swap(
         //TODO Offset time of put / take ?
         //TODO : Make it so both hands place at same time ?
         const time = start_time + (i + 1) * trans_time;
-        put_on_table(ball, time, juggler.right_hand, juggler.default_table!, unit_time);
+        put_on_table(ball, time, juggler.rightHand, juggler.defaultTable!, unit_time);
         i++;
     }
     for (const ball of to_place[1]) {
         //TODO Offset time of put / take ?
         const time = start_time + (i + 1) * trans_time;
-        put_on_table(ball, time, juggler.left_hand, juggler.default_table!, unit_time);
+        put_on_table(ball, time, juggler.leftHand, juggler.defaultTable!, unit_time);
         i++;
     }
     for (const ball of to_exchange[0]) {
         //TODO Offset time of put / take ?
         const time = start_time + (i + 1) * trans_time;
-        exchange(ball, time, juggler.right_hand, juggler.left_hand, unit_time);
+        exchange(ball, time, juggler.rightHand, juggler.leftHand, unit_time);
         i++;
     }
     for (const ball of to_exchange[1]) {
         //TODO Offset time of put / take ?
         const time = start_time + (i + 1) * trans_time;
-        exchange(ball, time, juggler.left_hand, juggler.right_hand, unit_time);
+        exchange(ball, time, juggler.leftHand, juggler.rightHand, unit_time);
         i++;
     }
     for (const ball of to_take[0]) {
         //TODO Offset time of put / take ?
         //TODO : Make it so both hands place at same time ?
         const time = start_time + (i + 1) * trans_time;
-        take_from_table(ball, time, juggler.right_hand, juggler.default_table!, unit_time);
+        take_from_table(ball, time, juggler.rightHand, juggler.defaultTable!, unit_time);
         i++;
     }
     for (const ball of to_take[1]) {
         //TODO Offset time of put / take ?
         const time = start_time + (i + 1) * trans_time;
-        take_from_table(ball, time, juggler.left_hand, juggler.default_table!, unit_time);
+        take_from_table(ball, time, juggler.leftHand, juggler.defaultTable!, unit_time);
         i++;
     }
 }

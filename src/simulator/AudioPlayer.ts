@@ -2,26 +2,26 @@
 //TODO : At some point, rather than CustomEvents, use Signals/Observer library ?
 
 interface TimeConductorParam {
-    min_time?: number;
-    max_time?: number;
-    start_time?: number;
-    playback_rate?: number;
+    minTime?: number;
+    maxTime?: number;
+    startTime?: number;
+    playbackRate?: number;
     autoplay?: boolean;
 }
 
 class TimeConductor {
-    private _last_update_time: number;
-    private _last_known_time: number;
+    private _lastUpdateTime: number;
+    private _lastKnownTime: number;
     private _playbackRate: number;
     private _paused: boolean;
-    _event_target: EventTarget;
-    private _timeupdate_interval?: number;
+    _eventTarget: EventTarget;
+    private _timeupdateInterval?: number;
 
-    constructor({ start_time = 0, playback_rate = 1, autoplay = false }: TimeConductorParam) {
-        this._last_update_time = performance.now() / 1000;
-        this._last_known_time = start_time;
-        this._playbackRate = playback_rate;
-        this._event_target = new EventTarget();
+    constructor({ startTime = 0, playbackRate = 1, autoplay = false }: TimeConductorParam) {
+        this._lastUpdateTime = performance.now() / 1000;
+        this._lastKnownTime = startTime;
+        this._playbackRate = playbackRate;
+        this._eventTarget = new EventTarget();
         this._paused = true;
 
         if (autoplay) {
@@ -32,34 +32,34 @@ class TimeConductor {
     }
 
     play(): Promise<void> {
-        this._last_update_time = performance.now() / 1000;
+        this._lastUpdateTime = performance.now() / 1000;
         this._paused = false;
-        this._event_target.dispatchEvent(new CustomEvent("play"));
-        this._timeupdate_interval = window.setInterval(() => {
-            this._event_target.dispatchEvent(new CustomEvent("timeupdate"));
+        this._eventTarget.dispatchEvent(new CustomEvent("play"));
+        this._timeupdateInterval = window.setInterval(() => {
+            this._eventTarget.dispatchEvent(new CustomEvent("timeupdate"));
         }, 100);
         return Promise.resolve();
     }
 
     pause(): void {
-        this._last_known_time = this.currentTime;
+        this._lastKnownTime = this.currentTime;
         this._paused = true;
-        this._event_target.dispatchEvent(new CustomEvent("pause"));
-        clearInterval(this._timeupdate_interval);
+        this._eventTarget.dispatchEvent(new CustomEvent("pause"));
+        clearInterval(this._timeupdateInterval);
     }
 
     set currentTime(time: number) {
-        this._last_update_time = performance.now() / 1000;
-        this._last_known_time = time;
+        this._lastUpdateTime = performance.now() / 1000;
+        this._lastKnownTime = time;
     }
 
     get currentTime(): number {
         if (this.paused) {
-            return this._last_known_time;
+            return this._lastKnownTime;
         } else {
             return (
-                this._last_known_time +
-                (performance.now() / 1000 - this._last_update_time) * this._playbackRate
+                this._lastKnownTime +
+                (performance.now() / 1000 - this._lastUpdateTime) * this._playbackRate
             );
         }
     }
@@ -67,8 +67,8 @@ class TimeConductor {
     set playbackRate(value: number) {
         //Compute last known time *before* setting playbackrate
         //as playbackrate is used in currentTime calculation.
-        this._last_known_time = this.currentTime;
-        this._last_update_time = performance.now() / 1000;
+        this._lastKnownTime = this.currentTime;
+        this._lastUpdateTime = performance.now() / 1000;
         this._playbackRate = value;
     }
 
@@ -87,18 +87,18 @@ class TimeConductor {
 
 class MediaPlayer {
     media: HTMLMediaElement;
-    _last_update_time: number;
-    _last_known_time: number;
+    _lastUpdateTime: number;
+    _lastKnownTime: number;
 
     constructor(media: HTMLMediaElement) {
         this.media = media;
-        this._last_update_time = performance.now() / 1000;
-        this._last_known_time = this.media.currentTime;
+        this._lastUpdateTime = performance.now() / 1000;
+        this._lastKnownTime = this.media.currentTime;
     }
 
     play(): Promise<void> {
-        this._last_update_time = performance.now() / 1000;
-        this._last_known_time = this.media.currentTime;
+        this._lastUpdateTime = performance.now() / 1000;
+        this._lastKnownTime = this.media.currentTime;
         return this.media.play();
     }
 
@@ -108,8 +108,8 @@ class MediaPlayer {
 
     set currentTime(time: number) {
         this.media.currentTime = time;
-        this._last_update_time = performance.now() / 1000;
-        this._last_known_time = time;
+        this._lastUpdateTime = performance.now() / 1000;
+        this._lastKnownTime = time;
     }
 
     get currentTime(): number {
@@ -117,8 +117,8 @@ class MediaPlayer {
             return this.media.currentTime;
         } else {
             return (
-                this._last_known_time +
-                (performance.now() / 1000 - this._last_update_time) * this.media.playbackRate
+                this._lastKnownTime +
+                (performance.now() / 1000 - this._lastUpdateTime) * this.media.playbackRate
             );
         }
     }
@@ -126,8 +126,8 @@ class MediaPlayer {
     set playbackRate(value: number) {
         //Compute last known time *before* setting playbackrate
         //as playbackrate is used in currentTime calculation.
-        this._last_known_time = this.currentTime;
-        this._last_update_time = performance.now() / 1000;
+        this._lastKnownTime = this.currentTime;
+        this._lastUpdateTime = performance.now() / 1000;
         this.media.playbackRate = value;
     }
 
