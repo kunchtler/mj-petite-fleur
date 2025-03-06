@@ -1,158 +1,8 @@
 import * as THREE from "three";
-import { Hand, HandPhysicsHandling } from "./Hand";
+import { createHandSites, Hand, HandConstructorParams, HandSiteCreationParams } from "./Hand";
 import { Object3DHelper } from "../utils/Object3DHelper";
 import { find_elbow } from "../utils/utils";
 import { Table } from "./Table";
-
-type JugglerMesh = {
-    head: THREE.Mesh;
-    chest: THREE.Mesh;
-    right_shoulder: THREE.Mesh;
-    right_arm: THREE.Mesh;
-    right_elbow: THREE.Mesh;
-    right_forearm: THREE.Mesh;
-    right_hand: THREE.Mesh;
-    left_shoulder: THREE.Mesh;
-    left_arm: THREE.Mesh;
-    left_elbow: THREE.Mesh;
-    left_forearm: THREE.Mesh;
-    left_hand: THREE.Mesh;
-    right_leg: THREE.Mesh;
-    left_leg: THREE.Mesh;
-};
-
-//TODO : Split in two functions : one to create mesh, one to ass to scene ?
-//TODO : Change the way head side scales and arms beahve with different parameters.
-//TODO : Arm length as param ?
-export function create_juggler_mesh(
-    scene: THREE.Scene,
-    height: number,
-    width: number,
-    depth: number
-): JugglerMesh {
-    const top_chest_length = width;
-    const bottom_chest_length = (width * 2) / 3;
-    const chest_height = (19 / 50) * height;
-    const leg_height = (2 / 5) * height;
-    const head_height = (1 / 5) * height;
-    const head_chest_offset = (1 / 50) * height;
-    const arm_length = (2 / 3) * chest_height;
-    const arm_diameter = 0.05;
-    const shoulder_radius = 0.08;
-    const elbow_radius = 0.05;
-    const hand_length = 0.05;
-    const hand_width = 0.05 * 0.8;
-
-    //Chest
-    let chest_geometry: THREE.BufferGeometry = new THREE.CylinderGeometry(
-        top_chest_length * Math.SQRT1_2,
-        bottom_chest_length * Math.SQRT1_2,
-        chest_height,
-        4,
-        1
-    );
-    chest_geometry.rotateY(Math.PI / 4);
-    chest_geometry = chest_geometry.toNonIndexed();
-    chest_geometry.computeVertexNormals();
-    chest_geometry.scale(depth / top_chest_length, 1, 1);
-    const chest_material = new THREE.MeshPhongMaterial({ color: "green" });
-    const chest = new THREE.Mesh(chest_geometry, chest_material);
-    chest.position.set(0, leg_height + chest_height / 2, 0);
-    scene.add(chest);
-
-    //Head
-    const head_geometry = new THREE.SphereGeometry(head_height / 2);
-    head_geometry.scale(0.8, 1, 0.8);
-    const head = new THREE.Mesh(head_geometry, chest_material);
-    head.position.set(0, chest_height / 2 + head_height / 2 + head_chest_offset, 0);
-    chest.add(head);
-
-    //Shoulders
-    const shoulder_material = new THREE.MeshPhongMaterial({ color: "red" });
-    const shoulder_geometry = new THREE.SphereGeometry(shoulder_radius);
-    const right_shoulder = new THREE.Mesh(shoulder_geometry, shoulder_material);
-    right_shoulder.position.set(0, chest_height / 2, top_chest_length / 2);
-    //right_shoulder.material.visible = false;
-    right_shoulder.rotateZ(-Math.PI / 2);
-    right_shoulder.rotateY(-0.2);
-    chest.add(right_shoulder);
-    const left_shoulder = new THREE.Mesh(shoulder_geometry, shoulder_material);
-    left_shoulder.position.set(0, chest_height / 2, -top_chest_length / 2);
-    left_shoulder.rotateZ(-Math.PI / 2);
-    left_shoulder.rotateY(0.2);
-    chest.add(left_shoulder);
-
-    //Arms
-    const arm_material = new THREE.MeshPhongMaterial({ color: "white" });
-    const arm_geometry = new THREE.BoxGeometry(arm_length, arm_diameter, arm_diameter);
-    // const arm_geometry = new THREE.CylinderGeometry(0.03, 0.03, arm_length);
-    // arm_geometry.rotateZ(Math.PI / 2);
-    const right_arm = new THREE.Mesh(arm_geometry, arm_material);
-    right_arm.position.set(arm_length / 2, 0, 0);
-    right_shoulder.add(right_arm);
-    const left_arm = new THREE.Mesh(arm_geometry, arm_material);
-    left_arm.position.set(arm_length / 2, 0, 0);
-    left_shoulder.add(left_arm);
-
-    //Elbows
-    const elbow_geometry = new THREE.SphereGeometry(elbow_radius);
-    const right_elbow = new THREE.Mesh(elbow_geometry, shoulder_material);
-    right_elbow.position.set(arm_length / 2, 0, 0);
-    right_elbow.rotateZ(Math.PI / 2);
-    right_arm.add(right_elbow);
-    const left_elbow = new THREE.Mesh(elbow_geometry, shoulder_material);
-    left_elbow.position.set(arm_length / 2, 0, 0);
-    left_elbow.rotateZ(Math.PI / 2);
-    left_arm.add(left_elbow);
-
-    //Forearms
-    const right_forearm = new THREE.Mesh(arm_geometry, arm_material);
-    right_forearm.position.set(arm_length / 2, 0, 0);
-    right_elbow.add(right_forearm);
-    const left_forearm = new THREE.Mesh(arm_geometry, arm_material);
-    left_forearm.position.set(arm_length / 2, 0, 0);
-    left_elbow.add(left_forearm);
-
-    //Hands
-    const hand_geometry = new THREE.SphereGeometry(hand_length);
-    hand_geometry.scale(1, hand_width / hand_length, hand_width / hand_length);
-    const hand_material = new THREE.MeshPhongMaterial({ color: "black" });
-    const right_hand = new THREE.Mesh(hand_geometry, hand_material);
-    right_hand.position.set(arm_length / 2, 0, 0);
-    right_forearm.add(right_hand);
-    const left_hand = new THREE.Mesh(hand_geometry, hand_material);
-    left_hand.position.set(arm_length / 2, 0, 0);
-    left_forearm.add(left_hand);
-
-    //Legs
-    const leg_width = (3 / 7) * (bottom_chest_length / 2);
-    const leg_depth = ((3 / 4) * (bottom_chest_length * depth)) / top_chest_length;
-    const leg_geometry = new THREE.BoxGeometry(leg_depth, leg_height, leg_width);
-    leg_geometry.translate(0, -leg_height / 2, 0);
-    const right_leg = new THREE.Mesh(leg_geometry, chest_material);
-    right_leg.position.set(0, -chest_height / 2, bottom_chest_length / 2 - (5 / 8) * leg_width);
-    chest.add(right_leg);
-    const left_leg = new THREE.Mesh(leg_geometry, chest_material);
-    left_leg.position.set(0, -chest_height / 2, -(bottom_chest_length / 2 - (5 / 8) * leg_width));
-    chest.add(left_leg);
-
-    return {
-        head: head,
-        chest: chest,
-        right_shoulder: right_shoulder,
-        right_arm: right_arm,
-        right_elbow: right_elbow,
-        right_forearm: right_forearm,
-        right_hand: right_hand,
-        left_shoulder: left_shoulder,
-        left_arm: left_arm,
-        left_elbow: left_elbow,
-        left_forearm: left_forearm,
-        left_hand: left_hand,
-        right_leg: right_leg,
-        left_leg: left_leg
-    };
-}
 
 // const loader = new GLTFLoader();
 // loader.load(
@@ -197,103 +47,130 @@ export function create_juggler_mesh(
 //     }
 // );
 
-interface JugglerParamConstructor {
-    height?: number;
-    width?: number;
-    depth?: number;
-    arm_length?: number;
-    default_table?: Table;
+export interface JugglerParamConstructor {
+    mesh?: THREE.Mesh;
+    leftHand?: Hand | HandConstructorParams;
+    rightHand?: Hand | HandConstructorParams;
+    defaultTable?: Table;
+    // height?: number;
+    // width?: number;
+    // depth?: number;
+    // arm_length?: number;
+    // default_table?: Table;
 }
 
-class Juggler {
-    height: number;
-    geometry: THREE.BufferGeometry;
-    material: THREE.Material;
+//TODO : Optional elbows (but only if defined) ?
+export class Juggler {
     mesh: THREE.Mesh;
     readonly hands: [Hand, Hand];
-    readonly right_hand: Hand;
-    readonly left_hand: Hand;
-    juggling_origin: THREE.Object3D;
-    shoulder: THREE.Object3D;
-    elbow: THREE.Object3D;
-    arm_length: number;
-    target: THREE.Object3D;
-    default_table?: Table;
+    defaultTable?: Table;
+    // height: number;
+    // geometry: THREE.BufferGeometry;
+    // material: THREE.Material;
+    // jugglingOrigin: THREE.Object3D;
+    // shoulder: THREE.Object3D;
+    // elbow: THREE.Object3D;
+    // arm_length: number;
+    // target: THREE.Object3D;
 
-    constructor({
-        height = 1.8,
-        width = 0.3,
-        depth = 0.5,
-        arm_length = 0.4,
-        default_table
-    }: JugglerParamConstructor = {}) {
-        this.height = height;
-        this.arm_length = arm_length;
-        const basic_geometry = new THREE.BoxGeometry(width, height, depth);
-        //this.geometry = new THREE.EdgesGeometry(basic_geometry);
-        //this.material = new THREE.LineBasicMaterial({ color: "black", linewidth: 2 });
-        basic_geometry.translate(0, height / 2, 0);
-        this.geometry = basic_geometry;
-        this.material = new THREE.MeshPhongMaterial({
-            color: 0x202020,
-            wireframe: false
-            // visible: false
-        });
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        //this.wireframe = new THREE.LineSegments(this.geometry, this.material);
-        //this.mesh.translateY(height / 2);
-        this.juggling_origin = new THREE.Object3D();
-        const hand_physics_handling: HandPhysicsHandling = {
-            // min_dist: 0.05,
-            center_rest_dist: (depth * 2) / 3,
-            rest_site_dist: depth / 4,
-            // max_dist: depth / 2,
-            up_vector: new THREE.Vector3(0, 1, 0),
-            right_vector: new THREE.Vector3(0, 0, 1),
-            origin_object: this.juggling_origin
+    constructor({ defaultTable, leftHand, mesh, rightHand }: JugglerParamConstructor = {}) {
+        const defaultHeight = 1.8;
+        const defaultWidth = 0.3;
+        const defaultDepth = 0.5;
+        this.mesh =
+            mesh ??
+            createJugglerMesh(
+                createJugglerCubeGeometry(defaultHeight, defaultWidth, defaultDepth),
+                createJugglerMaterial()
+            );
+
+        const defaultArmLength = 0.4;
+        const defaultOriginObject = new THREE.Object3D();
+        this.mesh.add(defaultOriginObject);
+        defaultOriginObject.position.set(
+            defaultArmLength,
+            defaultHeight - 0.4 - defaultArmLength,
+            0
+        );
+        const defaultHandSiteParams: Omit<HandSiteCreationParams, "isRightHand"> = {
+            centerRestDist: (defaultDepth * 2) / 3,
+            restSiteDist: defaultDepth / 4,
+            jugglerJugglingPlaneOrigin: new THREE.Object3D(),
+            rightVector: new THREE.Vector3(0, 0, 1)
         };
-        this.right_hand = new Hand(hand_physics_handling, true);
-        this.left_hand = new Hand(hand_physics_handling, false);
-        this.hands = [this.right_hand, this.left_hand];
+        rightHand ??= new Hand({
+            ...createHandSites({ ...defaultHandSiteParams, isRightHand: true })
+        });
+        leftHand ??= new Hand({
+            ...createHandSites({ ...defaultHandSiteParams, isRightHand: true })
+        });
+        const builtRightHand = rightHand instanceof Hand ? rightHand : new Hand(rightHand);
+        const builtLeftHand = leftHand instanceof Hand ? leftHand : new Hand(leftHand);
+        this.hands = [builtRightHand, builtLeftHand];
+        this.defaultTable = defaultTable;
 
-        this.juggling_origin.add(new Object3DHelper(false, undefined, false));
-        this.juggling_origin.position.set(arm_length, height - 0.4 - arm_length, 0);
+        // this.jugglingOrigin.add(new Object3DHelper(false, undefined, false));
+        // this.jugglingOrigin.position.set(arm_length, height - 0.4 - arm_length, 0);
 
-        this.mesh.add(this.juggling_origin);
-        this.juggling_origin.add(this.hands[0].mesh);
-        this.juggling_origin.add(this.hands[1].mesh);
+        // this.mesh.add(this.jugglingOrigin);
+        // this.jugglingOrigin.add(this.hands[0].mesh);
+        // this.jugglingOrigin.add(this.hands[1].mesh);
+        // this.target = new THREE.Object3D();
+        // this.target.position.set(0, 0, depth / 2);
+        // this.mesh.add(this.target);
+        // this.target.add(new Object3DHelper(false, undefined, false));
+        // this.arm_length = arm_length;
+        //this.wireframe = new THREE.LineSegments(this.geometry, this.material);
+        // this.jugglingOrigin = new THREE.Object3D();
+        // const hand_physics_handling: HandPhysicsHandling = {
+        //     // min_dist: 0.05,
+        //     centerRestDist: (depth * 2) / 3,
+        //     restSiteDist: depth / 4,
+        //     // max_dist: depth / 2,
+        //     upVector: new THREE.Vector3(0, 1, 0),
+        //     rightVector: new THREE.Vector3(0, 0, 1),
+        //     jugglerJugglingPlaneOrigin: this.jugglingOrigin
+        // };
+        // this.shoulder = new THREE.Object3D();
+        // this.shoulder.position.set(0, height - 0.4, depth / 2);
+        // this.mesh.add(this.shoulder);
+        // this.shoulder.add(new Object3DHelper(false, undefined, false));
+        // this.elbow = new THREE.Object3D();
+        // this.elbow.position.set(0, 0, 0);
+        // this.mesh.add(this.elbow);
+        // this.elbow.add(new Object3DHelper(false, undefined, false));
+    }
 
-        this.shoulder = new THREE.Object3D();
-        this.shoulder.position.set(0, height - 0.4, depth / 2);
-        this.mesh.add(this.shoulder);
-        this.shoulder.add(new Object3DHelper(false, undefined, false));
+    //TODO : Change right / left convention to reflect programmer's hands ?
+    get rightHand(): Hand {
+        return this.hands[0];
+    }
 
-        this.elbow = new THREE.Object3D();
-        this.elbow.position.set(0, 0, 0);
-        this.mesh.add(this.elbow);
-        this.elbow.add(new Object3DHelper(false, undefined, false));
+    set rightHand(hand: Hand) {
+        this.hands[0] = hand;
+    }
 
-        this.target = new THREE.Object3D();
-        this.target.position.set(0, 0, depth / 2);
-        this.mesh.add(this.target);
-        this.target.add(new Object3DHelper(false, undefined, false));
+    get leftHand(): Hand {
+        return this.hands[1];
+    }
 
-        this.default_table = default_table;
+    set leftHand(hand: Hand) {
+        this.hands[1] = hand;
     }
 
     render = (time: number): void => {
         //Receives the time in seconds.
-        this.right_hand.render(time);
-        this.left_hand.render(time);
-        this.elbow.position.copy(
-            find_elbow(
-                this.shoulder.position,
-                this.right_hand.position(time),
-                this.arm_length,
-                this.arm_length,
-                this.target.position
-            )
-        );
+        this.rightHand.render(time);
+        this.leftHand.render(time);
+        // this.elbow.position.copy(
+        //     find_elbow(
+        //         this.shoulder.position,
+        //         this.right_hand.position(time),
+        //         this.arm_length,
+        //         this.arm_length,
+        //         this.target.position
+        //     )
+        // );
     };
 
     /**
@@ -304,19 +181,181 @@ class Juggler {
         if (this.mesh.parent !== null) {
             this.mesh.parent.remove(this.mesh);
         }
-        this.geometry.dispose();
-        this.material.dispose();
-
-        // juggling_origin: THREE.Object3D;
-        // shoulder: THREE.Object3D;
-        // elbow: THREE.Object3D;
-        // arm_length: number;
-        // target: THREE.Object3D;
-
+        this.mesh.geometry.dispose();
+        if (Array.isArray(this.mesh.material)) {
+            for (const material of this.mesh.material) {
+                material.dispose();
+            }
+        } else {
+            this.mesh.material.dispose();
+        }
         for (const hand of this.hands) {
             hand.dispose();
         }
     }
 }
 
-export { Juggler };
+export function createJugglerCubeGeometry(height = 1.8, width = 0.3, depth = 0.5) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    geometry.translate(0, height / 2, 0);
+    return geometry;
+    //this.geometry = new THREE.EdgesGeometry(basic_geometry);
+    //this.material = new THREE.LineBasicMaterial({ color: "black", linewidth: 2 });
+}
+
+export function createJugglerMaterial(color: THREE.ColorRepresentation = 0x202020) {
+    return new THREE.MeshPhongMaterial({
+        color: color
+    });
+}
+
+export function createJugglerMesh(geometry?: THREE.BufferGeometry, material?: THREE.Material) {
+    if (geometry === undefined) {
+        geometry = createJugglerCubeGeometry();
+    }
+    if (material === undefined) {
+        material = createJugglerMaterial();
+    }
+    return new THREE.Mesh(geometry, material);
+}
+
+// type JugglerMesh = {
+//     head: THREE.Mesh;
+//     chest: THREE.Mesh;
+//     right_shoulder: THREE.Mesh;
+//     right_arm: THREE.Mesh;
+//     right_elbow: THREE.Mesh;
+//     right_forearm: THREE.Mesh;
+//     right_hand: THREE.Mesh;
+//     left_shoulder: THREE.Mesh;
+//     left_arm: THREE.Mesh;
+//     left_elbow: THREE.Mesh;
+//     left_forearm: THREE.Mesh;
+//     left_hand: THREE.Mesh;
+//     right_leg: THREE.Mesh;
+//     left_leg: THREE.Mesh;
+// };
+//
+// export function createJugglerMeshStickman(height: number, width: number, depth: number): THREE.Mesh {
+//     const top_chest_length = width;
+//     const bottom_chest_length = (width * 2) / 3;
+//     const chest_height = (19 / 50) * height;
+//     const leg_height = (2 / 5) * height;
+//     const head_height = (1 / 5) * height;
+//     const head_chest_offset = (1 / 50) * height;
+//     const arm_length = (2 / 3) * chest_height;
+//     const arm_diameter = 0.05;
+//     const shoulder_radius = 0.08;
+//     const elbow_radius = 0.05;
+//     const hand_length = 0.05;
+//     const hand_width = 0.05 * 0.8;
+
+//     //Chest
+//     let chest_geometry: THREE.BufferGeometry = new THREE.CylinderGeometry(
+//         top_chest_length * Math.SQRT1_2,
+//         bottom_chest_length * Math.SQRT1_2,
+//         chest_height,
+//         4,
+//         1
+//     );
+//     chest_geometry.rotateY(Math.PI / 4);
+//     chest_geometry = chest_geometry.toNonIndexed();
+//     chest_geometry.computeVertexNormals();
+//     chest_geometry.scale(depth / top_chest_length, 1, 1);
+//     const chest_material = new THREE.MeshPhongMaterial({ color: "green" });
+//     const chest = new THREE.Mesh(chest_geometry, chest_material);
+//     chest.position.set(0, leg_height + chest_height / 2, 0);
+
+//     //Head
+//     const head_geometry = new THREE.SphereGeometry(head_height / 2);
+//     head_geometry.scale(0.8, 1, 0.8);
+//     const head = new THREE.Mesh(head_geometry, chest_material);
+//     head.position.set(0, chest_height / 2 + head_height / 2 + head_chest_offset, 0);
+//     chest.add(head);
+
+//     //Shoulders
+//     const shoulder_material = new THREE.MeshPhongMaterial({ color: "red" });
+//     const shoulder_geometry = new THREE.SphereGeometry(shoulder_radius);
+//     const right_shoulder = new THREE.Mesh(shoulder_geometry, shoulder_material);
+//     right_shoulder.position.set(0, chest_height / 2, top_chest_length / 2);
+//     //right_shoulder.material.visible = false;
+//     right_shoulder.rotateZ(-Math.PI / 2);
+//     right_shoulder.rotateY(-0.2);
+//     chest.add(right_shoulder);
+//     const left_shoulder = new THREE.Mesh(shoulder_geometry, shoulder_material);
+//     left_shoulder.position.set(0, chest_height / 2, -top_chest_length / 2);
+//     left_shoulder.rotateZ(-Math.PI / 2);
+//     left_shoulder.rotateY(0.2);
+//     chest.add(left_shoulder);
+
+//     //Arms
+//     const arm_material = new THREE.MeshPhongMaterial({ color: "white" });
+//     const arm_geometry = new THREE.BoxGeometry(arm_length, arm_diameter, arm_diameter);
+//     // const arm_geometry = new THREE.CylinderGeometry(0.03, 0.03, arm_length);
+//     // arm_geometry.rotateZ(Math.PI / 2);
+//     const right_arm = new THREE.Mesh(arm_geometry, arm_material);
+//     right_arm.position.set(arm_length / 2, 0, 0);
+//     right_shoulder.add(right_arm);
+//     const left_arm = new THREE.Mesh(arm_geometry, arm_material);
+//     left_arm.position.set(arm_length / 2, 0, 0);
+//     left_shoulder.add(left_arm);
+
+//     //Elbows
+//     const elbow_geometry = new THREE.SphereGeometry(elbow_radius);
+//     const right_elbow = new THREE.Mesh(elbow_geometry, shoulder_material);
+//     right_elbow.position.set(arm_length / 2, 0, 0);
+//     right_elbow.rotateZ(Math.PI / 2);
+//     right_arm.add(right_elbow);
+//     const left_elbow = new THREE.Mesh(elbow_geometry, shoulder_material);
+//     left_elbow.position.set(arm_length / 2, 0, 0);
+//     left_elbow.rotateZ(Math.PI / 2);
+//     left_arm.add(left_elbow);
+
+//     //Forearms
+//     const right_forearm = new THREE.Mesh(arm_geometry, arm_material);
+//     right_forearm.position.set(arm_length / 2, 0, 0);
+//     right_elbow.add(right_forearm);
+//     const left_forearm = new THREE.Mesh(arm_geometry, arm_material);
+//     left_forearm.position.set(arm_length / 2, 0, 0);
+//     left_elbow.add(left_forearm);
+
+//     //Hands
+//     const hand_geometry = new THREE.SphereGeometry(hand_length);
+//     hand_geometry.scale(1, hand_width / hand_length, hand_width / hand_length);
+//     const hand_material = new THREE.MeshPhongMaterial({ color: "black" });
+//     const right_hand = new THREE.Mesh(hand_geometry, hand_material);
+//     right_hand.position.set(arm_length / 2, 0, 0);
+//     right_forearm.add(right_hand);
+//     const left_hand = new THREE.Mesh(hand_geometry, hand_material);
+//     left_hand.position.set(arm_length / 2, 0, 0);
+//     left_forearm.add(left_hand);
+
+//     //Legs
+//     const leg_width = (3 / 7) * (bottom_chest_length / 2);
+//     const leg_depth = ((3 / 4) * (bottom_chest_length * depth)) / top_chest_length;
+//     const leg_geometry = new THREE.BoxGeometry(leg_depth, leg_height, leg_width);
+//     leg_geometry.translate(0, -leg_height / 2, 0);
+//     const right_leg = new THREE.Mesh(leg_geometry, chest_material);
+//     right_leg.position.set(0, -chest_height / 2, bottom_chest_length / 2 - (5 / 8) * leg_width);
+//     chest.add(right_leg);
+//     const left_leg = new THREE.Mesh(leg_geometry, chest_material);
+//     left_leg.position.set(0, -chest_height / 2, -(bottom_chest_length / 2 - (5 / 8) * leg_width));
+//     chest.add(left_leg);
+
+//     return {
+//         head: head,
+//         chest: chest,
+//         right_shoulder: right_shoulder,
+//         right_arm: right_arm,
+//         right_elbow: right_elbow,
+//         right_forearm: right_forearm,
+//         right_hand: right_hand,
+//         left_shoulder: left_shoulder,
+//         left_arm: left_arm,
+//         left_elbow: left_elbow,
+//         left_forearm: left_forearm,
+//         left_hand: left_hand,
+//         right_leg: right_leg,
+//         left_leg: left_leg
+//     };
+// }
