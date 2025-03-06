@@ -10,40 +10,10 @@ import {
     BallTimelineEvent
 } from "./Timeline";
 import * as Tone from "tone";
-import { Table } from "./Table";
 import { Juggler } from "./Juggler";
 
 //TODO : Replace type BallEventInterface by BallTimelineEvent in functions signatures ?
-
-function thrown_ball_velocity_at_start_end(
-    pos0: THREE.Vector3,
-    t0: number,
-    pos1: THREE.Vector3,
-    t1: number,
-    at_start: boolean
-): THREE.Vector3 {
-    const dt = t1 - t0;
-    const v0x = (pos1.x - pos0.x) / dt;
-    const v0z = (pos1.z - pos0.z) / dt;
-    const v0y = (dt * GRAVITY) / 2 + (pos1.y - pos0.y) / dt;
-    const throw_sign = at_start ? 1 : -1;
-    return new THREE.Vector3(v0x, throw_sign * v0y, v0z);
-}
-
-function thrown_ball_position(
-    pos0: THREE.Vector3,
-    t0: number,
-    pos1: THREE.Vector3,
-    t1: number,
-    t: number
-): THREE.Vector3 {
-    const v0 = thrown_ball_velocity_at_start_end(pos0, t0, pos1, t1, true);
-    return new THREE.Vector3(
-        v0.x * (t - t0) + pos0.x,
-        (-GRAVITY / 2) * (t - t0) ** 2 + v0.y * (t - t0) + pos0.y,
-        v0.z * (t - t0) + pos0.z
-    );
-}
+// TODO : CamelCase for every variable.
 
 // function thrown_ball_velocity(
 //     pos0: THREE.Vector3,
@@ -57,14 +27,14 @@ function thrown_ball_position(
 // }
 
 interface BallConstructorInterface {
-    color: number | string;
     radius: number;
+    mesh: THREE.Mesh;
     name?: string;
     sound?: Tone.Players | Tone.Player | string;
     panner3D?: Tone.Panner3D;
     timeline?: Timeline<number, BallTimelineEvent>;
-    default_table?: Table;
-    default_juggler?: Juggler;
+    // default_table?: Table;
+    defaultJuggler?: Juggler;
 }
 
 // function create_audio(note_name: string): HTMLAudioElement {
@@ -74,73 +44,58 @@ interface BallConstructorInterface {
 //TODO : Fusionner les évènements de main et de balles ?
 //TODO : Defaults for constructors here and in simulator
 //TODO : Checks that hand/ball examined is indeed for this ball / hand and not another ?
+//TODO : Remove Tone to only use WebAudio API / THREEjs audio.
+//TODO : Better handling of sound when ball is caught / is launched / is flying (unify this ?)
 
-class Ball {
-    readonly color: number | string;
+export class Ball {
     readonly radius: number;
-    geometry: THREE.BufferGeometry;
-    material: THREE.Material;
     mesh: THREE.Mesh;
     name: string;
     timeline: Timeline<number, BallTimelineEvent>;
     sound?: Tone.Players | Tone.Player;
     panner3D?: Tone.Panner3D;
-    default_juggler?: Juggler;
-    default_table?: Table;
-    private _prev_time = 0;
+    defaultJuggler?: Juggler;
+    // defaultTable?: Table;
+    private _prevTime = 0;
 
     constructor({
-        color,
         radius,
+        mesh,
         name,
         sound,
         panner3D,
         timeline,
-        default_table,
-        default_juggler
+        // default_table,
+        defaultJuggler
     }: BallConstructorInterface) {
-        this.color = color;
         this.radius = radius;
-        this.geometry = new THREE.SphereGeometry(radius, 8, 8);
-        this.material = new THREE.MeshPhongMaterial({ color: this.color });
-        //TODO: CHeck if destroying mesh detroys material and or geometry.
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-
-        if (timeline === undefined) {
-            this.timeline = new Timeline();
-        } else {
-            this.timeline = structuredClone(timeline);
-        }
-
+        this.mesh = mesh;
+        this.timeline = timeline ?? new Timeline();
         if (typeof sound === "string") {
             // Define a ball by its note.
             throw new Error("Not implemented yet");
         }
         this.sound = sound;
         this.panner3D = panner3D;
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-        this.name = name !== undefined ? name : "None";
-        this.default_table = default_table;
-        this.default_juggler = default_juggler;
+        this.name = name ?? "None";
+        // this.defaultTable = default_table;
+        this.defaultJuggler = defaultJuggler;
     }
 
     //TODO : Move this as static for events
-    throw_timeline_error(
-        event1: BallEventInterface | null,
-        event2: BallEventInterface | null
-    ): void {
+    throwTimelineError(event1: BallEventInterface | null, event2: BallEventInterface | null): void {
         const str1 =
             event1 === null
                 ? `has previous event null`
-                : `is ${event1.error_ball_status} at time ${event1.time}`;
+                : `is ${event1.errorBallStatus} at time ${event1.time}`;
         const str2 =
             event2 === null
                 ? `has previous event null`
-                : `is ${event2.error_ball_status} at time ${event2.time}`;
+                : `is ${event2.errorBallStatus} at time ${event2.time}`;
         throw Error(`Ball ${this.name} ${str1} and ${str2}.`);
     }
 
-    position_at_event(event: BallEventInterface | null): THREE.Vector3 {
+    positionAtEvent(event: BallEventInterface | null): THREE.Vector3 {
         if (event === null) {
             throw Error();
         } else if (
@@ -150,9 +105,9 @@ class Ball {
         ) {
             //TableTakeEvent for now here as the ball teleports from table to hand, so is in hand.
             //With proper animations, could change.
-            return event.hand.position_at_event(event);
+            return event.hand.positionAtEvent(event);
         } else if (event instanceof TablePutEvent) {
-            return event.table.ball_position(this);
+            return event.table.ballPosition(this);
         }
         throw Error("Unimplemented behaviour");
     }
@@ -164,90 +119,92 @@ class Ball {
      * @returns The position of the ball at that given time.
      */
     position(time: number): THREE.Vector3 {
-        const [, prev_event] = this.timeline.prev_event(time);
-        const [, next_event] = this.timeline.next_event(time);
+        const [, prevEvent] = this.timeline.prevEvent(time);
+        const [, nextEvent] = this.timeline.nextEvent(time);
 
-        if (prev_event === null) {
-            if (next_event === null) {
-                if (this.default_table !== undefined) {
-                    return this.default_table.ball_position(this);
-                } else if (this.default_juggler?.default_table !== undefined) {
-                    return this.default_juggler.default_table.ball_position(this);
+        if (prevEvent === null) {
+            if (nextEvent === null) {
+                // if (this.defaultTable !== undefined) {
+                //     return this.defaultTable.ballPosition(this);
+                // } else if (this.defaultJuggler?.default_table !== undefined) {
+                //     return this.defaultJuggler.default_table.ballPosition(this);
+                if (this.defaultJuggler?.defaultTable !== undefined) {
+                    return this.defaultJuggler.defaultTable.ballPosition(this);
                 } else {
-                    this.throw_timeline_error(prev_event, next_event);
+                    this.throwTimelineError(prevEvent, nextEvent);
                 }
             }
-            if (next_event instanceof CatchEvent) {
-                this.throw_timeline_error(prev_event, next_event);
+            if (nextEvent instanceof CatchEvent) {
+                this.throwTimelineError(prevEvent, nextEvent);
             }
-            if (next_event instanceof ThrowEvent || next_event instanceof TablePutEvent) {
-                return next_event.hand.position(time);
+            if (nextEvent instanceof ThrowEvent || nextEvent instanceof TablePutEvent) {
+                return nextEvent.hand.position(time);
             }
-            if (next_event instanceof TableTakeEvent) {
-                return next_event.table.ball_position(this);
+            if (nextEvent instanceof TableTakeEvent) {
+                return nextEvent.table.ballPosition(this);
             }
         }
-        if (prev_event instanceof CatchEvent) {
+        if (prevEvent instanceof CatchEvent) {
             if (
-                next_event === null ||
-                next_event instanceof ThrowEvent ||
-                next_event instanceof TablePutEvent
+                nextEvent === null ||
+                nextEvent instanceof ThrowEvent ||
+                nextEvent instanceof TablePutEvent
             ) {
-                return prev_event.hand.position(time);
+                return prevEvent.hand.position(time);
             }
-            if (next_event instanceof CatchEvent || next_event instanceof TableTakeEvent) {
-                this.throw_timeline_error(prev_event, next_event);
+            if (nextEvent instanceof CatchEvent || nextEvent instanceof TableTakeEvent) {
+                this.throwTimelineError(prevEvent, nextEvent);
             }
         }
-        if (prev_event instanceof ThrowEvent) {
-            if (next_event instanceof CatchEvent) {
-                return thrown_ball_position(
-                    prev_event.hand.position_at_event(prev_event),
-                    prev_event.time,
-                    next_event.hand.position_at_event(next_event),
-                    next_event.time,
+        if (prevEvent instanceof ThrowEvent) {
+            if (nextEvent instanceof CatchEvent) {
+                return thrownBallPosition(
+                    prevEvent.hand.positionAtEvent(prevEvent),
+                    prevEvent.time,
+                    nextEvent.hand.positionAtEvent(nextEvent),
+                    nextEvent.time,
                     time
                 );
             }
-            if (next_event instanceof TablePutEvent) {
-                return thrown_ball_position(
-                    prev_event.hand.position_at_event(prev_event),
-                    prev_event.time,
-                    next_event.table.ball_position(this),
-                    next_event.time,
+            if (nextEvent instanceof TablePutEvent) {
+                return thrownBallPosition(
+                    prevEvent.hand.positionAtEvent(prevEvent),
+                    prevEvent.time,
+                    nextEvent.table.ballPosition(this),
+                    nextEvent.time,
                     time
                 );
             }
             if (
-                next_event === null ||
-                next_event instanceof ThrowEvent ||
-                next_event instanceof TableTakeEvent
+                nextEvent === null ||
+                nextEvent instanceof ThrowEvent ||
+                nextEvent instanceof TableTakeEvent
             ) {
-                this.throw_timeline_error(prev_event, next_event);
+                this.throwTimelineError(prevEvent, nextEvent);
             }
         }
-        if (prev_event instanceof TablePutEvent) {
-            if (next_event === null || next_event instanceof TableTakeEvent) {
-                return prev_event.table.ball_position(this);
+        if (prevEvent instanceof TablePutEvent) {
+            if (nextEvent === null || nextEvent instanceof TableTakeEvent) {
+                return prevEvent.table.ballPosition(this);
             }
             if (
-                next_event instanceof CatchEvent ||
-                next_event instanceof ThrowEvent ||
-                next_event instanceof TablePutEvent
+                nextEvent instanceof CatchEvent ||
+                nextEvent instanceof ThrowEvent ||
+                nextEvent instanceof TablePutEvent
             ) {
-                this.throw_timeline_error(prev_event, next_event);
+                this.throwTimelineError(prevEvent, nextEvent);
             }
         }
-        if (prev_event instanceof TableTakeEvent) {
+        if (prevEvent instanceof TableTakeEvent) {
             if (
-                next_event === null ||
-                next_event instanceof ThrowEvent ||
-                next_event instanceof TablePutEvent
+                nextEvent === null ||
+                nextEvent instanceof ThrowEvent ||
+                nextEvent instanceof TablePutEvent
             ) {
-                return prev_event.hand.position(time);
+                return prevEvent.hand.position(time);
             }
-            if (next_event instanceof CatchEvent || next_event instanceof TableTakeEvent) {
-                this.throw_timeline_error(prev_event, next_event);
+            if (nextEvent instanceof CatchEvent || nextEvent instanceof TableTakeEvent) {
+                this.throwTimelineError(prevEvent, nextEvent);
             }
         }
         throw Error("Unimplemented behaviour");
@@ -255,30 +212,30 @@ class Ball {
 
     //Rename velocity_at_event ?
     //TODO : Un seul type pour BallEvent : BallEventInterface | null ?
-    velocity_at_catch_throw_event(event: CatchEvent | ThrowEvent): THREE.Vector3 {
-        let prev_event: BallEventInterface | null;
-        let next_event: BallEventInterface | null;
-        let is_thrown: boolean;
+    velocityAtCatchThrowEvent(event: CatchEvent | ThrowEvent): THREE.Vector3 {
+        let prevEvent: BallEventInterface | null;
+        let nextEvent: BallEventInterface | null;
+        let isThrown: boolean;
         if (event instanceof CatchEvent) {
-            prev_event = event.prev_ball_event()[1];
-            next_event = event;
-            is_thrown = false;
+            prevEvent = event.prevBallEvent()[1];
+            nextEvent = event;
+            isThrown = false;
         } else {
-            prev_event = event;
-            next_event = event.next_ball_event()[1];
-            is_thrown = true;
+            prevEvent = event;
+            nextEvent = event.nextBallEvent()[1];
+            isThrown = true;
         }
         //Validation of events ?
         if (
-            prev_event instanceof ThrowEvent &&
-            (next_event instanceof CatchEvent || next_event instanceof TablePutEvent)
+            prevEvent instanceof ThrowEvent &&
+            (nextEvent instanceof CatchEvent || nextEvent instanceof TablePutEvent)
         ) {
-            return thrown_ball_velocity_at_start_end(
-                this.position_at_event(prev_event),
-                prev_event.time,
-                this.position_at_event(next_event),
-                next_event.time,
-                is_thrown
+            return thrownBallVelocityAtStartEnd(
+                this.positionAtEvent(prevEvent),
+                prevEvent.time,
+                this.positionAtEvent(nextEvent),
+                nextEvent.time,
+                isThrown
             );
         }
         throw Error("Unimplemented behaviour");
@@ -372,13 +329,13 @@ class Ball {
     //TODO : Make it so if the ball has sounds, there are options to play on every event, or catch, or throw.
     //TODO : Make it so if the ball falls after a throw it makes a sound
     //TODO : Rename to play_sound, and have it executed on all events rather than just ball.
-    play_on_catch(time: number): void {
-        const prev_event = this.timeline.prev_event(time)[1];
+    playOnCatch(time: number): void {
+        const prev_event = this.timeline.prevEvent(time)[1];
         if (prev_event === null) {
-            this._prev_time = time;
+            this._prevTime = time;
             return;
         }
-        if (prev_event.sound_name !== null && this._prev_time <= prev_event.time) {
+        if (prev_event.soundName !== null && this._prevTime <= prev_event.time) {
             // Play a sound
             if (this.sound instanceof Tone.Players) {
                 const sound_name = prev_event.random_sound_name();
@@ -387,7 +344,7 @@ class Ball {
                 this.sound.start();
             }
         }
-        this._prev_time = time;
+        this._prevTime = time;
         // const prev_event = this.timeline.prev_event(time)[1];
         // if (
         //     prev_event !== null &&
@@ -425,8 +382,8 @@ class Ball {
         if (this.mesh.parent !== null) {
             this.mesh.parent.remove(this.mesh);
         }
-        this.geometry.dispose();
-        this.material.dispose();
+        // this.geometry.dispose();
+        // this.material.dispose();
         if (this.sound instanceof Tone.Player) {
             this.sound.stop();
         } else if (this.sound instanceof Tone.Players) {
@@ -438,4 +395,40 @@ class Ball {
     }
 }
 
-export { Ball };
+export function createBallGeometry(radius: number) {
+    return new THREE.SphereGeometry(radius, 8, 8);
+}
+
+export function createBallMaterial(color: THREE.ColorRepresentation) {
+    return new THREE.MeshPhongMaterial({ color: color });
+}
+
+function thrownBallVelocityAtStartEnd(
+    pos0: THREE.Vector3,
+    t0: number,
+    pos1: THREE.Vector3,
+    t1: number,
+    atStart: boolean
+): THREE.Vector3 {
+    const dt = t1 - t0;
+    const v0x = (pos1.x - pos0.x) / dt;
+    const v0z = (pos1.z - pos0.z) / dt;
+    const v0y = (dt * GRAVITY) / 2 + (pos1.y - pos0.y) / dt;
+    const throw_sign = atStart ? 1 : -1;
+    return new THREE.Vector3(v0x, throw_sign * v0y, v0z);
+}
+
+function thrownBallPosition(
+    pos0: THREE.Vector3,
+    t0: number,
+    pos1: THREE.Vector3,
+    t1: number,
+    t: number
+): THREE.Vector3 {
+    const v0 = thrownBallVelocityAtStartEnd(pos0, t0, pos1, t1, true);
+    return new THREE.Vector3(
+        v0.x * (t - t0) + pos0.x,
+        (-GRAVITY / 2) * (t - t0) ** 2 + v0.y * (t - t0) + pos0.y,
+        v0.z * (t - t0) + pos0.z
+    );
+}
