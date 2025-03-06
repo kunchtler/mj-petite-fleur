@@ -45,10 +45,13 @@ class Simulator {
     renderer: THREE.WebGLRenderer;
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
+    // controls: OrbitControls;
     controls: OrbitControls;
-    balls: Ball[];
-    jugglers: Juggler[];
-    table: Table[];
+    balls: Map<string, Ball>;
+    jugglers: Map<string, Juggler>;
+    tables: Map<string, Table>;
+    playBackRate: number;
+    paused: boolean;
     // paused: boolean;
 
     constructor(canvas_id: string) {
@@ -92,12 +95,69 @@ class Simulator {
         //     renderer.render(this.scene, this.camera);
         // });
 
-        this.balls = [];
-        this.jugglers = [];
-        this.table = [];
+        this.balls = new Map();
+        this.jugglers = new Map();
+        this.tables = new Map();
+
+        this.paused = true;
+        this.playBackRate = 1.0;
     }
 
     //TODO method to facilitate not having to add balls to the scene
+    addJuggler(name: string, juggler: Juggler, position: THREE.Vector3): void {
+        if (this.jugglers.has(name)) {
+            console.log(`Overriding existing juggler ${name}.`);
+            this.removeJuggler(name);
+        }
+        this.jugglers.set(name, juggler);
+        juggler.mesh.position.set(position.x, position.y, position.z);
+        this.scene.add(juggler.mesh);
+    }
+
+    removeJuggler(name: string): void {
+        const juggler = this.jugglers.get(name);
+        if (juggler !== undefined) {
+            this.jugglers.delete(name);
+            this.scene.remove(juggler.mesh);
+            juggler.dispose();
+        }
+    }
+
+    addBall(name: string, ball: Ball) {
+        if (this.balls.has(name)) {
+            console.log(`Overriding existing ball ${name}.`);
+            this.removeBall(name);
+        }
+        this.balls.set(name, ball);
+        this.scene.add(ball.mesh);
+    }
+
+    removeBall(name: string): void {
+        const ball = this.balls.get(name);
+        if (ball !== undefined) {
+            this.balls.delete(name);
+            this.scene.remove(ball.mesh);
+            ball.dispose();
+        }
+    }
+
+    addTable(name: string, table: Table) {
+        if (this.tables.has(name)) {
+            console.log(`Overriding existing ball ${name}.`);
+            this.removeBall(name);
+        }
+        this.tables.set(name, table);
+        this.scene.add(table.mesh);
+    }
+
+    removeTable(name: string): void {
+        const table = this.tables.get(name);
+        if (table !== undefined) {
+            this.tables.delete(name);
+            this.scene.remove(table.mesh);
+            table.dispose();
+        }
+    }
 
     render = (time: number): void => {
         //TODO : Who should receive the time in seconds ? ball.render also ?
@@ -117,25 +177,29 @@ class Simulator {
     };
 
     //TODO : SHouldn't hands / jugglers handle removal from scene ?
+    // TODO : Reset position etc
     reset(): void {
-        for (const juggler of this.jugglers) {
-            juggler.dispose();
+        for (const name of this.jugglers.keys()) {
+            this.removeJuggler(name);
         }
-        for (const ball of this.balls) {
-            ball.dispose();
+        for (const name of this.balls.keys()) {
+            this.removeJuggler(name);
+        }
+        for (const name of this.tables.keys()) {
+            this.removeJuggler(name);
         }
     }
 
-    soft_reset(): void {
-        for (const ball of this.balls) {
-            ball.timeline.clear();
-            this.scene.remove(ball.mesh);
-        }
-        for (const juggler of this.jugglers) {
-            juggler.right_hand.timeline.clear();
-            juggler.left_hand.timeline.clear();
-        }
-    }
+    // soft_reset(): void {
+    //     for (const ball of this.balls) {
+    //         ball.timeline.clear();
+    //         this.scene.remove(ball.mesh);
+    //     }
+    //     for (const juggler of this.jugglers) {
+    //         juggler.right_hand.timeline.clear();
+    //         juggler.left_hand.timeline.clear();
+    //     }
+    // }
 
     /*
     TODO : Add methods to easily use simulator class.
@@ -146,11 +210,6 @@ class Simulator {
     */
 }
 
-// function create_juggler_mesh() {
-//     const geometry = new THREE.CapsuleGeometry(0.5, 1.8);
-//     const material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-//     const juggler_mesh = new THREE.Mesh(geometry, material);
-//     return juggler_mesh;
-// }
+
 
 export { Simulator, resizeRendererToDisplaySize, resizeRendererComposerToDisplaySize };
