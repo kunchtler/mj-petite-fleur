@@ -33,23 +33,23 @@ const { multiply_by_scalar: V3SCA } = VECTOR3_STRUCTURE;
  * @param obj the target Object3D for local coordinates.
  * @returns a vector in local coordinates.
  */
-function world_to_local_vector(vec: THREE.Vector3, obj: THREE.Object3D) {
+function worlToLocalVector(vec: THREE.Vector3, obj: THREE.Object3D) {
     return obj.worldToLocal(vec.clone()).sub(obj.worldToLocal(new THREE.Vector3(0, 0, 0)));
 }
 
-function local_to_world_vector(vec: THREE.Vector3, obj: THREE.Object3D) {
+function localToWorldVector(vec: THREE.Vector3, obj: THREE.Object3D) {
     return obj.localToWorld(vec.clone()).sub(obj.localToWorld(new THREE.Vector3(0, 0, 0)));
 }
 
-function world_to_local_position(pos: THREE.Vector3, obj: THREE.Object3D) {
+function worldToLocalPosition(pos: THREE.Vector3, obj: THREE.Object3D) {
     return obj.worldToLocal(pos.clone());
 }
 
-function local_to_world_position(pos: THREE.Vector3, obj: THREE.Object3D) {
+function localToWorldPosition(pos: THREE.Vector3, obj: THREE.Object3D) {
     return obj.localToWorld(pos.clone());
 }
 
-function average_vector(vectors: THREE.Vector3[]): THREE.Vector3 {
+function averageVector(vectors: THREE.Vector3[]): THREE.Vector3 {
     const sum = new THREE.Vector3(0, 0, 0);
     if (vectors.length === 0) {
         return sum;
@@ -61,96 +61,101 @@ function average_vector(vectors: THREE.Vector3[]): THREE.Vector3 {
     return sum;
 }
 
-export type HandPhysicsHandling = {
-    rest_site_dist: number;
-    center_rest_dist: number;
-    up_vector: THREE.Vector3;
-    right_vector: THREE.Vector3;
-    origin_object: THREE.Object3D;
+export type HandSiteCreationParams = {
+    restSiteDist: number;
+    centerRestDist: number;
+    rightVector: THREE.Vector3;
+    jugglerJugglingPlaneOrigin: THREE.Object3D;
+    isRightHand: boolean;
 };
 
-class Hand /*implements FollowableTargetInterface*/ {
-    //juggler: Juggler;
-    geometry: THREE.BufferGeometry;
-    material: THREE.Material;
+// TODO : ThrowSite -> TossSite
+
+export function createHandSites({
+    centerRestDist,
+    jugglerJugglingPlaneOrigin,
+    restSiteDist,
+    isRightHand,
+    rightVector
+}: HandSiteCreationParams): {
+    catchSite: THREE.Object3D;
+    throwSite: THREE.Object3D;
+    restSite: THREE.Object3D;
+} {
+    const handSign = isRightHand ? 1 : -1;
+    const centerHandUnitVector = V3SCA(handSign / rightVector.length(), rightVector);
+
+    const restSite = new THREE.Object3D();
+    jugglerJugglingPlaneOrigin.add(restSite);
+    restSite.position.copy(V3SCA(centerRestDist, centerHandUnitVector));
+    const throwSite = new THREE.Object3D();
+    jugglerJugglingPlaneOrigin.add(throwSite);
+    throwSite.position.copy(V3SCA(centerRestDist - restSiteDist, centerHandUnitVector));
+    const catchSite = new THREE.Object3D();
+    jugglerJugglingPlaneOrigin.add(catchSite);
+    catchSite.position.copy(V3SCA(centerRestDist + restSiteDist, centerHandUnitVector));
+
+    return { catchSite: catchSite, throwSite: throwSite, restSite: restSite };
+}
+
+export interface HandConstructorParams {
+    mesh?: THREE.Mesh;
+    catchSite: THREE.Object3D;
+    throwSite: THREE.Object3D;
+    restSite: THREE.Object3D;
+    timeline?: Timeline<number, HandTimelineEvent>;
+}
+
+export class Hand {
     mesh: THREE.Mesh;
     timeline: Timeline<number, HandTimelineEvent>;
-    readonly rest_site_dist: number;
-    readonly is_right_hand: boolean;
-    readonly up_vector: THREE.Vector3;
-    readonly right_vector: THREE.Vector3;
-    readonly origin_object: THREE.Object3D;
-    readonly center_rest_dist: number;
-    local_catch_pos: THREE.Vector3;
-    local_throw_pos: THREE.Vector3;
-    local_rest_pos: THREE.Vector3;
-    // private _simulator_ref: WeakRef<Simulator>;
+    catchSite: THREE.Object3D;
+    throwSite: THREE.Object3D;
+    restSite: THREE.Object3D;
 
-    // Constructs hand ONLY FROM THE JUGGLING PANE ORIGIN
-    constructor(
-        hand_physics_handling: HandPhysicsHandling,
-        is_right_hand: boolean,
-        /*simulator: Simulator,*/
-        timeline?: Timeline<number, HandTimelineEvent>
-    ) {
-        this.geometry = new THREE.SphereGeometry(0.05, 8, 4);
-        this.material = new THREE.MeshPhongMaterial({ color: 0xffdbac });
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        // this.mesh.visible = false;
-        if (timeline === undefined) {
-            this.timeline = new Timeline();
-        } else {
-            this.timeline = structuredClone(timeline);
-        }
-        this.rest_site_dist = hand_physics_handling.rest_site_dist;
-        this.center_rest_dist = hand_physics_handling.center_rest_dist;
-        this.is_right_hand = is_right_hand;
-        this.up_vector = hand_physics_handling.up_vector;
-        this.right_vector = hand_physics_handling.right_vector;
-        this.origin_object = hand_physics_handling.origin_object;
-        const hand_sign = this.is_right_hand ? 1 : -1;
-        const center_hand_unit_vector = V3SCA(hand_sign, this.right_vector);
-        this.local_rest_pos = V3SCA(this.center_rest_dist, center_hand_unit_vector);
-        this.local_throw_pos = V3SCA(
-            this.center_rest_dist - this.rest_site_dist,
-            center_hand_unit_vector
-        );
-        this.local_catch_pos = V3SCA(
-            this.center_rest_dist + this.rest_site_dist,
-            center_hand_unit_vector
-        );
-        // this._simulator_ref = new WeakRef(simulator);
+    constructor({ mesh, catchSite, restSite, throwSite, timeline }: HandConstructorParams) {
+        this.mesh = mesh ?? new THREE.Mesh(createHandGeometry(0.05), createHandMaterial());
+        this.timeline = timeline ?? new Timeline();
+        this.restSite = restSite;
+        this.catchSite = catchSite;
+        this.throwSite = throwSite;
+        // this.jugglingPlaneOrigin = jugglingPlaneOrigin;
+        //TODO : jugglingPlaneOrigin parent in 3D scene of catch throw and rest site ?
+        //Should we do that here or in juggler ?
+
+        // const {
+        //     centerRestDist,
+        //     jugglerJugglingPlaneOrigin: originObject,
+        //     restSiteDist,
+        //     rightVector
+        // } = handPhysicsHandling;
+        // const handSign = isRightHand ? 1 : -1;
+        // const centerHandUnitVector = V3SCA(handSign, rightVector);
+
+        // this.restSite = new THREE.Object3D();
+        // this.restSite.position.copy(V3SCA(centerRestDist, centerHandUnitVector));
+        // this.throwSite = new THREE.Object3D();
+        // this.throwSite.position.copy(V3SCA(centerRestDist - restSiteDist, centerHandUnitVector));
+        // this.catchSite = new THREE.Object3D();
+        // this.catchSite.position.copy(V3SCA(centerRestDist + restSiteDist, centerHandUnitVector));
     }
 
-    // get simulator(): Simulator {
-    //     const obj = this._simulator_ref.deref();
-    //     if (obj === undefined) {
-    //         throw new Error("simulator is undefined");
-    //     }
-    //     return obj;
-    // }
-
-    // set simulator(new_simulator: Simulator) {
-    //     this._simulator_ref = new WeakRef(new_simulator);
-    // }
-
-    site_position(is_thrown: boolean): THREE.Vector3 {
-        return local_to_world_position(
-            is_thrown ? this.local_throw_pos.clone() : this.local_catch_pos.clone(),
-            this.origin_object
-        );
+    sitePosition(is_thrown: boolean): THREE.Vector3 {
+        return is_thrown
+            ? this.throwSite.getWorldPosition(new THREE.Vector3())
+            : this.catchSite.getWorldPosition(new THREE.Vector3());
     }
 
-    velocity_at_event(event: HandEventInterface | null, is_prev?: boolean): THREE.Vector3 {
+    velocityAtEvent(event: HandEventInterface | null, is_prev?: boolean): THREE.Vector3 {
         if (event === null || event instanceof TablePutEvent || event instanceof TableTakeEvent) {
             return new THREE.Vector3(0, 0, 0);
         } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
-            return event.ball.velocity_at_catch_throw_event(event);
+            return event.ball.velocityAtCatchThrowEvent(event);
         } else if (event instanceof HandMultiEvent) {
             const velocities: THREE.Vector3[] = [];
             for (const single_event of event.events) {
                 if (single_event instanceof CatchEvent || single_event instanceof ThrowEvent) {
-                    const velocity = single_event.ball.velocity_at_catch_throw_event(single_event);
+                    const velocity = single_event.ball.velocityAtCatchThrowEvent(single_event);
                     // Hand catch/throw movement scaling.
                     // const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
                     // const next_sca = next_event.is_thrown ? 1 : 1 / 3;
@@ -169,32 +174,32 @@ class Hand /*implements FollowableTargetInterface*/ {
             for (const velocity of velocities) {
                 velocity.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
             }
-            return average_vector(velocities);
+            return averageVector(velocities);
         }
         throw Error("Unimplemented behaviour");
     }
 
-    position_at_event(event: HandEventInterface | null): THREE.Vector3 {
+    positionAtEvent(event: HandEventInterface | null): THREE.Vector3 {
         if (event === null) {
             // console.log(this.mesh.position);
             //TODO : Handle this origin object better ? Easy errors if we put this.mesh instead.
-            return local_to_world_position(this.local_rest_pos, this.origin_object);
+            return this.restSite.getWorldPosition(new THREE.Vector3());
         } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
-            return this.site_position(event instanceof ThrowEvent);
+            return this.sitePosition(event instanceof ThrowEvent);
         } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-            return event.table.hand_position(event.ball);
+            return event.table.handPositionOverBall(event.ball);
         } else if (event instanceof HandMultiEvent) {
             const positions: THREE.Vector3[] = [];
             for (const single_event of event.events) {
                 if (single_event instanceof CatchEvent || single_event instanceof ThrowEvent) {
-                    positions.push(this.site_position(single_event instanceof ThrowEvent));
+                    positions.push(this.sitePosition(single_event instanceof ThrowEvent));
                     // } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
                     //     vectors.push(event.table.ball_position(event.ball.name));
                 } else {
                     throw Error("Unimplemented behaviour");
                 }
             }
-            return average_vector(positions);
+            return averageVector(positions);
         }
         throw Error("Unimplemented behaviour");
     }
@@ -206,38 +211,38 @@ class Hand /*implements FollowableTargetInterface*/ {
     //TODO : Make HandEventInterface[] have its own time ?
     // TODO : Add a little bit of impact based on speed after throw / catch. Ou quand la ball sonne et qu'on la claque dans la main.
     //Rather clamp position ?
-    get_spline(
+    getSpline(
         prev_event: HandTimelineEvent | null,
         next_event: HandTimelineEvent | null
     ): CubicHermiteSpline<THREE.Vector3> {
         let points: THREE.Vector3[], dpoints: THREE.Vector3[], knots: number[];
 
         if (prev_event === null && next_event === null) {
-            points = [this.position_at_event(null)];
-            dpoints = [this.velocity_at_event(null)];
+            points = [this.positionAtEvent(null)];
+            dpoints = [this.velocityAtEvent(null)];
             knots = [0];
             return new CubicHermiteSpline(VECTOR3_STRUCTURE, points, dpoints, knots);
         }
-        points = [this.position_at_event(prev_event), this.position_at_event(next_event)];
-        dpoints = [this.velocity_at_event(prev_event), this.velocity_at_event(next_event)];
+        points = [this.positionAtEvent(prev_event), this.positionAtEvent(next_event)];
+        dpoints = [this.velocityAtEvent(prev_event), this.velocityAtEvent(next_event)];
         if (prev_event === null) {
-            knots = [next_event!.time - next_event!.unit_time, next_event!.time];
+            knots = [next_event!.time - next_event!.unitTime, next_event!.time];
         } else if (next_event === null) {
-            knots = [prev_event.time, prev_event.time + prev_event.unit_time];
+            knots = [prev_event.time, prev_event.time + prev_event.unitTime];
         } else {
             knots = [prev_event.time, next_event.time];
             //If two much time sperate the previous from the next event, we add some rest.
             if (
-                prev_event.time + 1.2 * prev_event.unit_time <
-                next_event.time - 1.2 * next_event.unit_time
+                prev_event.time + 1.2 * prev_event.unitTime <
+                next_event.time - 1.2 * next_event.unitTime
             ) {
-                points.splice(1, 0, this.position_at_event(null), this.position_at_event(null));
+                points.splice(1, 0, this.positionAtEvent(null), this.positionAtEvent(null));
                 dpoints.splice(1, 0, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0));
                 knots.splice(
                     1,
                     0,
-                    prev_event.time + 1.2 * prev_event.unit_time,
-                    next_event.time - 1.2 * next_event.unit_time
+                    prev_event.time + 1.2 * prev_event.unitTime,
+                    next_event.time - 1.2 * next_event.unitTime
                 );
             }
         }
@@ -293,9 +298,9 @@ class Hand /*implements FollowableTargetInterface*/ {
     // }
 
     position(time: number): THREE.Vector3 {
-        const [, prev_event] = this.timeline.prev_event(time);
-        const [, next_event] = this.timeline.next_event(time);
-        const spline = this.get_spline(prev_event, next_event);
+        const [, prev_event] = this.timeline.prevEvent(time);
+        const [, next_event] = this.timeline.nextEvent(time);
+        const spline = this.getSpline(prev_event, next_event);
         return spline.interpolate(time);
     }
 
@@ -319,29 +324,37 @@ class Hand /*implements FollowableTargetInterface*/ {
     //     return this.mesh.localToWorld(vec).sub(this.mesh.localToWorld(new THREE.Vector3(0, 0, 0)));
     // }
 
-    //TODO : Pas ouf que _origin_object soit utilisé ici. Changer la classe ?
-    //Faire uniquement avec mesh en faisant offset ?
-    //Note : suppose que le jongleur ne bouge pas.
     render = (time: number): void => {
-        // console.log("1", this.mesh.position);
-        this.mesh.position.copy(world_to_local_position(this.position(time), this.origin_object));
-        // console.log("2", this.mesh.position);
+        const worldPosition = this.position(time);
+        const localPosition =
+            this.mesh.parent === null
+                ? worldPosition
+                : this.mesh.parent.worldToLocal(worldPosition);
+        this.mesh.position.copy(localPosition);
+        // this.mesh.position.copy(worldToLocalPosition(this.position(time)));
     };
 
     /**
      * Properly deletes the resources. Call when instance is not needed anymore to free ressources.
      */
+    //TODO
     dispose(): void {
         if (this.mesh.parent !== null) {
             this.mesh.parent.remove(this.mesh);
         }
-        this.geometry.dispose();
-        this.material.dispose();
+        // this.geometry.dispose();
+        // this.material.dispose();
         this.timeline.clear();
     }
 }
 
-export { Hand };
+export function createHandGeometry(radius: number) {
+    return new THREE.SphereGeometry(radius, 8, 4); //Def radius : 0.05
+}
+
+export function createHandMaterial(color: THREE.ColorRepresentation = 0xffdbac) {
+    return new THREE.MeshPhongMaterial({ color: color });
+}
 
 // import * as THREE from "three";
 // import { VECTOR3_STRUCTURE } from "./constants";
