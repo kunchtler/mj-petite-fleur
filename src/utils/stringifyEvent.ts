@@ -38,7 +38,7 @@ export function stringifyEvents<T extends EventType>(
             if (musicConverter === undefined) {
                 text += `Beat ${stringifyFraction(beat)}`;
             } else {
-                const [measure, relBeat] = musicConverter.convertAbsoluteBeat(beat);
+                const [measure, relBeat] = musicConverter.convertBeatToMeasure(beat);
                 text += `Measure ${measure}, Beat ${stringifyFraction(relBeat)}`;
             }
             text += "\n\t";
