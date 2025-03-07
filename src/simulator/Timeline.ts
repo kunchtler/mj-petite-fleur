@@ -65,14 +65,14 @@ export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType>
         }
     }
 
-    startTime(): KeyType | null {
-        const it = this.begin();
-        return it.isAccessible() ? it.pointer[0] : null;
-    }
-
-    endTime(): KeyType | null {
-        const it = this.rBegin();
-        return it.isAccessible() ? it.pointer[0] : null;
+    timeBounds(): [KeyType, KeyType] | [null, null] {
+        const itBegin = this.begin();
+        const itEnd = this.rBegin();
+        if (!itBegin.isAccessible()) {
+            // We can access the beginning if and only if we can access the end.
+            return [null, null];
+        }
+        return [itBegin.pointer[0], itEnd.pointer[0]];
     }
 
     prettyPrint(

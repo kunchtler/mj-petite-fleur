@@ -1,15 +1,18 @@
 import * as THREE from "three";
 import { createHandSites, Hand, HandConstructorParams, HandSiteCreationParams } from "./Hand";
-import { Object3DHelper } from "../utils/Object3DHelper";
-import { find_elbow } from "../utils/utils";
+// import { Object3DHelper } from "../utils/Object3DHelper";
+// import { find_elbow } from "../utils/utils";
 import { Table } from "./Table";
+import { start } from "tone";
+
+// Bowling Pin Model
 
 // const loader = new GLTFLoader();
 // loader.load(
 //     "bowling_pin.glb",
 //     function (gltf) {
 //         const pin = new THREE.Object3D();
-//         // scene.add(pin);
+//         scene.add(pin);
 //         pin.add(gltf.scene);
 //         gltf.scene.scale.multiplyScalar(5);
 //         // @ts-ignore
@@ -156,6 +159,22 @@ export class Juggler {
 
     set leftHand(hand: Hand) {
         this.hands[1] = hand;
+    }
+
+    patternTimeBounds(): [number, number] | [null, null] {
+        let startTime: number | null = null;
+        let endTime: number | null = null;
+        for (const hand of this.hands) {
+            const [handStartTime, handEndTime] = hand.timeline.timeBounds();
+            if (startTime === null || (handStartTime !== null && startTime > handStartTime)) {
+                startTime = handStartTime;
+            }
+            if (endTime === null || (handEndTime !== null && endTime > handEndTime)) {
+                endTime = handEndTime;
+            }
+        }
+        // @ts-expect-error startTime is null if and only if endTime is null too.
+        return [startTime, endTime];
     }
 
     render = (time: number): void => {
