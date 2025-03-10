@@ -112,8 +112,8 @@ export interface BallEventInterface extends BaseEvent {
     errorBallStatus: string;
     nextBallEvent(): [number, BallTimelineEvent] | [null, null];
     prevBallEvent(): [number, BallTimelineEvent] | [null, null];
-    playSound?: string;
-    // playSoundTillNextEvent?: string;
+    sound?: { name: string | string[]; loop?: boolean };
+    // soundNameTillNextEvent?: string;
 }
 
 //TODO : Handle unit_time ?
@@ -131,18 +131,18 @@ export class AbstractBallHandEvent extends BaseEvent implements BallEventInterfa
     private _handRef: WeakRef<Hand>;
     unitTime: number;
     readonly errorBallStatus: string = "unnamed attribute";
-    playSound?: string;
+    sound?: { name: string | string[]; loop?: boolean };
 
     constructor({
         time,
         unitTime,
-        playSound,
+        sound,
         ball,
         hand
     }: {
         time: number;
         unitTime: number;
-        playSound?: string;
+        sound?: { name: string | string[]; loop?: boolean };
         ball: Ball;
         hand: Hand;
     }) {
@@ -150,7 +150,7 @@ export class AbstractBallHandEvent extends BaseEvent implements BallEventInterfa
         this.unitTime = unitTime;
         this._ballRef = new WeakRef(ball);
         this._handRef = new WeakRef(hand);
-        this.playSound = playSound;
+        this.sound = sound;
     }
 
     get ball(): Ball {
@@ -236,16 +236,16 @@ export class AbstractTableEvent extends AbstractBallHandEvent {
         ball,
         hand,
         table,
-        playSound
+        sound
     }: {
         time: number;
         unitTime: number;
         ball: Ball;
         hand: Hand;
         table: Table;
-        playSound?: string;
+        sound?: { name: string | string[]; loop?: boolean };
     }) {
-        super({ time, unitTime, ball, hand, playSound });
+        super({ time, unitTime, ball, hand, sound });
         this.table = table;
     }
 }
