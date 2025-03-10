@@ -9,32 +9,23 @@ import {
     Timeline,
     BallTimelineEvent
 } from "./Timeline";
-import * as Tone from "tone";
 import { Juggler } from "./Juggler";
 
 //TODO : Replace type BallEventInterface by BallTimelineEvent in functions signatures ?
 // TODO : CamelCase for every variable.
-
-// function thrown_ball_velocity(
-//     pos0: THREE.Vector3,
-//     t0: number,
-//     pos1: THREE.Vector3,
-//     t1: number,
-//     t: number
-// ): THREE.Vector3 {
-//     const v0 = thrown_ball_velocity_at_start_end(pos0, t0, pos1, t1, true);
-//     return new THREE.Vector3(v0.x, -GRAVITY * t + v0.y, v0.z);
-// }
+//TODO : Make errors thrown be console log when not in debug mode to prevent app blocking ?
 
 interface BallConstructorInterface {
     radius: number;
     mesh: THREE.Mesh;
     name?: string;
-    sound?: Tone.Players | Tone.Player | string;
-    panner3D?: Tone.Panner3D;
     timeline?: Timeline<number, BallTimelineEvent>;
     // default_table?: Table;
     defaultJuggler?: Juggler;
+    sound?: {
+        node: THREE.Audio | THREE.PositionalAudio;
+        buffers: Map<string, AudioBuffer>;
+    };
 }
 
 // function create_audio(note_name: string): HTMLAudioElement {
@@ -46,40 +37,39 @@ interface BallConstructorInterface {
 //TODO : Checks that hand/ball examined is indeed for this ball / hand and not another ?
 //TODO : Remove Tone to only use WebAudio API / THREEjs audio.
 //TODO : Better handling of sound when ball is caught / is launched / is flying (unify this ?)
+//TODO : At some point, custom sound nodes ?
+//TODO : Pause / Unpause sound.
 
 export class Ball {
     readonly radius: number;
     mesh: THREE.Mesh;
     name: string;
     timeline: Timeline<number, BallTimelineEvent>;
-    sound?: Tone.Players | Tone.Player;
-    panner3D?: Tone.Panner3D;
+    sound?: {
+        node: THREE.Audio | THREE.PositionalAudio;
+        buffers: Map<string, AudioBuffer>;
+    };
     defaultJuggler?: Juggler;
     // defaultTable?: Table;
-    private _prevTime = 0;
+    private _prevTime?: number;
 
     constructor({
         radius,
         mesh,
         name,
-        sound,
-        panner3D,
         timeline,
         // default_table,
-        defaultJuggler
+        defaultJuggler,
+        sound
     }: BallConstructorInterface) {
         this.radius = radius;
         this.mesh = mesh;
         this.timeline = timeline ?? new Timeline();
-        if (typeof sound === "string") {
-            // Define a ball by its note.
-            throw new Error("Not implemented yet");
-        }
-        this.sound = sound;
-        this.panner3D = panner3D;
         this.name = name ?? "None";
         // this.defaultTable = default_table;
         this.defaultJuggler = defaultJuggler;
+        this.sound = sound;
+        this._prevTime = undefined;
     }
 
     //TODO : Move this as static for events
@@ -154,7 +144,7 @@ export class Ball {
             }
             if (nextEvent instanceof CatchEvent || nextEvent instanceof TableTakeEvent) {
                 this.throwTimelineError(prevEvent, nextEvent);
-            }
+            } //Stop the looping if was set to loop.
         }
         if (prevEvent instanceof ThrowEvent) {
             if (nextEvent instanceof CatchEvent) {
@@ -324,45 +314,69 @@ export class Ball {
     //     throw Error("Unimplemented behaviour");
     // }
 
+    playSound(soundName?: string, loop = false): void {
+        if (this.sound === undefined) {
+            console.log(
+                `Ball ${this.name} can't play sound as it has no AudioNode nor AudioBuffers.`
+            );
+            return;
+        }
+        if (soundName === undefined) {
+            console.log(`Ball ${this.name} doesn't know what sound to play.`);
+            return;
+        }
+        const soundBuffer = this.sound.buffers.get(soundName);
+        if (soundBuffer === undefined) {
+            console.log(`Ball ${this.name} has no known sound "${soundName}" in buffer to play.`);
+            return;
+        }
+        if (this.sound.node.isPlaying) {
+            this.sound.node.stop();
+        }
+        this.sound.node.setBuffer(soundBuffer);
+        this.sound.node.setLoop(loop);
+        this.sound.node.play();
+    }
+
     //TODO : make it so that event.sound if array or undefined in constructor ?
     //TODO : method should rather be in simulator ?
     //TODO : Make it so if the ball has sounds, there are options to play on every event, or catch, or throw.
     //TODO : Make it so if the ball falls after a throw it makes a sound
     //TODO : Rename to play_sound, and have it executed on all events rather than just ball.
-    playOnCatch(time: number): void {
-        const prev_event = this.timeline.prevEvent(time)[1];
-        if (prev_event === null) {
-            this._prevTime = time;
-            return;
-        }
-        if (prev_event.soundName !== null && this._prevTime <= prev_event.time) {
-            // Play a sound
-            if (this.sound instanceof Tone.Players) {
-                const sound_name = prev_event.random_sound_name();
-                this.sound.player(sound_name).start();
-            } else if (this.sound instanceof Tone.Player) {
-                this.sound.start();
-            }
-        }
-        this._prevTime = time;
-        // const prev_event = this.timeline.prev_event(time)[1];
-        // if (
-        //     prev_event !== null &&
-        //     prev_event instanceof CatchEvent &&
-        //     this._prev_time <= prev_event.time
-        // ) {
-        //     // Play a sound
-        //     if (this.sound instanceof Tone.Players) {
-        //         if (prev_event.sound_name !== null) {
-        //             const sound_name = prev_event.random_sound_name();
-        //             this.sound.player(sound_name).start();
-        //         }
-        //     } else if (this.sound instanceof Tone.Player) {
-        //         this.sound.start();
-        //     }
-        // }
-        // this._prev_time = time;
-    }
+    // playOnCatch(time: number): void {
+    //     const prev_event = this.timeline.prevEvent(time)[1];
+    //     if (prev_event === null) {
+    //         this._prevTime = time;
+    //         return;
+    //     }
+    //     if (prev_event.soundName !== null && this._prevTime <= prev_event.time) {
+    //         // Play a sound
+    //         if (this.sound instanceof Tone.Players) {
+    //             const sound_name = prev_event.random_sound_name();
+    //             this.sound.player(sound_name).start();
+    //         } else if (this.sound instanceof Tone.Player) {
+    //             this.sound.start();
+    //         }
+    //     }
+    //     this._prevTime = time;
+    // const prev_event = this.timeline.prev_event(time)[1];
+    // if (
+    //     prev_event !== null &&
+    //     prev_event instanceof CatchEvent &&
+    //     this._prev_time <= prev_event.time
+    // ) {
+    //     // Play a sound
+    //     if (this.sound instanceof Tone.Players) {
+    //         if (prev_event.sound_name !== null) {
+    //             const sound_name = prev_event.random_sound_name();
+    //             this.sound.player(sound_name).start();
+    //         }
+    //     } else if (this.sound instanceof Tone.Player) {
+    //         this.sound.start();
+    //     }
+    // }
+    // this._prev_time = time;
+    // }
 
     /**
      * Updates the ball's position.
@@ -372,8 +386,26 @@ export class Ball {
         //Receives the time in seconds.
         const position = this.position(time);
         this.mesh.position.copy(position);
-        this.panner3D?.setPosition(position.x, position.y, position.z);
     };
+
+    triggerSound(time: number, isPaused: boolean): void {
+        const prevEventInfo = this.timeline.prevEvent(time);
+        if (prevEventInfo[0] !== null && !isPaused) {
+            const [prevEventTime, { sound: soundToPlay }] = prevEventInfo;
+            if (this._prevTime !== undefined && this._prevTime <= prevEventTime) {
+                if (soundToPlay === undefined) {
+                    //Stop the previous sound (in case it was looping for instance).
+                    this.sound?.node.stop();
+                } else if (typeof soundToPlay.name === "string") {
+                    this.playSound(soundToPlay.name, soundToPlay.loop);
+                } else {
+                    const random_idx = Math.floor(Math.random() * soundToPlay.name.length);
+                    this.playSound(soundToPlay.name[random_idx], soundToPlay.loop);
+                }
+            }
+        }
+        this._prevTime = time;
+    }
 
     /**
      * Properly deletes the resources. Call when instance is not needed anymore to free ressources. nullify all reference
@@ -384,13 +416,13 @@ export class Ball {
         }
         // this.geometry.dispose();
         // this.material.dispose();
-        if (this.sound instanceof Tone.Player) {
-            this.sound.stop();
-        } else if (this.sound instanceof Tone.Players) {
-            this.sound.stopAll();
-        }
-        this.sound?.dispose();
-        this.panner3D?.dispose();
+        // if (this.sound instanceof Tone.Player) {
+        //     this.sound.stop();
+        // } else if (this.sound instanceof Tone.Players) {
+        //     this.sound.stopAll();
+        // }
+        // this.sound?.dispose();
+        // this.panner3D?.dispose();
         this.timeline.clear();
     }
 }
@@ -432,3 +464,14 @@ function thrownBallPosition(
         v0.z * (t - t0) + pos0.z
     );
 }
+
+// function thrownBallVelocity(
+//     pos0: THREE.Vector3,
+//     t0: number,
+//     pos1: THREE.Vector3,
+//     t1: number,
+//     t: number
+// ): THREE.Vector3 {
+//     const v0 = thrown_ball_velocity_at_start_end(pos0, t0, pos1, t1, true);
+//     return new THREE.Vector3(v0.x, -GRAVITY * t + v0.y, v0.z);
+// }
