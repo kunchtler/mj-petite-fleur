@@ -1,15 +1,16 @@
 // Si on fait des play/pause constamment, this.media.currentTime n'aura pas forcément le temps de bien s'update.
 //TODO : At some point, rather than CustomEvents, use Signals/Observer library ?
+//TODO : Streamline TimeController / TimeConductor / AudioPalyer names ?
 
-interface TimeConductorParam {
-    minTime?: number;
-    maxTime?: number;
+import { TimeController } from "./Simulator";
+
+export interface TimeConductorParam {
     startTime?: number;
     playbackRate?: number;
     autoplay?: boolean;
 }
 
-class TimeConductor {
+export class TimeConductor implements TimeController {
     private _lastUpdateTime: number;
     private _lastKnownTime: number;
     private _playbackRate: number;
@@ -17,14 +18,14 @@ class TimeConductor {
     _eventTarget: EventTarget;
     private _timeupdateInterval?: number;
 
-    constructor({ startTime = 0, playbackRate = 1, autoplay = false }: TimeConductorParam) {
+    constructor({ startTime, playbackRate, autoplay }: TimeConductorParam = {}) {
         this._lastUpdateTime = performance.now() / 1000;
-        this._lastKnownTime = startTime;
-        this._playbackRate = playbackRate;
+        this._lastKnownTime = startTime ?? 0;
+        this._playbackRate = playbackRate ?? 1.0;
         this._eventTarget = new EventTarget();
         this._paused = true;
 
-        if (autoplay) {
+        if (autoplay === true) {
             this.play().catch(() => {
                 throw new Error();
             });
@@ -83,9 +84,17 @@ class TimeConductor {
     get playing(): boolean {
         return !this._paused;
     }
+
+    getTime(): number {
+        return this.currentTime;
+    }
+
+    isPaused(): boolean {
+        return this.paused;
+    }
 }
 
-class MediaPlayer {
+export class MediaPlayer implements TimeController {
     media: HTMLMediaElement;
     _lastUpdateTime: number;
     _lastKnownTime: number;
@@ -150,6 +159,12 @@ class MediaPlayer {
     get readyState(): number {
         return this.media.readyState;
     }
-}
 
-export { TimeConductor, MediaPlayer };
+    getTime(): number {
+        return this.currentTime;
+    }
+
+    isPaused(): boolean {
+        return this.paused;
+    }
+}
