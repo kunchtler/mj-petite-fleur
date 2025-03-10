@@ -69,9 +69,9 @@ export interface PartialToss2 {
     ball: Ball;
 }
 
-export interface SimulatorToss {
-    from: { juggler: string; rightHand: boolean; beat: Fraction };
-    to: { juggler: string; rightHand: boolean; beat: Fraction };
+export interface SimulatorToss<BeatT> {
+    from: { juggler: string; rightHand: boolean; beat: BeatT };
+    to: { juggler: string; rightHand: boolean; beat: BeatT };
     ball: Ball;
 }
 
@@ -89,7 +89,7 @@ export interface SchedulerCompletedEvent {
 }
 
 export interface SimulatorEvent {
-    tosses?: SimulatorToss[];
+    tosses?: SimulatorToss<Fraction>[];
     tempo?: Fraction;
     hands?: BallsInHands;
     newDefaultHand?: "L" | "R";
@@ -114,7 +114,7 @@ export interface SchedulerParams {
 
 export type SchedulerRes = Map<
     string,
-    { tosses: SimulatorToss[]; states: FracSortedList<JugglerState> }
+    { tosses: SimulatorToss<Fraction>[]; states: FracSortedList<JugglerState> }
 >;
 //TODO : Document that by default hands have LIFO structure.
 //TODO : Make Generic version for the fun of it ?
@@ -663,9 +663,9 @@ class JugglerManager {
     addTossesToState(
         tosses: PartialToss2[],
         state: JugglerState
-    ): { tosses: SimulatorToss[]; state: JugglerState } {
+    ): { tosses: SimulatorToss<Fraction>[]; state: JugglerState } {
         state = cloneState(state);
-        const completedTosses: SimulatorToss[] = [];
+        const completedTosses: SimulatorToss<Fraction>[] = [];
         for (const toss of tosses) {
             // Check if the ball would be received off-beat.
             let prevEventIdx = this.getPreviousEventIdx(toss.to.beat);
