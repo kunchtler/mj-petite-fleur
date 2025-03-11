@@ -1,8 +1,9 @@
 // Si on fait des play/pause constamment, this.media.currentTime n'aura pas forcément le temps de bien s'update.
 //TODO : At some point, rather than CustomEvents, use Signals/Observer library ?
 //TODO : Streamline TimeController / TimeConductor / AudioPalyer names ?
+//TODO : Rename as Clock ?
 
-import { TimeController } from "./Simulator";
+import { Simulator, TimeController } from "./Simulator";
 
 export interface TimeConductorParam {
     startTime?: number;
@@ -52,6 +53,7 @@ export class TimeConductor implements TimeController {
     set currentTime(time: number) {
         this._lastUpdateTime = performance.now() / 1000;
         this._lastKnownTime = time;
+        this._eventTarget.dispatchEvent(new CustomEvent("manualupdate"));
     }
 
     get currentTime(): number {
@@ -92,6 +94,18 @@ export class TimeConductor implements TimeController {
     isPaused(): boolean {
         return this.paused;
     }
+}
+
+// TODO : For simulator, rather use the div containing the simulator + add clock as div ?
+// So that events can propagate through the DOM ?
+// TODO : Once react, use parent that will bind this elems together.
+export function bindTimeConductorAndSimulator(timeconductor: TimeConductor, simulator: Simulator) {
+    timeconductor._eventTarget.addEventListener("pause", simulator.requestPause.bind(simulator));
+    timeconductor._eventTarget.addEventListener("play", simulator.requestPlay.bind(simulator));
+    timeconductor._eventTarget.addEventListener(
+        "manualupdate",
+        simulator.requestRenderIfNotRequested
+    );
 }
 
 export class MediaPlayer implements TimeController {
