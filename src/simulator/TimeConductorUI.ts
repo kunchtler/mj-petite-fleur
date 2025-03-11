@@ -3,6 +3,8 @@
 
 import { TimeConductor } from "./AudioPlayer";
 
+//TODO : Rework how simulator / timeconductor connect.
+
 export function createControls(htmlElem: HTMLElement, timeConductor: TimeConductor): void {
     const controlElem = document.createElement("div");
     controlElem.className = "controls";
@@ -10,8 +12,9 @@ export function createControls(htmlElem: HTMLElement, timeConductor: TimeConduct
     playPauseButton.className = "play-button";
     const playIcon = document.createElement("img");
     playIcon.className = "icon";
+    playIcon.src = "icons/play.svg";
     const seekBar = document.createElement("input");
-    seekBar.className = "time_slider";
+    seekBar.className = "slider";
     seekBar.type = "range";
     seekBar.min = "0";
     seekBar.max = "20";
