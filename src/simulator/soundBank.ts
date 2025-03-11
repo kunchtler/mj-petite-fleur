@@ -38,6 +38,7 @@ export async function getNoteBuffer(
     }
 }
 
+//TODO : Extend with french note names + abc notation rules.
 export const validNoteNames = new Map<string, string>([
     ["A0", "A0"],
     ["A#0", "A#0"],
@@ -168,5 +169,23 @@ export const validNoteNames = new Map<string, string>([
     ["A7", "A7"],
     ["A#7", "A#7"],
     ["Bb7", "A#7"],
-    ["B7", "B7"]
+    ["B7", "B7"],
+
+    ["C", "C4"],
+    ["C#", "C#4"],
+    ["Db", "C#4"],
+    ["D", "D4"],
+    ["D#", "D#4"],
+    ["Eb", "D#4"],
+    ["E", "E4"],
+    ["F", "F4"],
+    ["F#", "F#4"],
+    ["Gb", "F#4"],
+    ["G", "G4"],
+    ["G#", "G#4"],
+    ["Ab", "G#4"],
+    ["A", "A4"],
+    ["A#", "A#4"],
+    ["Bb", "A#4"],
+    ["B", "B4"]
 ]);
