@@ -20,6 +20,8 @@ import { Table } from "./Table";
 //TODO : Custom method or readonly to change scene, etc, so as not to have user use this functions
 //And break things (for instance : changing controls without removing / adding the eventListener)
 
+//TODO : onended.
+
 //TODO : Create default class implementing TimeController.
 // The TimeController Interface is used to connect the simulator to an interface.
 // It should implement a method getTime (to allow the simulator to know what frame to render, in milliseconds).
@@ -167,9 +169,10 @@ export class Simulator {
         }
         this.jugglers.set(name, juggler);
         if (position !== undefined) {
-        juggler.mesh.position.set(position.x, position.y, position.z);
+            juggler.mesh.position.set(position.x, position.y, position.z);
         }
         this.scene.add(juggler.mesh);
+        this.requestRenderIfNotRequested();
     }
 
     removeJuggler(name: string): void {
@@ -179,6 +182,7 @@ export class Simulator {
             this.scene.remove(juggler.mesh);
             juggler.dispose();
         }
+        this.requestRenderIfNotRequested();
     }
 
     addBall(name: string, ball: Ball) {
@@ -188,6 +192,7 @@ export class Simulator {
         }
         this.balls.set(name, ball);
         this.scene.add(ball.mesh);
+        this.requestRenderIfNotRequested();
     }
 
     removeBall(name: string): void {
@@ -196,6 +201,7 @@ export class Simulator {
             this.balls.delete(name);
             this.scene.remove(ball.mesh);
             ball.dispose();
+            this.requestRenderIfNotRequested();
         }
     }
 
@@ -206,6 +212,7 @@ export class Simulator {
         }
         this.tables.set(name, table);
         this.scene.add(table.mesh);
+        this.requestRenderIfNotRequested();
     }
 
     removeTable(name: string): void {
@@ -215,6 +222,7 @@ export class Simulator {
             this.scene.remove(table.mesh);
             table.dispose();
         }
+        this.requestRenderIfNotRequested();
     }
 
     requestPlay(): void {
