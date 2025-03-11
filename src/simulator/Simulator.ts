@@ -160,13 +160,15 @@ export class Simulator {
     }
 
     //TODO method to facilitate not having to add balls to the scene
-    addJuggler(name: string, juggler: Juggler, position: THREE.Vector3): void {
+    addJuggler(name: string, juggler: Juggler, position?: THREE.Vector3): void {
         if (this.jugglers.has(name)) {
             console.log(`Overriding existing juggler ${name}.`);
             this.removeJuggler(name);
         }
         this.jugglers.set(name, juggler);
+        if (position !== undefined) {
         juggler.mesh.position.set(position.x, position.y, position.z);
+        }
         this.scene.add(juggler.mesh);
     }
 
