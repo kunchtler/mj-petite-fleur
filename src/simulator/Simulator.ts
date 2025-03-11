@@ -232,7 +232,7 @@ export class Simulator {
 
     // TODO : Should be private (as it should be interacted with requestPlay/Pause
     // instead of directly ?
-    private render = (): void => {
+    private render(): void {
         resizeRendererToDisplaySize(this.renderer, this.camera);
 
         const simulatorTime = this.timeController.getTime();
@@ -248,9 +248,9 @@ export class Simulator {
         if (!this._paused) {
             this.requestRenderIfNotRequested();
         }
-    };
+    }
 
-    requestRenderIfNotRequested = createRequestRenderIfNotRequestedFunction(this.render);
+    requestRenderIfNotRequested = createRequestRenderIfNotRequestedFunction(this.render.bind(this));
 
     getPatternDuration(): [number, number] | [null, null] {
         let startTime: number | null = null;
