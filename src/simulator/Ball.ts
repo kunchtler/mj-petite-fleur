@@ -99,7 +99,7 @@ export class Ball {
         ) {
             //TableTakeEvent for now here as the ball teleports from table to hand, so is in hand.
             //With proper animations, could change.
-            return event.hand.positionAtEvent(event);
+            return event.hand.positionAtEvent(event.handMultiEvent());
         } else if (event instanceof TablePutEvent) {
             return event.table.ballPosition(this);
         }
@@ -153,16 +153,16 @@ export class Ball {
         if (prevEvent instanceof ThrowEvent) {
             if (nextEvent instanceof CatchEvent) {
                 return thrownBallPosition(
-                    prevEvent.hand.positionAtEvent(prevEvent),
+                    prevEvent.hand.positionAtEvent(prevEvent.handMultiEvent()),
                     prevEvent.time,
-                    nextEvent.hand.positionAtEvent(nextEvent),
+                    nextEvent.hand.positionAtEvent(nextEvent.handMultiEvent()),
                     nextEvent.time,
                     time
                 );
             }
             if (nextEvent instanceof TablePutEvent) {
                 return thrownBallPosition(
-                    prevEvent.hand.positionAtEvent(prevEvent),
+                    prevEvent.hand.positionAtEvent(prevEvent.handMultiEvent()),
                     prevEvent.time,
                     nextEvent.table.ballPosition(this),
                     nextEvent.time,

@@ -67,6 +67,7 @@ export interface HandEventInterface extends BaseEvent {
     unitTime: number;
     nextHandEvent(): [number, HandTimelineEvent] | [null, null];
     prevHandEvent(): [number, HandTimelineEvent] | [null, null];
+    handMultiEvent(): HandTimelineEvent | null;
 }
 
 export class AbstractBallHandEvent implements BallEventInterface, HandEventInterface {
@@ -136,6 +137,11 @@ export class AbstractBallHandEvent implements BallEventInterface, HandEventInter
     nextHandEvent(): [number, HandTimelineEvent] | [null, null] {
         return this.hand.timeline.nextEvent(this.time);
     }
+
+    handMultiEvent(): HandTimelineEvent | null {
+        const it = this.hand.timeline.find(this.time);
+        return it.isAccessible() ? it.pointer[1] : null;
+    }
 }
 
 //TODO : Move sound_name to AbstractBallEvent as we don't want hand to make sound.
@@ -169,6 +175,11 @@ export class AbstractHandEvent implements HandEventInterface {
 
     nextHandEvent(): [number, HandTimelineEvent] | [null, null] {
         return this.hand.timeline.nextEvent(this.time);
+    }
+
+    handMultiEvent(): HandTimelineEvent | null {
+        const it = this.hand.timeline.find(this.time);
+        return it.isAccessible() ? it.pointer[1] : null;
     }
 }
 
