@@ -7,7 +7,8 @@ import {
     TablePutEvent,
     TableTakeEvent,
     Timeline,
-    BallTimelineEvent
+    BallTimelineEvent,
+    BallTimeline
 } from "./Timeline";
 import { Juggler } from "./Juggler";
 
@@ -19,7 +20,7 @@ interface BallConstructorInterface {
     radius?: number;
     mesh?: THREE.Mesh;
     name?: string;
-    timeline?: Timeline<number, BallTimelineEvent>;
+    timeline?: BallTimeline;
     // default_table?: Table;
     defaultJuggler?: Juggler;
     sound?: {
@@ -44,7 +45,7 @@ export class Ball {
     readonly radius: number;
     mesh: THREE.Mesh;
     name: string;
-    timeline: Timeline<number, BallTimelineEvent>;
+    timeline: BallTimeline;
     sound?: {
         node: THREE.Audio | THREE.PositionalAudio;
         buffers: Map<string, AudioBuffer>;
@@ -65,7 +66,7 @@ export class Ball {
         this.radius = radius ?? 0.1;
         this.mesh =
             mesh ?? new THREE.Mesh(createBallGeometry(this.radius), createBallMaterial("red"));
-        this.timeline = timeline ?? new Timeline();
+        this.timeline = timeline ?? new BallTimeline();
         this.name = name ?? "None";
         // this.defaultTable = default_table;
         this.defaultJuggler = defaultJuggler;
