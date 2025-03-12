@@ -9,8 +9,11 @@ import {
     ThrowEvent,
     Timeline,
     HandTimelineEvent,
-    HandMultiEvent
+    HandTimelineSingleEvent,
+    HandMultiEvent,
+    HandTimeline
 } from "./Timeline";
+import { Object3DHelper } from "../utils/ThreeUtils";
 
 //TODO : Change the fact that all methods have get in front of them
 //TODO : Change instanceof to string type as it is faster ?
@@ -27,28 +30,6 @@ const { multiply_by_scalar: V3SCA } = VECTOR3_STRUCTURE;
 // This variable serves to make hand movements more circular.
 // const power = 1;
 
-/**
- * Converts a vector (in the mathematical sense) from world to local coordinates.
- * @param vec a Vector3 in world coordinates.
- * @param obj the target Object3D for local coordinates.
- * @returns a vector in local coordinates.
- */
-function worlToLocalVector(vec: THREE.Vector3, obj: THREE.Object3D) {
-    return obj.worldToLocal(vec.clone()).sub(obj.worldToLocal(new THREE.Vector3(0, 0, 0)));
-}
-
-function localToWorldVector(vec: THREE.Vector3, obj: THREE.Object3D) {
-    return obj.localToWorld(vec.clone()).sub(obj.localToWorld(new THREE.Vector3(0, 0, 0)));
-}
-
-function worldToLocalPosition(pos: THREE.Vector3, obj: THREE.Object3D) {
-    return obj.worldToLocal(pos.clone());
-}
-
-function localToWorldPosition(pos: THREE.Vector3, obj: THREE.Object3D) {
-    return obj.localToWorld(pos.clone());
-}
-
 function averageVector(vectors: THREE.Vector3[]): THREE.Vector3 {
     const sum = new THREE.Vector3(0, 0, 0);
     if (vectors.length === 0) {
@@ -61,6 +42,28 @@ function averageVector(vectors: THREE.Vector3[]): THREE.Vector3 {
     return sum;
 }
 
+//TODO : Before launching simulation, console.log all events not sane to help debug.
+//TODO : Reversed catches in parser (to better allow rhtyhmic creation ?)
+function isMultiEventSane(events: HandTimelineEvent): boolean {
+    let nbCatch = 0;
+    let nbThrow = 0;
+    let nbTableTake = 0;
+    let nbTablePut = 0;
+    for (const ev of events.events) {
+        if (ev instanceof CatchEvent) {
+            nbCatch++;
+        } else if (ev instanceof ThrowEvent) {
+            nbThrow++;
+        } else if (ev instanceof TableTakeEvent) {
+            nbTableTake++;
+        } else {
+            nbTablePut++;
+        }
+    }
+    const sum = nbCatch + nbThrow + nbTablePut + nbTableTake;
+    return sum === nbCatch + nbThrow || sum === 1;
+}
+
 export type HandSiteCreationParams = {
     restSiteDist: number;
     centerRestDist: number;
@@ -70,6 +73,8 @@ export type HandSiteCreationParams = {
 };
 
 // TODO : ThrowSite -> TossSite
+//TODO : Add to all classes having to add child/parent meshes that if mesh has no parent, ot
+//instanciates it.
 
 export function createHandSites({
     centerRestDist,
@@ -103,22 +108,28 @@ export interface HandConstructorParams {
     catchSite: THREE.Object3D;
     throwSite: THREE.Object3D;
     restSite: THREE.Object3D;
-    timeline?: Timeline<number, HandTimelineEvent>;
+    timeline?: HandTimeline;
+    debug?: boolean;
 }
 
 export class Hand {
     mesh: THREE.Mesh;
-    timeline: Timeline<number, HandTimelineEvent>;
+    timeline: HandTimeline;
     catchSite: THREE.Object3D;
     throwSite: THREE.Object3D;
     restSite: THREE.Object3D;
 
-    constructor({ mesh, catchSite, restSite, throwSite, timeline }: HandConstructorParams) {
+    constructor({ mesh, catchSite, restSite, throwSite, timeline, debug }: HandConstructorParams) {
         this.mesh = mesh ?? new THREE.Mesh(createHandGeometry(0.05), createHandMaterial());
-        this.timeline = timeline ?? new Timeline();
+        this.timeline = timeline ?? new HandTimeline();
         this.restSite = restSite;
         this.catchSite = catchSite;
         this.throwSite = throwSite;
+        if (debug ?? false) {
+            this.restSite.add(new Object3DHelper());
+            this.catchSite.add(new Object3DHelper());
+            this.throwSite.add(new Object3DHelper());
+        }
         // this.jugglingPlaneOrigin = jugglingPlaneOrigin;
         //TODO : jugglingPlaneOrigin parent in 3D scene of catch throw and rest site ?
         //Should we do that here or in juggler ?
@@ -146,62 +157,56 @@ export class Hand {
             : this.catchSite.getWorldPosition(new THREE.Vector3());
     }
 
-    velocityAtEvent(event: HandEventInterface | null, is_prev?: boolean): THREE.Vector3 {
-        if (event === null || event instanceof TablePutEvent || event instanceof TableTakeEvent) {
+    velocityAtSingleEvent(singleEv: HandTimelineSingleEvent, isPrev?: boolean): THREE.Vector3 {
+        if (singleEv instanceof TablePutEvent || singleEv instanceof TableTakeEvent) {
             return new THREE.Vector3(0, 0, 0);
-        } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
-            return event.ball.velocityAtCatchThrowEvent(event);
-        } else if (event instanceof HandMultiEvent) {
-            const velocities: THREE.Vector3[] = [];
-            for (const single_event of event.events) {
-                if (single_event instanceof CatchEvent || single_event instanceof ThrowEvent) {
-                    const velocity = single_event.ball.velocityAtCatchThrowEvent(single_event);
-                    // Hand catch/throw movement scaling.
-                    // const prev_sca = prev_event.is_thrown ? 1 / 3 : 1 / 3;
-                    // const next_sca = next_event.is_thrown ? 1 : 1 / 3;
-                    let sca = 1;
-                    if (is_prev) {
-                        sca = 1 / 3;
-                    } else if (single_event instanceof CatchEvent) {
-                        sca = 1 / 3;
-                    }
-                    velocities.push(velocity.multiplyScalar(sca));
-                } else {
-                    throw Error("Unimplemented behaviour");
-                }
+        } else {
+            const velocity = singleEv.ball.velocityAtCatchThrowEvent(singleEv);
+            let sca = 1;
+            if (isPrev) {
+                sca = 1 / 3;
+            } else if (singleEv instanceof CatchEvent) {
+                sca = 1 / 3;
             }
-            // Hard Hand movement clamp.
-            for (const velocity of velocities) {
-                velocity.clamp(new THREE.Vector3(-3, -3, -3), new THREE.Vector3(3, 3, 3));
-            }
-            return averageVector(velocities);
+            velocity.multiplyScalar(sca);
+            return velocity;
         }
-        throw Error("Unimplemented behaviour");
     }
 
-    positionAtEvent(event: HandEventInterface | null): THREE.Vector3 {
-        if (event === null) {
-            // console.log(this.mesh.position);
-            //TODO : Handle this origin object better ? Easy errors if we put this.mesh instead.
-            return this.restSite.getWorldPosition(new THREE.Vector3());
-        } else if (event instanceof ThrowEvent || event instanceof CatchEvent) {
-            return this.sitePosition(event instanceof ThrowEvent);
-        } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-            return event.table.handPositionOverBall(event.ball);
-        } else if (event instanceof HandMultiEvent) {
-            const positions: THREE.Vector3[] = [];
-            for (const single_event of event.events) {
-                if (single_event instanceof CatchEvent || single_event instanceof ThrowEvent) {
-                    positions.push(this.sitePosition(single_event instanceof ThrowEvent));
-                    // } else if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
-                    //     vectors.push(event.table.ball_position(event.ball.name));
-                } else {
-                    throw Error("Unimplemented behaviour");
-                }
-            }
-            return averageVector(positions);
+    velocityAtEvent(multiEv: HandTimelineEvent | null): THREE.Vector3 {
+        if (multiEv === null || multiEv.events.length === 0) {
+            return new THREE.Vector3(0, 0, 0);
         }
-        throw Error("Unimplemented behaviour");
+        if (!isMultiEventSane(multiEv)) {
+            return this.velocityAtSingleEvent(multiEv.events[multiEv.events.length - 1]);
+        }
+        const velocities: THREE.Vector3[] = [];
+        for (const singleEv of multiEv.events) {
+            velocities.push(this.velocityAtSingleEvent(singleEv));
+        }
+        return averageVector(velocities);
+    }
+
+    positionAtSingleEvent(event: HandTimelineSingleEvent | null): THREE.Vector3 {
+        if (event instanceof TablePutEvent || event instanceof TableTakeEvent) {
+            return event.table.handPositionOverBall(event.ball);
+        } else {
+            return this.sitePosition(event instanceof ThrowEvent);
+        }
+    }
+
+    positionAtEvent(multiEv: HandTimelineEvent | null): THREE.Vector3 {
+        if (multiEv === null || multiEv.events.length === 0) {
+            return this.restSite.getWorldPosition(new THREE.Vector3());
+        }
+        if (!isMultiEventSane(multiEv)) {
+            return this.positionAtSingleEvent(multiEv.events[multiEv.events.length - 1]);
+        }
+        const positions: THREE.Vector3[] = [];
+        for (const singleEv of multiEv.events) {
+            positions.push(this.positionAtSingleEvent(singleEv));
+        }
+        return averageVector(positions);
     }
 
     //TODO : Move unit_time info to simulator level.
@@ -324,7 +329,7 @@ export class Hand {
     //     return this.mesh.localToWorld(vec).sub(this.mesh.localToWorld(new THREE.Vector3(0, 0, 0)));
     // }
 
-    render = (time: number): void => {
+    render(time: number): void {
         const worldPosition = this.position(time);
         const localPosition =
             this.mesh.parent === null
