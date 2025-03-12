@@ -9,9 +9,11 @@ import { Table } from "./simulator/Table";
 import * as THREE from "three";
 import { createHandSites } from "./simulator/Hand";
 import { Ball } from "./simulator/Ball";
-import { getNoteBuffer } from "./simulator/soundBank";
+import { getNoteBuffer } from "./simulator/noteBank";
 import { CatchEvent, ThrowEvent } from "./simulator/Timeline";
 import { createControls } from "./simulator/TimeConductorUI";
+
+//TODO : Soft errors everywhere !
 
 const timeConductor = new TimeConductor();
 // timeConductor.playbackRate = 0.1;
@@ -42,7 +44,7 @@ const ev1 = new ThrowEvent({ time: 1, unitTime: 0.3, ball: ball, hand: juggler.r
 const ev2 = new CatchEvent({
     time: 1.9,
     unitTime: 0.3,
-    sound: { name: "C" },
+    sound: "C",
     ball: ball,
     hand: juggler.leftHand
 });
