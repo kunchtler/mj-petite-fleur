@@ -87,7 +87,7 @@ export class AbstractBallHandEvent implements BallEventInterface, HandEventInter
     }: {
         time: number;
         unitTime: number;
-        sound?: { name: string | string[]; loop?: boolean };
+        sound?: string | { name: string | string[]; loop?: boolean };
         ball: Ball;
         hand: Hand;
     }) {
@@ -95,7 +95,7 @@ export class AbstractBallHandEvent implements BallEventInterface, HandEventInter
         this.unitTime = unitTime;
         this._ballRef = new WeakRef(ball);
         this._handRef = new WeakRef(hand);
-        this.sound = sound;
+        this.sound = typeof sound === "string" ? { name: sound } : sound;
     }
 
     get ball(): Ball {
@@ -199,7 +199,7 @@ export class AbstractTableEvent extends AbstractBallHandEvent {
         ball: Ball;
         hand: Hand;
         table: Table;
-        sound?: { name: string | string[]; loop?: boolean };
+        sound?: string | { name: string | string[]; loop?: boolean };
     }) {
         super({ time, unitTime, ball, hand, sound });
         this.table = table;
