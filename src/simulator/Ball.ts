@@ -16,8 +16,8 @@ import { Juggler } from "./Juggler";
 //TODO : Make errors thrown be console log when not in debug mode to prevent app blocking ?
 
 interface BallConstructorInterface {
-    radius: number;
-    mesh: THREE.Mesh;
+    radius?: number;
+    mesh?: THREE.Mesh;
     name?: string;
     timeline?: Timeline<number, BallTimelineEvent>;
     // default_table?: Table;
@@ -61,14 +61,18 @@ export class Ball {
         // default_table,
         defaultJuggler,
         sound
-    }: BallConstructorInterface) {
-        this.radius = radius;
-        this.mesh = mesh;
+    }: BallConstructorInterface = {}) {
+        this.radius = radius ?? 0.1;
+        this.mesh =
+            mesh ?? new THREE.Mesh(createBallGeometry(this.radius), createBallMaterial("red"));
         this.timeline = timeline ?? new Timeline();
         this.name = name ?? "None";
         // this.defaultTable = default_table;
         this.defaultJuggler = defaultJuggler;
         this.sound = sound;
+        if (this.sound !== undefined) {
+            this.mesh.add(this.sound.node);
+        }
         this._prevTime = undefined;
     }
 
