@@ -386,11 +386,11 @@ export class Ball {
      * Updates the ball's position.
      * @param time Time of the frame to render in seconds.
      */
-    render = (time: number): void => {
+    render(time: number): void {
         //Receives the time in seconds.
         const position = this.position(time);
         this.mesh.position.copy(position);
-    };
+    }
 
     triggerSound(time: number, isPaused: boolean): void {
         const prevEventInfo = this.timeline.prevEvent(time);

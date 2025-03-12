@@ -332,7 +332,7 @@ export class Hand {
                 : this.mesh.parent.worldToLocal(worldPosition);
         this.mesh.position.copy(localPosition);
         // this.mesh.position.copy(worldToLocalPosition(this.position(time)));
-    };
+    }
 
     /**
      * Properly deletes the resources. Call when instance is not needed anymore to free ressources.

@@ -176,7 +176,7 @@ export class Juggler {
         return [startTime, endTime];
     }
 
-    render = (time: number): void => {
+    render(time: number): void {
         //Receives the time in seconds.
         this.rightHand.render(time);
         this.leftHand.render(time);
@@ -189,7 +189,7 @@ export class Juggler {
         //         this.target.position
         //     )
         // );
-    };
+    }
 
     /**
      * Properly deletes the resources. Call when instance is not needed anymore to free ressources.
