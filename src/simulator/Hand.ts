@@ -3,14 +3,11 @@ import { VECTOR3_STRUCTURE } from "../utils/constants";
 import { CubicHermiteSpline } from "../utils/Spline";
 import {
     CatchEvent,
-    HandEventInterface,
     TablePutEvent,
     TableTakeEvent,
     ThrowEvent,
-    Timeline,
     HandTimelineEvent,
     HandTimelineSingleEvent,
-    HandMultiEvent,
     HandTimeline
 } from "./Timeline";
 import { Object3DHelper } from "../utils/ThreeUtils";

@@ -1,18 +1,15 @@
 import * as THREE from "three";
 import { GRAVITY } from "../utils/constants";
 import {
-    BallEventInterface,
     CatchEvent,
     ThrowEvent,
     TablePutEvent,
     TableTakeEvent,
-    Timeline,
     BallTimelineEvent,
     BallTimeline
 } from "./Timeline";
 import { Juggler } from "./Juggler";
 
-//TODO : Replace type BallEventInterface by BallTimelineEvent in functions signatures ?
 // TODO : CamelCase for every variable.
 //TODO : Make errors thrown be console log when not in debug mode to prevent app blocking ?
 
@@ -78,7 +75,7 @@ export class Ball {
     }
 
     //TODO : Move this as static for events
-    throwTimelineError(event1: BallEventInterface | null, event2: BallEventInterface | null): void {
+    throwTimelineError(event1: BallTimelineEvent | null, event2: BallTimelineEvent | null): void {
         const str1 =
             event1 === null
                 ? `has previous event null`
@@ -90,7 +87,7 @@ export class Ball {
         throw Error(`Ball ${this.name} ${str1} and ${str2}.`);
     }
 
-    positionAtEvent(event: BallEventInterface | null): THREE.Vector3 {
+    positionAtEvent(event: BallTimelineEvent | null): THREE.Vector3 {
         if (event === null) {
             throw Error();
         } else if (
@@ -205,11 +202,9 @@ export class Ball {
         throw Error("Unimplemented behaviour");
     }
 
-    //Rename velocity_at_event ?
-    //TODO : Un seul type pour BallEvent : BallEventInterface | null ?
     velocityAtCatchThrowEvent(event: CatchEvent | ThrowEvent): THREE.Vector3 {
-        let prevEvent: BallEventInterface | null;
-        let nextEvent: BallEventInterface | null;
+        let prevEvent: BallTimelineEvent | null;
+        let nextEvent: BallTimelineEvent | null;
         let isThrown: boolean;
         if (event instanceof CatchEvent) {
             prevEvent = event.prevBallEvent()[1];
