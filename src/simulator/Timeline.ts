@@ -234,7 +234,8 @@ export class HandMultiEvent<T extends HandEventInterface> extends AbstractHandEv
 // export class HandMultiTablePutTakeEvent extends HandMultiEvent<TablePutEvent | TableTakeEvent> {}
 
 // export type HandTimelineEvent = HandMultiCatchThrowEvent | HandMultiTablePutTakeEvent;
-export type HandTimelineEvent = CatchEvent | ThrowEvent | TableTakeEvent | TablePutEvent;
+export type HandTimelineSingleEvent = CatchEvent | ThrowEvent | TableTakeEvent | TablePutEvent;
+export type HandTimelineEvent = HandMultiEvent<HandTimelineSingleEvent>;
 export type BallTimelineEvent = CatchEvent | ThrowEvent | TablePutEvent | TableTakeEvent;
 
 //TODO : Make it so balls are unique in events field in HandMultiCatchThrow, and in HandMultiTakePut.
@@ -245,11 +246,8 @@ export class BallTimeline extends Timeline<number, BallTimelineEvent> {
     }
 }
 
-export class HandTimeline extends Timeline<number, HandMultiEvent<HandTimelineEvent>> {
-    prevEvent(
-        time: number,
-        strict = false
-    ): [number, HandMultiEvent<HandTimelineEvent>] | [null, null] {
+export class HandTimeline extends Timeline<number, HandTimelineEvent> {
+    prevEvent(time: number, strict = false): [number, HandTimelineEvent] | [null, null] {
         let lastEvent = super.prevEvent(time, strict);
         while (lastEvent[0] !== null && lastEvent[1].events.length === 0) {
             // Sanitize the event.
@@ -260,10 +258,7 @@ export class HandTimeline extends Timeline<number, HandMultiEvent<HandTimelineEv
         return lastEvent;
     }
 
-    nextEvent(
-        time: number,
-        strict = false
-    ): [number, HandMultiEvent<HandTimelineEvent>] | [null, null] {
+    nextEvent(time: number, strict = false): [number, HandTimelineEvent] | [null, null] {
         let nextEvent = super.nextEvent(time, strict);
         while (nextEvent[0] !== null && nextEvent[1].events.length === 0) {
             // Sanitize the event.
@@ -274,7 +269,7 @@ export class HandTimeline extends Timeline<number, HandMultiEvent<HandTimelineEv
         return nextEvent;
     }
 
-    addEvent(ev: HandTimelineEvent): void {
+    addEvent(ev: HandTimelineSingleEvent): void {
         const it = this.find(ev.time);
         // Case 1: The multi-event doesn't exist, or exists but is empty.
         if (!it.isAccessible() || it.pointer[1].events.length === 0) {
