@@ -1,6 +1,6 @@
 import { Timeline } from "../simulator/Timeline";
 import Fraction from "fraction.js";
-import { stringifyBall, stringifyHand } from "../utils/stringifyEvent";
+import { stringifyBall, stringifyHand, stringifyTable } from "../utils/stringifyEvent";
 import { Severity, TimedErrorLogger } from "./ErrorLogger";
 import { compareEvents } from "./parser_to_scheduler";
 
@@ -739,14 +739,6 @@ class JugglerManager {
 
     // //TODO.
     // resetFrom(beat: Fraction): void {}
-}
-
-export function stringifyTable(balls: Map<string, Ball>): string {
-    let text = "";
-    for (const ball of balls.values()) {
-        text += `${stringifyBall(ball)}, `;
-    }
-    return text;
 }
 
 //TODO : Messages d'erreurs avec position.

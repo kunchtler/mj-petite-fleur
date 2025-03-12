@@ -212,3 +212,13 @@ export function stringifyTosses(tosses: TossType[], showIdx = false): string {
     }
     return text;
 }
+
+export function stringifyTable(
+    balls: Map<string, { name?: string; id?: string; nameOrID?: string }>
+): string {
+    let text = "";
+    for (const ball of balls.values()) {
+        text += `${stringifyBall(ball)}, `;
+    }
+    return text;
+}
