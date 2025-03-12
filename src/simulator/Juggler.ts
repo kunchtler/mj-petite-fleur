@@ -111,15 +111,15 @@ export class Juggler {
                 jugglerJugglingPlaneOrigin: defaultOriginObject,
                 rightVector: new THREE.Vector3(0, 0, 1)
             };
-            const rightHand = new Hand({
-                ...createHandSites({ ...defaultHandSiteParams, isRightHand: true }),
-                debug: debug
-            });
             const leftHand = new Hand({
                 ...createHandSites({ ...defaultHandSiteParams, isRightHand: false }),
                 debug: debug
             });
-            this.hands = [rightHand, leftHand];
+            const rightHand = new Hand({
+                ...createHandSites({ ...defaultHandSiteParams, isRightHand: true }),
+                debug: debug
+            });
+            this.hands = [leftHand, rightHand];
             for (const hand of this.hands) {
                 defaultOriginObject.add(hand.catchSite);
                 defaultOriginObject.add(hand.throwSite);
@@ -169,20 +169,19 @@ export class Juggler {
         // this.elbow.add(new Object3DHelper(false, undefined, false));
     }
 
-    //TODO : Change right / left convention to reflect programmer's hands ?
-    get rightHand(): Hand {
+    get leftHand(): Hand {
         return this.hands[0];
     }
 
-    set rightHand(hand: Hand) {
+    set leftHand(hand: Hand) {
         this.hands[0] = hand;
     }
 
-    get leftHand(): Hand {
+    get rightHand(): Hand {
         return this.hands[1];
     }
 
-    set leftHand(hand: Hand) {
+    set rightHand(hand: Hand) {
         this.hands[1] = hand;
     }
 
@@ -204,8 +203,8 @@ export class Juggler {
 
     render(time: number): void {
         //Receives the time in seconds.
-        this.rightHand.render(time);
         this.leftHand.render(time);
+        this.rightHand.render(time);
         // this.elbow.position.copy(
         //     find_elbow(
         //         this.shoulder.position,
