@@ -727,21 +727,23 @@ const musicConverter = new MusicBeatConverter(
     [[0, new Fraction("3/4")]],
     [[0, { note: new Fraction("1/4"), bpm: 160 }]]
 );
-//prettier-ignore
+// prettier-ignore
 const rawEventsVincent: [string, RawPreParserEvent][] = [
     ["-1, 1/4", { tempo: "1/4", hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
     ["3, 1/4", { hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
-    ["7, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L44441001" }],
+    ["7, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
     ["11, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+    // prettier-ignore
     ["15, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
+    // prettier-ignore
     ["19, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
     ["23, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
     ["28, 2/4", { hands: [["Re"], ["Do'"]], pattern: "R2201" }],
     ["31, 2/4", { hands: [["Do"], []], pattern: "L1" }],
     ["32, 0", { tempo: "1/8", pattern: "11" }],
-    ["32, 1/4", { tempo: "1/4", pattern: "1"}],
-]
-//prettier-ignore
+    ["32, 1/4", { tempo: "1/4", pattern: "1" }]
+];
+// prettier-ignore
 const rawEventsFlorent: [
     string,
     { tempo?: string; hands?: [string[], string[]]; pattern?: string }
@@ -778,5 +780,5 @@ console.log(
 const scheduler = new Scheduler(preSchedulerEvents);
 const res = scheduler.validatePattern();
 console.log("\n\n");
-console.log("Before Simulator:\n\n");
-console.log(stringifyTosses(res.get("Vincent")!.tosses, true));
+console.log("After Simulator:\n\n");
+console.log(stringifyEvents(res.get("Vincent")!.events, musicConverter));

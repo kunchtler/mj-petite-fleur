@@ -82,17 +82,10 @@ export interface SchedulerEvent {
     newDefaultHand: "L" | "R";
 }
 
-export interface SchedulerCompletedEvent {
-    tosses?: PartialToss[];
+export interface PreSimulatorEvent {
+    tosses: SimulatorToss<Fraction>[];
     tempo: Fraction;
     hands?: BallsInHands;
-}
-
-export interface SimulatorEvent {
-    tosses?: SimulatorToss<Fraction>[];
-    tempo?: Fraction;
-    hands?: BallsInHands;
-    newDefaultHand?: "L" | "R";
 }
 
 //TODO : Create custom errors for Jugglers and scheduler.
@@ -114,7 +107,7 @@ export interface SchedulerParams {
 
 export type SchedulerRes = Map<
     string,
-    { tosses: SimulatorToss<Fraction>[]; states: FracSortedList<JugglerState> }
+    { events: FracSortedList<PreSimulatorEvent>; states: FracSortedList<JugglerState> }
 >;
 //TODO : Document that by default hands have LIFO structure.
 //TODO : Make Generic version for the fun of it ?
@@ -148,9 +141,9 @@ export class Scheduler {
         }
 
         //TODO : Change name.
-        const simulatorEvents: SchedulerRes = new Map();
+        const schedulerRes: SchedulerRes = new Map();
         for (const jugglerName of this.jugglers.keys()) {
-            simulatorEvents.set(jugglerName, { tosses: [], states: [] });
+            schedulerRes.set(jugglerName, { events: [], states: [] });
         }
         // Loop until we've seen all jugglers' events.
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -188,6 +181,12 @@ export class Scheduler {
                 for (const toss of res.tosses) {
                     tossedTo.get(name)!.push(toss);
                 }
+                schedulerRes
+                    .get(name)!
+                    .events.push([
+                        closestNextEvent,
+                        { tempo: res.tempo, tosses: [], hands: res.hands }
+                    ]);
             }
 
             // Send the tossed ball to the corresponding jugglers.
@@ -195,15 +194,19 @@ export class Scheduler {
                 const partialTosses = tossedTo.get(name)!;
                 const res = manager.addTossesToState(partialTosses, cache.state);
                 cache.state = res.state;
-                simulatorEvents.get(name)!.tosses.push(...res.tosses);
-                simulatorEvents.get(name)!.states.push([closestNextEvent, res.state]);
+                // If the jugglers wee the ones tossing, add their state and info.
+                if (nextEventJugglers.includes(name)) {
+                    const simulatorEvents = schedulerRes.get(name)!.events;
+                    simulatorEvents[simulatorEvents.length - 1][1].tosses = [...res.tosses];
+                    schedulerRes.get(name)!.states.push([closestNextEvent, res.state]);
+                }
             }
         }
 
         for (const { manager } of this.jugglers.values()) {
             manager.errorLogger.logErrors();
         }
-        return simulatorEvents;
+        return schedulerRes;
     }
 }
 
@@ -648,16 +651,30 @@ class JugglerManager {
     processEvent(
         nextEventIdx: number,
         state: JugglerState
-    ): { tosses: PartialToss2[]; state: JugglerState; nextEventIdx: number } {
+    ): {
+        tosses: PartialToss2[];
+        state: JugglerState;
+        nextEventIdx: number;
+        hands?: BallsInHands;
+        tempo: Fraction;
+    } {
         // Manage state.
         const eventBeat = this.events[nextEventIdx][0];
-        const { hands: newHands, tosses } = this.events[nextEventIdx][1];
+        const { hands: newHands, tosses, tempo } = this.events[nextEventIdx][1];
+        let newCompletedHands: BallsInHands | undefined;
         state = this.descendAirborneBalls(eventBeat, state);
         if (newHands !== undefined) {
             state = this.swapBalls(eventBeat, state, newHands);
+            newCompletedHands = [...state.held];
         }
         const res = this.tossBalls(tosses, state, eventBeat, nextEventIdx);
-        return { tosses: res.tosses, state: res.state, nextEventIdx: nextEventIdx + 1 };
+        return {
+            tosses: res.tosses,
+            state: res.state,
+            nextEventIdx: nextEventIdx + 1,
+            hands: newCompletedHands,
+            tempo: tempo
+        };
     }
 
     addTossesToState(
@@ -706,6 +723,8 @@ class JugglerManager {
         }
         return { tosses: completedTosses, state: state };
     }
+
+    //TODO : Debug function with passing ?
 
     //TODO2
     // getStates(): FracSortedList<JugglerState> {
