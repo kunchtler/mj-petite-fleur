@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Ball } from "./Ball";
-import { Object3DHelper } from "../utils/Object3DHelper";
+import { Object3DHelper } from "../utils/ThreeUtils";
 
 //TODO : Rename Ball_placement en balls_spot
 //TODO : Change THREE.Vector2 to [number, number]
