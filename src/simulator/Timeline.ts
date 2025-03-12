@@ -3,43 +3,7 @@ import { Hand } from "./Hand";
 import { Table } from "./Table";
 import { OrderedMap } from "js-sdsl";
 
-//TODO : Pb d'avoir get_abll_position ici : pos de la main et de la balle ne sont pas les mêmes
-// (légérement au dessus par exemple)
-//TODO : Really needs references if can be gathered from the ball timeline ?
-//TODO : Dual condition (instanceof hand / table, and status). Create custom class instancing each other to fix this.
-//Generic class with only type instancing ?
-
-//TODO : Timeline fait intermédiaire entre main et balle. Balle ne peut pas accéder main, et inversement ?
-// Mais comment gérer le temps ?
-//TODO : Cache tree iterator ?
-//TODO : Replace with OrderedMap<number, EventType>.
-// In case of Ball, it is BallEvent, else it is HandEvent
-// class Timeline<EventType> extends OrderedMap<number, EventType[]> {
-//     constructor(initial_events?: [number, EventType | EventType[]][]) {
-//         let container: [number, EventType[]][];
-//         if (initial_events !== undefined) {
-//             container = initial_events.map(([time, value]) => {
-//                 return [time, Array.isArray(value) ? value : [value]];
-//             });
-//         } else {
-//             container = [];
-//         }
-//         super(container);
-//     }
-
-//     //TODO : time redundant if in EventType ?
-//     prev_event(time: number): [number, EventType[]] | [null, null] {
-//         const it = this.reverseLowerBound(time);
-//         //We make a copy of the contents of the list because the list itself
-//         //is a proxy otherwise (which has unexpected console.logs to watch out for)
-//         return it.isAccessible() ? [...it.pointer] : [null, null];
-//     }
-
-//     next_event(time: number): [number, EventType[]] | [null, null] {
-//         const it = this.upperBound(time);
-//         return it.isAccessible() ? [...it.pointer] : [null, null];
-//     }
-// }
+//TODO : Add transition throw -> TablePut.
 
 export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType> {
     //TODO : time redundant if in EventType ?
@@ -57,12 +21,6 @@ export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType>
     nextEvent(time: KeyType, strict = true): [KeyType, EventType] | [null, null] {
         const it = strict ? this.upperBound(time) : this.lowerBound(time);
         return it.isAccessible() ? [...it.pointer] : [null, null];
-    }
-
-    setElements(it: [KeyType, EventType][]): void {
-        for (const [key, event] of it) {
-            this.setElement(key, event);
-        }
     }
 
     timeBounds(): [KeyType, KeyType] | [null, null] {
@@ -88,23 +46,8 @@ export class Timeline<KeyType, EventType> extends OrderedMap<KeyType, EventType>
     }
 }
 
-export class BaseEvent {
+export interface BaseEvent {
     time: number;
-
-    constructor({ time }: { time: number }) {
-        this.time = time;
-    }
-
-    // random_sound_name(): string {
-    //     if (Array.isArray(this.soundName)) {
-    //         const random_idx = Math.floor(Math.random() * this.soundName.length);
-    //         return this.soundName[random_idx];
-    //     } else if (typeof this.soundName === "string") {
-    //         return this.soundName;
-    //     } else {
-    //         throw new Error("No sound_names have been provided.");
-    //     }
-    // }
 }
 
 export interface BallEventInterface extends BaseEvent {
@@ -126,9 +69,10 @@ export interface HandEventInterface extends BaseEvent {
     prevHandEvent(): [number, HandTimelineEvent] | [null, null];
 }
 
-export class AbstractBallHandEvent extends BaseEvent implements BallEventInterface, HandEventInterface {
+export class AbstractBallHandEvent implements BallEventInterface, HandEventInterface {
     private _ballRef: WeakRef<Ball>;
     private _handRef: WeakRef<Hand>;
+    time: number;
     unitTime: number;
     readonly errorBallStatus: string = "unnamed attribute";
     sound?: { name: string | string[]; loop?: boolean };
@@ -146,7 +90,7 @@ export class AbstractBallHandEvent extends BaseEvent implements BallEventInterfa
         ball: Ball;
         hand: Hand;
     }) {
-        super({ time });
+        this.time = time;
         this.unitTime = unitTime;
         this._ballRef = new WeakRef(ball);
         this._handRef = new WeakRef(hand);
@@ -195,13 +139,14 @@ export class AbstractBallHandEvent extends BaseEvent implements BallEventInterfa
 }
 
 //TODO : Move sound_name to AbstractBallEvent as we don't want hand to make sound.
-export class AbstractHandEvent extends BaseEvent implements HandEventInterface {
+export class AbstractHandEvent implements HandEventInterface {
     private _handRef: WeakRef<Hand>;
+    time: number;
     unitTime: number;
     // private _cached_tree_iterator:
 
     constructor({ time, unitTime, hand }: { time: number; unitTime: number; hand: Hand }) {
-        super({ time });
+        this.time = time;
         this._handRef = new WeakRef(hand);
         this.unitTime = unitTime;
     }
@@ -284,14 +229,67 @@ export class HandMultiEvent<T extends HandEventInterface> extends AbstractHandEv
     }
 }
 
-// class MultiThrowCatchEvent extends HandMultiEvent<CatchEvent | ThrowEvent> {} //TODO Implement this
 //TODO : move ball error status to AbstractBallEvent only (not hand)
-//TODO : Replace TablePutEvent / TableTakeEvent with MultiHandEvent<TablePutEvent | TableTakeEvent> ?
-export type HandTimelineEvent =
-    | HandMultiEvent<CatchEvent | ThrowEvent>
-    | TablePutEvent
-    | TableTakeEvent;
+// export class HandMultiCatchThrowEvent extends HandMultiEvent<CatchEvent | ThrowEvent> {}
+// export class HandMultiTablePutTakeEvent extends HandMultiEvent<TablePutEvent | TableTakeEvent> {}
+
+// export type HandTimelineEvent = HandMultiCatchThrowEvent | HandMultiTablePutTakeEvent;
+export type HandTimelineEvent = CatchEvent | ThrowEvent | TableTakeEvent | TablePutEvent;
 export type BallTimelineEvent = CatchEvent | ThrowEvent | TablePutEvent | TableTakeEvent;
+
+//TODO : Make it so balls are unique in events field in HandMultiCatchThrow, and in HandMultiTakePut.
+
+export class BallTimeline extends Timeline<number, BallTimelineEvent> {
+    addEvent(ev: BallTimelineEvent) {
+        this.setElement(ev.time, ev);
+    }
+}
+
+export class HandTimeline extends Timeline<number, HandMultiEvent<HandTimelineEvent>> {
+    prevEvent(
+        time: number,
+        strict = false
+    ): [number, HandMultiEvent<HandTimelineEvent>] | [null, null] {
+        let lastEvent = super.prevEvent(time, strict);
+        while (lastEvent[0] !== null && lastEvent[1].events.length === 0) {
+            // Sanitize the event.
+            this.eraseElementByKey(time);
+            // Look for the previous event.
+            lastEvent = super.prevEvent(lastEvent[0], strict);
+        }
+        return lastEvent;
+    }
+
+    nextEvent(
+        time: number,
+        strict = false
+    ): [number, HandMultiEvent<HandTimelineEvent>] | [null, null] {
+        let nextEvent = super.nextEvent(time, strict);
+        while (nextEvent[0] !== null && nextEvent[1].events.length === 0) {
+            // Sanitize the event.
+            this.eraseElementByKey(time);
+            // Look for the previous event.
+            nextEvent = super.nextEvent(nextEvent[0], strict);
+        }
+        return nextEvent;
+    }
+
+    addEvent(ev: HandTimelineEvent): void {
+        const it = this.find(ev.time);
+        // Case 1: The multi-event doesn't exist, or exists but is empty.
+        if (!it.isAccessible() || it.pointer[1].events.length === 0) {
+            this.setElement(
+                ev.time,
+                new HandMultiEvent({
+                    time: ev.time,
+                    unitTime: ev.unitTime,
+                    hand: ev.hand,
+                    events: [ev]
+                })
+            );
+        }
+    }
+}
 
 // type ValidHandEventPair = [null, null | ThrowEvent | TablePutEvent | TableTakeEvent] | [CatchEvent, null | ThrowEvent | TablePutEvent] | [ThrowEvent, CatchEvent | TablePutEvent] | [TablePutEvent, TableTakeEvent] | [TableTakeEvent, null | ThrowEvent | TablePutEvent];
 // type ValidBallEventPair = [];
