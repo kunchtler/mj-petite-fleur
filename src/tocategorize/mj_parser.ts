@@ -59,8 +59,10 @@ export interface PartialToss {
 
 export type PartialTossMode = { type: "Beat"; beat: Fraction } | { type: "Height"; height: number };
 
-export type BallsInHands = [Ball[], Ball[]];
-export type PartialBallsInHands = [PartialBall[], PartialBall[]];
+export type Hands<BallT> = [BallT[], BallT[]];
+//TODO : Remove Balls and PartialBallsInHands and replace with Hands<...>.
+export type BallsInHands = Hands<Ball>;
+export type PartialBallsInHands = Hands<PartialBall>;
 
 // TODO: Rename
 export interface PartialToss2 {
@@ -82,10 +84,10 @@ export interface SchedulerEvent {
     newDefaultHand: "L" | "R";
 }
 
-export interface PreSimulatorEvent {
-    tosses: SimulatorToss<Fraction>[];
+export interface SimulatorEvent<T> {
+    tosses: SimulatorToss<T>[];
     tempo: Fraction;
-    hands?: BallsInHands;
+    hands?: { old: BallsInHands; new: BallsInHands };
 }
 
 //TODO : Create custom errors for Jugglers and scheduler.
@@ -107,7 +109,7 @@ export interface SchedulerParams {
 
 export type SchedulerRes = Map<
     string,
-    { events: FracSortedList<PreSimulatorEvent>; states: FracSortedList<JugglerState> }
+    { events: FracSortedList<SimulatorEvent<Fraction>>; states: FracSortedList<JugglerState> }
 >;
 //TODO : Document that by default hands have LIFO structure.
 //TODO : Make Generic version for the fun of it ?
@@ -655,24 +657,26 @@ class JugglerManager {
         tosses: PartialToss2[];
         state: JugglerState;
         nextEventIdx: number;
-        hands?: BallsInHands;
+        hands?: { old: BallsInHands; new: BallsInHands };
         tempo: Fraction;
     } {
         // Manage state.
         const eventBeat = this.events[nextEventIdx][0];
-        const { hands: newHands, tosses, tempo } = this.events[nextEventIdx][1];
-        let newCompletedHands: BallsInHands | undefined;
+        const { hands, tosses, tempo } = this.events[nextEventIdx][1];
+        let handsInfo: { old: BallsInHands; new: BallsInHands } | undefined = undefined;
         state = this.descendAirborneBalls(eventBeat, state);
-        if (newHands !== undefined) {
-            state = this.swapBalls(eventBeat, state, newHands);
-            newCompletedHands = [...state.held];
+        if (hands !== undefined) {
+            const oldHands = [[...state.held[0]], [...state.held[1]]] as BallsInHands;
+            state = this.swapBalls(eventBeat, state, hands);
+            const newHands = [[...state.held[0]], [...state.held[1]]] as BallsInHands;
+            handsInfo = { old: oldHands, new: newHands };
         }
         const res = this.tossBalls(tosses, state, eventBeat, nextEventIdx);
         return {
             tosses: res.tosses,
             state: res.state,
             nextEventIdx: nextEventIdx + 1,
-            hands: newCompletedHands,
+            hands: handsInfo,
             tempo: tempo
         };
     }
