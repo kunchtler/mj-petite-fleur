@@ -3,7 +3,11 @@ import { Simulator } from "./simulator/Simulator";
 import { MusicBeatConverter } from "./tocategorize/music_beat_converter";
 import { Ball as PatternBall } from "./tocategorize/mj_parser";
 import { RawPreParserEvent } from "./tocategorize/parser_to_scheduler";
-import { formatRawEventInput } from "./tocategorize/the_whole_thing";
+import {
+    formatRawEventInput,
+    theWholeThing,
+    TheWholeThingParams
+} from "./tocategorize/the_whole_thing";
 import { createJugglerCubeGeometry, createJugglerMaterial, Juggler } from "./simulator/Juggler";
 import { Table } from "./simulator/Table";
 import * as THREE from "three";
@@ -13,47 +17,100 @@ import { getNoteBuffer } from "./simulator/noteBank";
 import { CatchEvent, ThrowEvent } from "./simulator/Timeline";
 import { createControls } from "./simulator/TimeConductorUI";
 
+//TODO : Add to RawPreParser that string can also be number.
+//TODO : Defaul tempo / hands for normal siteswap ? (with default musicConverter also).
+//TODO : Inference of the hands content at the beginning ?
+//TODO : The (L!441)^10 in parser
+//TODO : Remove simulator from the whole thing ? and some other things ?
+const params: TheWholeThingParams = {
+    rawJugglers: [
+        [
+            "Nicolas",
+            {
+                balls: [
+                    { id: "Do?N", name: "Do", sound: "Do", color: "red" },
+                    { id: "Re?N", name: "Re", sound: "Re", color: "orange" },
+                    { id: "Mi?N", name: "Mi", sound: "Mi", color: "yellow" }
+                ],
+                rawEvents: [
+                    [
+                        "0",
+                        {
+                            tempo: "1",
+                            hands: [["Do", "Re"], ["Mi"]],
+                            pattern: "L441((441)^3)4450((51)^4)5305511"
+                        }
+                    ]
+                ]
+            }
+        ]
+    ],
+    rawMusicConverter: [[0, { signature: "1", tempo: { note: "1", bpm: 240 } }]]
+    // rawTable: {
+    //     realDimensions?: { height: number; width: number; depth: number };
+    //     internalDimensions: [number, number];
+    //     ballsPlacement: [string, [number, number]][];
+    //     unknownBallPosition: [number, number];
+    // }
+};
+
+theWholeThing("#simulator_canvas", params);
+
 //TODO : Soft errors everywhere !
 
-const timeConductor = new TimeConductor();
-// timeConductor.playbackRate = 0.1;
-const simulator = new Simulator({
-    canvasID: "#simulator_canvas",
-    enableAudio: true,
-    timeController: timeConductor,
-    debug: { showFloorGrid: true, showFloorAxis: true }
-});
-createControls(document.body, timeConductor);
-bindTimeConductorAndSimulator(timeConductor, simulator);
+// const timeConductor = new TimeConductor();
+// // timeConductor.playbackRate = 0.1;
+// const simulator = new Simulator({
+//     canvasID: "#simulator_canvas",
+//     enableAudio: true,
+//     timeController: timeConductor,
+//     debug: { showFloorGrid: true, showFloorAxis: true }
+// });
+// createControls(document.body, timeConductor);
+// bindTimeConductorAndSimulator(timeConductor, simulator);
 
-// const jugglerGeometry = createJugglerCubeGeometry(1.8, 0.3, 0.5);
-// const jugglerMaterial = createJugglerMaterial("black");
+// // const jugglerGeometry = createJugglerCubeGeometry(1.8, 0.3, 0.5);
+// // const jugglerMaterial = createJugglerMaterial("black");
 
-const soundBuffers = new Map<string, AudioBuffer>();
-const doBuffer = await getNoteBuffer("C", simulator.listener!.context);
-soundBuffers.set("C", doBuffer!);
+// const soundBuffers = new Map<string, AudioBuffer>();
+// const doBuffer = await getNoteBuffer("Do", simulator.listener!.context);
+// soundBuffers.set("Do", doBuffer!);
 
-const juggler = new Juggler({ debug: true });
-const ball = new Ball({
-    sound: { node: new THREE.PositionalAudio(simulator.listener!), buffers: soundBuffers }
-});
-simulator.addJuggler("Nicolas", juggler, new THREE.Vector3(-1, 0, 0));
-simulator.addBall("Do", ball);
+// const juggler = new Juggler({ debug: true });
+// const ball = new Ball({
+//     sound: { node: new THREE.PositionalAudio(simulator.listener!), buffers: soundBuffers }
+// });
+// simulator.addJuggler("Nicolas", juggler, new THREE.Vector3(-1, 0, 0));
+// simulator.addBall("Do", ball);
 
-const ev1 = new ThrowEvent({ time: 1, unitTime: 0.3, ball: ball, hand: juggler.rightHand });
-const ev2 = new CatchEvent({
-    time: 1.9,
-    unitTime: 0.3,
-    sound: "C",
-    ball: ball,
-    hand: juggler.leftHand
-});
+// const ev1 = new ThrowEvent({ time: 1, unitTime: 0.3, ball: ball, hand: juggler.rightHand });
+// const ev2 = new CatchEvent({
+//     time: 1.9,
+//     unitTime: 0.3,
+//     sound: "Do",
+//     ball: ball,
+//     hand: juggler.leftHand
+// });
 
-ev1.ball.timeline.addEvent(ev1);
-ev2.ball.timeline.addEvent(ev2);
-ev1.hand.timeline.addEvent(ev1);
-ev2.hand.timeline.addEvent(ev2);
+// ev1.ball.timeline.addEvent(ev1);
+// ev2.ball.timeline.addEvent(ev2);
+// ev1.hand.timeline.addEvent(ev1);
+// ev2.hand.timeline.addEvent(ev2);
 
+// const pitchToColor = new Map<string, string>([
+//         ["C", "red"],
+//         ["C#", "darkred"],
+//         ["D", "orange"],
+//         ["D#", "darkorange"],
+//         ["E", "yellow"],
+//         ["F", "green"],
+//         ["F#", "darkgreen"],
+//         ["G", "blue"],
+//         ["G#", "darkblue"],
+//         ["A", "gray"],
+//         ["A#", "darkgray"],
+//         ["B", "purple"]
+//     ]);
 // await timeConductor.play();
 
 // const rawBallsVincent = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si", "Do'"];

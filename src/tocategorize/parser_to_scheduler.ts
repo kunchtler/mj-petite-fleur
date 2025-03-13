@@ -7,7 +7,6 @@ import {
 import { MusicBeatConverter } from "./music_beat_converter";
 import {
     SchedulerEvent,
-    PartialToss,
     PartialTossMode,
     PartialBall,
     FracSortedList,
@@ -16,14 +15,13 @@ import {
     FracTimeline,
     Ball,
     SchedulerParams,
-    Scheduler,
-    SimulatorToss
+    Scheduler
 } from "./mj_parser";
 import { closestWordsTo } from "./levenshtein_distance";
 import { setIntersection } from "../utils/SetOperations";
 import { TimedErrorLogger } from "./ErrorLogger";
 import { formatRawEventInput } from "./the_whole_thing";
-import { stringifyEvents, stringifyTosses } from "../utils/stringifyEvent";
+import { stringifyEvents } from "../utils/stringifyEvent";
 
 //TODO : add beat to the object rather than have a 2-array element.
 //TODO : useHand ?
@@ -52,7 +50,7 @@ export type PreParserEvent = {
 export interface ParserToSchedulerParams {
     jugglers: Map<string, { events: FracSortedList<PreParserEvent>; balls: Ball[] }>;
     ballNames: Set<string>;
-    ballIDs: Map<string, string>;
+    ballIDs: Map<string, { name: string }>;
     musicConverter?: MusicBeatConverter;
 }
 
@@ -70,7 +68,7 @@ export function transformParserParamsToSchedulerParams({
     // TODO : Handle Error flow.
     // TODO : Is in rhythm ?
     // 1. Fill ballNames / ballIDs if they don't exist.
-    ({ ballNames, ballIDs } = formatBallNamesAndIDs({ ballNames: ballNames, ballIDs: ballIDs }));
+    // ({ ballNames, ballIDs } = formatBallNamesAndIDs({ ballNames: ballNames, ballIDs: ballIDs }));
     // 2. Check if ballIDs correctly refer to ballNames and that they aren't duplicates.
     checkBallNamesAndIDs(ballNames, ballIDs);
 
@@ -500,7 +498,7 @@ type Hands<BallT> = { hands: [BallT[], BallT[]] };
 function formatThrownBalls<TossT, T>(
     events: FracSortedList<T & Tosses<TossT & Partial<TossBall<{ nameOrID: string }>>>>,
     ballNames: Set<string>,
-    ballIDs: Map<string, string>,
+    ballIDs: Map<string, { name: string }>,
     errorLogger: TimedErrorLogger
 ): FracSortedList<T & Tosses<TossT & Partial<TossBall<PartialBall>>>> {
     const newEvents: FracSortedList<T & Tosses<TossT & Partial<TossBall<BallNameAndID>>>> = [];
@@ -521,7 +519,7 @@ function formatThrownBalls<TossT, T>(
 function getBall(
     ballNameOrID: string | undefined,
     ballNames: Set<string>,
-    ballIDs: Map<string, string>,
+    ballIDs: Map<string, { name: string }>,
     errorLogger: TimedErrorLogger,
     beat: Fraction
 ): { name: string; id?: string } | undefined {
@@ -535,7 +533,7 @@ function getBall(
         // if (!ballNames.has(ballName)) {
         //     errorLogger.addError(beat, "CriticalError", `Ball with ID`)
         // }
-        return { name: ballIDs.get(ballNameOrID)!, id: ballNameOrID };
+        return { name: ballIDs.get(ballNameOrID)!.name, id: ballNameOrID };
     }
     handleUnkownName(ballNameOrID, [...ballNames, ...ballIDs.keys()], "ball", errorLogger, beat);
     return undefined;
@@ -544,7 +542,7 @@ function getBall(
 function formatHeldBalls<T>(
     events: FracSortedList<T & Partial<Hands<string>>>,
     ballNames: Set<string>,
-    ballIDs: Map<string, string>,
+    ballIDs: Map<string, { name: string }>,
     errorLogger: TimedErrorLogger
 ): FracSortedList<T & Partial<Hands<BallNameAndID>>> {
     const newEvents: FracSortedList<T & Partial<Hands<BallNameAndID>>> = [];
@@ -659,7 +657,10 @@ function formatMode<TossT, T>(
 
 //TODO : Mode loop / loops out of the way into main function if possible !
 
-function checkBallNamesAndIDs(ballNames: Set<string>, ballIDs: Map<string, string>): void {
+function checkBallNamesAndIDs(
+    ballNames: Set<string>,
+    ballIDs: Map<string, { name: string }>
+): void {
     const inter = setIntersection(ballNames, new Set(ballIDs.keys()));
     let text = "";
     if (inter.size > 0) {
@@ -667,7 +668,7 @@ function checkBallNamesAndIDs(ballNames: Set<string>, ballIDs: Map<string, strin
             text += `Ball ${name} is both a name and an ID.\n`;
         }
     }
-    for (const [ballID, ballName] of ballIDs) {
+    for (const [ballID, { name: ballName }] of ballIDs) {
         if (!ballNames.has(ballName)) {
             text += `Ball with ID ${ballID} has unknown ball name ${ballName}.\n`;
         }
@@ -677,21 +678,23 @@ function checkBallNamesAndIDs(ballNames: Set<string>, ballIDs: Map<string, strin
     }
 }
 
-function formatBallNamesAndIDs({
-    ballNames,
-    ballIDs
-}: {
-    ballNames?: Set<string>;
-    ballIDs?: Map<string, string>;
-}): { ballNames: Set<string>; ballIDs: Map<string, string> } {
-    if (ballNames === undefined) {
-        ballNames = new Set(ballIDs !== undefined ? ballIDs.values() : []);
-    }
-    if (ballIDs === undefined) {
-        ballIDs = new Map();
-    }
-    return { ballNames: ballNames, ballIDs: ballIDs };
-}
+//TODO
+// function formatBallNamesAndIDs({
+//     ballNames,
+//     ballIDs
+// }: {
+//     ballNames?: Set<string>;
+//     ballIDs?: Map<string, { name: string }>;
+// }): { ballNames: Set<string>; ballIDs: Map<string, string> } {
+//     if (ballNames === undefined) {
+//         for (const { name } of ballIDs.values())
+//             ballNames = new Set(ballIDs !== undefined ? ballIDs.values() : []);
+//     }
+//     if (ballIDs === undefined) {
+//         ballIDs = new Map();
+//     }
+//     return { ballNames: ballNames, ballIDs: ballIDs };
+// }
 
 // Testing
 const commonBallNames = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si", "Do'"];
@@ -723,62 +726,62 @@ for (const { name, id } of ballsFlorent) {
 //     ["0", {tempo: "1", pattern: rawPattern}]
 // ];
 // const musicConverter = undefined;
-const musicConverter = new MusicBeatConverter(
-    [[0, new Fraction("3/4")]],
-    [[0, { note: new Fraction("1/4"), bpm: 160 }]]
-);
-// prettier-ignore
-const rawEventsVincent: [string, RawPreParserEvent][] = [
-    ["-1, 1/4", { tempo: "1/4", hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
-    ["3, 1/4", { hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
-    ["7, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
-    ["11, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
-    // prettier-ignore
-    ["15, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
-    // prettier-ignore
-    ["19, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
-    ["23, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
-    ["28, 2/4", { hands: [["Re"], ["Do'"]], pattern: "R2201" }],
-    ["31, 2/4", { hands: [["Do"], []], pattern: "L1" }],
-    ["32, 0", { tempo: "1/8", pattern: "11" }],
-    ["32, 1/4", { tempo: "1/4", pattern: "1" }]
-];
-// prettier-ignore
-const rawEventsFlorent: [
-    string,
-    { tempo?: string; hands?: [string[], string[]]; pattern?: string }
-][] = [
-    ["1, 2/4", { tempo: "1/4", hands: [["Mi"], ["Sol"]], pattern: "R3501001" }],
-    ["5, 2/4", { hands: [["Fa"], ["Sol"]], pattern: "R3501001" }],
-    ["9, 2/4", { hands: [["Fa"], ["La"]], pattern: "R3501001" }],
-    ["13, 2/4", { hands: [["Mi"], ["La"]], pattern: "R3501001" }],
-    ["17, 2/4", { hands: [["Sol"], ["Do'"]], pattern: "R3501001" }],
-    ["21, 2/4", { hands: [["La"], ["Do'"]], pattern: "R3501001" }],
-    ["26, 1/4", { hands: [["Mi'", "Fa#"], ["Sol"]], pattern: "L3(3^2)" }],
-    ["29, 1/4", { hands: [["Do", "La"], ["Sol", "Re"]], pattern: "R445x5x" }],
-]
-const eventsVincent = formatRawEventInput(rawEventsVincent, musicConverter);
-const eventsFlorent = formatRawEventInput(rawEventsFlorent, musicConverter);
-const params: ParserToSchedulerParams = {
-    ballNames: ballNames,
-    ballIDs: ballIDs,
-    jugglers: new Map([
-        // ["NoName", { events: events, balls: balls }]
-        ["Vincent", { events: eventsVincent, balls: ballsVincent }],
-        ["Florent", { events: eventsFlorent, balls: ballsFlorent }]
-    ]),
-    musicConverter: musicConverter
-};
-const preSchedulerEvents = transformParserParamsToSchedulerParams(params);
-console.log("Before Scheduler:\n\n");
-console.log(
-    stringifyEvents<SchedulerEvent>(
-        preSchedulerEvents.jugglers.get("Vincent")!.events,
-        musicConverter
-    )
-);
-const scheduler = new Scheduler(preSchedulerEvents);
-const res = scheduler.validatePattern();
-console.log("\n\n");
-console.log("After Simulator:\n\n");
-console.log(stringifyEvents(res.get("Vincent")!.events, musicConverter));
+// const musicConverter = new MusicBeatConverter(
+//     [[0, new Fraction("3/4")]],
+//     [[0, { note: new Fraction("1/4"), bpm: 160 }]]
+// );
+// // prettier-ignore
+// const rawEventsVincent: [string, RawPreParserEvent][] = [
+//     ["-1, 1/4", { tempo: "1/4", hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
+//     ["3, 1/4", { hands: [["Mi", "Do"], ["Sol"]], pattern: "L40441001" }],
+//     ["7, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+//     ["11, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+//     // prettier-ignore
+//     ["15, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
+//     // prettier-ignore
+//     ["19, 1/4", { hands: [["Mi", "Do"], ["Do'", "Sol"]], pattern: "L404[Sol4Do'5]" }],
+//     ["23, 1/4", { hands: [["Fa", "Re"], ["La"]], pattern: "L40441001" }],
+//     ["28, 2/4", { hands: [["Re"], ["Do'"]], pattern: "R2201" }],
+//     ["31, 2/4", { hands: [["Do"], []], pattern: "L1" }],
+//     ["32, 0", { tempo: "1/8", pattern: "11" }],
+//     ["32, 1/4", { tempo: "1/4", pattern: "1" }]
+// ];
+// // prettier-ignore
+// const rawEventsFlorent: [
+//     string,
+//     { tempo?: string; hands?: [string[], string[]]; pattern?: string }
+// ][] = [
+//     ["1, 2/4", { tempo: "1/4", hands: [["Mi"], ["Sol"]], pattern: "R3501001" }],
+//     ["5, 2/4", { hands: [["Fa"], ["Sol"]], pattern: "R3501001" }],
+//     ["9, 2/4", { hands: [["Fa"], ["La"]], pattern: "R3501001" }],
+//     ["13, 2/4", { hands: [["Mi"], ["La"]], pattern: "R3501001" }],
+//     ["17, 2/4", { hands: [["Sol"], ["Do'"]], pattern: "R3501001" }],
+//     ["21, 2/4", { hands: [["La"], ["Do'"]], pattern: "R3501001" }],
+//     ["26, 1/4", { hands: [["Mi'", "Fa#"], ["Sol"]], pattern: "L3(3^2)" }],
+//     ["29, 1/4", { hands: [["Do", "La"], ["Sol", "Re"]], pattern: "R445x5x" }],
+// ]
+// const eventsVincent = formatRawEventInput(rawEventsVincent, musicConverter);
+// const eventsFlorent = formatRawEventInput(rawEventsFlorent, musicConverter);
+// const params: ParserToSchedulerParams = {
+//     ballNames: ballNames,
+//     ballIDs: ballIDs,
+//     jugglers: new Map([
+//         // ["NoName", { events: events, balls: balls }]
+//         ["Vincent", { events: eventsVincent, balls: ballsVincent }],
+//         ["Florent", { events: eventsFlorent, balls: ballsFlorent }]
+//     ]),
+//     musicConverter: musicConverter
+// };
+// const preSchedulerEvents = transformParserParamsToSchedulerParams(params);
+// console.log("Before Scheduler:\n\n");
+// console.log(
+//     stringifyEvents<SchedulerEvent>(
+//         preSchedulerEvents.jugglers.get("Vincent")!.events,
+//         musicConverter
+//     )
+// );
+// const scheduler = new Scheduler(preSchedulerEvents);
+// const res = scheduler.validatePattern();
+// console.log("\n\n");
+// console.log("After Simulator:\n\n");
+// console.log(stringifyEvents(res.get("Vincent")!.events, musicConverter));
