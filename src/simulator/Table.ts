@@ -64,7 +64,7 @@ export class Table {
     }
 
     ballPosition(ball: Ball): THREE.Vector3 {
-        const pos = this.ballsPlacement.get(ball.name) ?? this.unkownBallPosition;
+        const pos = this.ballsPlacement.get(ball.id) ?? this.unkownBallPosition;
         return this._surfaceInternal.localToWorld(new THREE.Vector3(pos[1], ball.radius, pos[0]));
     }
 

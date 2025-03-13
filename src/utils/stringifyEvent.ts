@@ -2,12 +2,7 @@
 
 import Fraction from "fraction.js";
 import { ParserTossMode } from "../parser/siteswap_mj/MusicalSiteswap";
-import {
-    FracSortedList,
-    PartialBall,
-    PartialBallsInHands,
-    PartialTossMode
-} from "../tocategorize/mj_parser";
+import { FracSortedList, Hands, PartialBall, PartialTossMode } from "../tocategorize/mj_parser";
 import { MusicBeatConverter } from "../tocategorize/music_beat_converter";
 
 type TossType = {
@@ -21,7 +16,7 @@ type TossType = {
 type EventType = {
     tosses?: TossType[];
     tempo?: Fraction;
-    hands?: PartialBallsInHands;
+    hands?: Hands<PartialBall> | { old: Hands<PartialBall>; new: Hands<PartialBall> };
     newDefaultHand?: "L" | "R";
 };
 
@@ -75,7 +70,12 @@ export function stringifyEvent(ev: EventType): string {
         text += `Tempo: ${stringifyFraction(ev.tempo)}.\n`;
     }
     if (ev.hands !== undefined) {
-        text += `New balls in hand:\n\tLeft: ${stringifyHand(ev.hands[0])}.\n\tRight: ${stringifyHand(ev.hands[1])}.\n`;
+        if (Array.isArray(ev.hands)) {
+            text += `New balls in hand:\n\tLeft: ${stringifyHand(ev.hands[0])}.\n\tRight: ${stringifyHand(ev.hands[1])}.\n`;
+        } else {
+            text += `Old balls in hand:\n\tLeft: ${stringifyHand(ev.hands.old[0])}.\n\tRight: ${stringifyHand(ev.hands.old[1])}.\n`;
+            text += `New balls in hand:\n\tLeft: ${stringifyHand(ev.hands.new[0])}.\n\tRight: ${stringifyHand(ev.hands.new[1])}.\n`;
+        }
     }
     if (ev.tosses !== undefined && ev.tosses.length > 0) {
         text += stringifyTosses(ev.tosses);

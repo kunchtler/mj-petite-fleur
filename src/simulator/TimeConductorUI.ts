@@ -5,7 +5,11 @@ import { TimeConductor } from "./AudioPlayer";
 
 //TODO : Rework how simulator / timeconductor connect.
 
-export function createControls(htmlElem: HTMLElement, timeConductor: TimeConductor): void {
+export function createControls(
+    htmlElem: HTMLElement,
+    timeConductor: TimeConductor,
+    bounds: [number, number] = [0, 20]
+): void {
     const controlElem = document.createElement("div");
     controlElem.className = "controls";
     const playPauseButton = document.createElement("button");
@@ -16,10 +20,12 @@ export function createControls(htmlElem: HTMLElement, timeConductor: TimeConduct
     const seekBar = document.createElement("input");
     seekBar.className = "slider";
     seekBar.type = "range";
-    seekBar.min = "0";
-    seekBar.max = "20";
-    seekBar.value = "0";
+    seekBar.min = bounds[0].toString();
+    seekBar.max = bounds[1].toString();
+    seekBar.value = bounds[0].toString();
     seekBar.step = "any";
+    //TODO : REMOVE
+    timeConductor.currentTime = bounds[0];
     htmlElem.appendChild(controlElem);
     controlElem.appendChild(playPauseButton);
     playPauseButton.appendChild(playIcon);

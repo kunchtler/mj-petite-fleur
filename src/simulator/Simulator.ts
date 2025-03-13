@@ -43,7 +43,7 @@ export class DefaultTimeController implements TimeController {
         return performance.now();
     }
     isPaused(): boolean {
-        return false;
+        return true;
     }
 }
 

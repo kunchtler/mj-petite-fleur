@@ -12,11 +12,11 @@ import { Juggler } from "./Juggler";
 
 // TODO : CamelCase for every variable.
 //TODO : Make errors thrown be console log when not in debug mode to prevent app blocking ?
-
+//TODO : Better encapsulate what parameters are dependent on which (for ex, ofor combo mesh + radius)
 interface BallConstructorInterface {
     radius?: number;
     mesh?: THREE.Mesh;
-    name?: string;
+    id?: string;
     timeline?: BallTimeline;
     // default_table?: Table;
     defaultJuggler?: Juggler;
@@ -41,7 +41,7 @@ interface BallConstructorInterface {
 export class Ball {
     readonly radius: number;
     mesh: THREE.Mesh;
-    name: string;
+    id: string;
     timeline: BallTimeline;
     sound?: {
         node: THREE.Audio | THREE.PositionalAudio;
@@ -54,7 +54,7 @@ export class Ball {
     constructor({
         radius,
         mesh,
-        name,
+        id,
         timeline,
         // default_table,
         defaultJuggler,
@@ -64,7 +64,7 @@ export class Ball {
         this.mesh =
             mesh ?? new THREE.Mesh(createBallGeometry(this.radius), createBallMaterial("red"));
         this.timeline = timeline ?? new BallTimeline();
-        this.name = name ?? "None";
+        this.id = id ?? "None";
         // this.defaultTable = default_table;
         this.defaultJuggler = defaultJuggler;
         this.sound = sound;
@@ -84,7 +84,7 @@ export class Ball {
             event2 === null
                 ? `has previous event null`
                 : `is ${event2.errorBallStatus} at time ${event2.time}`;
-        throw Error(`Ball ${this.name} ${str1} and ${str2}.`);
+        throw Error(`Ball ${this.id} ${str1} and ${str2}.`);
     }
 
     positionAtEvent(event: BallTimelineEvent | null): THREE.Vector3 {
@@ -317,17 +317,17 @@ export class Ball {
     playSound(soundName?: string, loop = false): void {
         if (this.sound === undefined) {
             console.log(
-                `Ball ${this.name} can't play sound as it has no AudioNode nor AudioBuffers.`
+                `Ball ${this.id} can't play sound as it has no AudioNode nor AudioBuffers.`
             );
             return;
         }
         if (soundName === undefined) {
-            console.log(`Ball ${this.name} doesn't know what sound to play.`);
+            console.log(`Ball ${this.id} doesn't know what sound to play.`);
             return;
         }
         const soundBuffer = this.sound.buffers.get(soundName);
         if (soundBuffer === undefined) {
-            console.log(`Ball ${this.name} has no known sound "${soundName}" in buffer to play.`);
+            console.log(`Ball ${this.id} has no known sound "${soundName}" in buffer to play.`);
             return;
         }
         if (this.sound.node.isPlaying) {
@@ -394,8 +394,10 @@ export class Ball {
             const [prevEventTime, { sound: soundToPlay }] = prevEventInfo;
             if (this._prevTime !== undefined && this._prevTime <= prevEventTime) {
                 if (soundToPlay === undefined) {
-                    //Stop the previous sound (in case it was looping for instance).
-                    this.sound?.node.stop();
+                    if (this.sound?.node.getLoop() === true) {
+                        //Stop the previous sound (in case it was looping for instance).
+                        this.sound.node.stop();
+                    }
                 } else if (typeof soundToPlay.name === "string") {
                     this.playSound(soundToPlay.name, soundToPlay.loop);
                 } else {
@@ -427,7 +429,7 @@ export class Ball {
     }
 }
 
-export function createBallGeometry(radius: number) {
+export function createBallGeometry(radius = 0.1) {
     return new THREE.SphereGeometry(radius, 8, 8);
 }
 
