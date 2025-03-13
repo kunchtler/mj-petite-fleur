@@ -21,7 +21,7 @@ function timePerMeasure(
     tempoNote: Fraction,
     tempoBpm: number | Fraction
 ): Fraction {
-    return signature.div(tempoNote).mul(tempoBpm);
+    return signature.div(tempoNote).mul(new Fraction(60).div(tempoBpm));
 }
 //TODO : Make vanilla timeline in utils rather than in simulator folder.
 //TODO : Confusion in what a beat is (if sig 3/4 and tempo 1/4. Is beat : 0, 1, 2 or 0/4, 1/4, 2/4 ??)
