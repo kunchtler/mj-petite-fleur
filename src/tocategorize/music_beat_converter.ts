@@ -126,7 +126,7 @@ export class MusicBeatConverter {
         return [measureAnswer, beatAnswer];
     }
 
-    convertBeatToRealTime(beat: Fraction): number {
+    convertBeatToRealTime(beat: Fraction): Fraction {
         const musicTime = this.convertBeatToMeasure(beat);
 
         const itTempo = this.tempoChanges.begin();
@@ -151,7 +151,7 @@ export class MusicBeatConverter {
                 currentTempo.bpm
             );
             time = time.add(musicTime[1].div(currentSignature).mul(lastMeasureTime));
-            return time.valueOf();
+            return time;
         }
 
         // General Case
@@ -173,7 +173,7 @@ export class MusicBeatConverter {
             currentTempo.bpm
         );
         time = time.add(musicTime[1].div(currentSignature).sub(1).mul(lastMeasureTime));
-        return time.valueOf();
+        return time;
     }
 
     // convertRealTimeToBeat(time: number, epsilon = EPSILON): Fraction {
