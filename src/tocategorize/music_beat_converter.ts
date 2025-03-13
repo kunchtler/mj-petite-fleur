@@ -26,15 +26,17 @@ function timePerMeasure(
 //TODO : Make vanilla timeline in utils rather than in simulator folder.
 //TODO : Confusion in what a beat is (if sig 3/4 and tempo 1/4. Is beat : 0, 1, 2 or 0/4, 1/4, 2/4 ??)
 export type MusicTime = [number, Fraction];
+export type MusicTempo = { note: Fraction; bpm: number };
 
 //TODO : Change Name.
+//TODO : More efficient to store Measure first beat as key instead of measure number ?
 export class MusicBeatConverter {
     readonly signatureChanges: Timeline<number, Fraction>;
-    readonly tempoChanges: Timeline<number, { note: Fraction; bpm: number }>;
+    readonly tempoChanges: Timeline<number, MusicTempo>;
 
     constructor(
         signatureChanges: [number, Fraction | string][],
-        tempoChanges: [number, { note: Fraction | string; bpm: number }][]
+        tempoChanges: [number, MusicTempo][]
     ) {
         const signatureChangesOnlyFractions = signatureChanges.map(
             ([measure, beat]) =>
@@ -52,7 +54,7 @@ export class MusicBeatConverter {
                 [
                     measure,
                     { note: note instanceof Fraction ? note : new Fraction(note), bpm: bpm }
-                ] as [number, { note: Fraction; bpm: number }]
+                ] as [number, MusicTempo]
         );
         this.tempoChanges = new Timeline(tempoChangesOnlyFraction);
         if (this.tempoChanges.empty()) {
@@ -174,6 +176,12 @@ export class MusicBeatConverter {
         );
         time = time.add(musicTime[1].div(currentSignature).sub(1).mul(lastMeasureTime));
         return time;
+    }
+
+    getTempo(beat: Fraction): MusicTempo {
+        const measure = this.convertBeatToMeasure(beat)[0];
+        const tempo = this.tempoChanges.prevEvent(measure)[1];
+        return tempo ?? this.tempoChanges.begin().pointer[1];
     }
 
     // convertRealTimeToBeat(time: number, epsilon = EPSILON): Fraction {
