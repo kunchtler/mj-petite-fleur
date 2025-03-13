@@ -50,12 +50,17 @@ export interface BaseEvent {
     time: number;
 }
 
+export interface EventSound {
+    name: string | string[];
+    loop?: boolean;
+}
+
 export interface BallEventInterface extends BaseEvent {
     ball: Ball;
     errorBallStatus: string;
     nextBallEvent(): [number, BallTimelineEvent] | [null, null];
     prevBallEvent(): [number, BallTimelineEvent] | [null, null];
-    sound?: { name: string | string[]; loop?: boolean };
+    sound?: EventSound;
     // soundNameTillNextEvent?: string;
 }
 
@@ -76,7 +81,7 @@ export class AbstractBallHandEvent implements BallEventInterface, HandEventInter
     time: number;
     unitTime: number;
     readonly errorBallStatus: string = "unnamed attribute";
-    sound?: { name: string | string[]; loop?: boolean };
+    sound?: EventSound;
 
     constructor({
         time,
@@ -87,7 +92,7 @@ export class AbstractBallHandEvent implements BallEventInterface, HandEventInter
     }: {
         time: number;
         unitTime: number;
-        sound?: string | { name: string | string[]; loop?: boolean };
+        sound?: string | EventSound;
         ball: Ball;
         hand: Hand;
     }) {
@@ -199,7 +204,7 @@ export class AbstractTableEvent extends AbstractBallHandEvent {
         ball: Ball;
         hand: Hand;
         table: Table;
-        sound?: string | { name: string | string[]; loop?: boolean };
+        sound?: string | EventSound;
     }) {
         super({ time, unitTime, ball, hand, sound });
         this.table = table;
