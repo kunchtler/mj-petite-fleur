@@ -174,7 +174,7 @@ function noteToString(note: Note2 | undefined): string {
     return `${note.pitch}${note.isSharp ? "#" : ""}${note.height}`;
 }
 
-function formatNote(note: string): string {
+export function formatNote(note: string): string {
     return noteToString(alterationsToSharp(gatherNoteInfo(note)));
 }
 

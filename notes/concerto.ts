@@ -107,7 +107,7 @@ for (const [note, color, , sound] of balls_info) {
             new Ball({
                 color: color,
                 radius: 0.06,
-                name: note,
+                id: note,
                 sound: player,
                 panner3D: panner,
                 default_juggler: juggler

@@ -1,5 +1,183 @@
-console.log(Object.is({ 1: 1 }, { 1: 1 }));
+// console.log(JSON.stringify(0xffffff));
 
+// Create two independent EventTarget instances
+// const emitter = new EventTarget();
+// const listener = new EventTarget();
+
+// // Listener registers an event handler
+// listener.addEventListener("customEvent", (event: Event) => {
+//     console.log("Received event with data:", event);
+// });
+
+// // Manually relay the event from emitter to listener
+// emitter.addEventListener("customEvent", (e) => listener.dispatchEvent(e));
+
+// // Trigger the event
+// emitter.dispatchEvent(new CustomEvent("customEvent", { detail: { message: "Hello!" } }));
+
+// setInterval(() => console.log(2), 10);
+
+// // function binarySearch(sortedArray: number[], seekElement: number): number {
+// //     let startIndex = 0;
+// //     let endIndex: number = sortedArray.length - 1;
+// //     while (startIndex <= endIndex) {
+// //         const mid = startIndex + ((endIndex - startIndex) >> 1);
+// //         // const mid = startIndex + Math.floor((endIndex - startIndex) / 2);
+// //         const guess = sortedArray[mid];
+// //         if (guess === seekElement) {
+// //             return mid;
+// //         } else if (guess > seekElement) {
+// //             endIndex = mid - 1;
+// //         } else {
+// //             startIndex = mid + 1;
+// //         }
+// //     }
+
+// //     return -1;
+// // }
+
+// const indexOfSearch = function (arr: number[], element: number) {
+//     return arr.indexOf(element);
+// };
+
+// // const len = 1000;
+// // const testArray = [...Array(len).keys()].map((x) => x + 1);
+// // const testTree = new OrderedSet<number>(testArray);
+
+// // const N = 100000;
+// // const seekElements = [...Array(N)].map((k) => Math.floor(Math.random() * len * 1.1));
+
+// // let start: number, end: number;
+
+// // start = performance.now();
+// // for (let el of seekElements) {
+// //     binarySearch(testArray, el);
+// // }
+// // end = performance.now();
+// // console.log(`binarySearch ${end - start} ms`);
+
+// // start = performance.now();
+// // for (let el of seekElements) {
+// //     indexOfSearch(testArray, el);
+// // }
+// // end = performance.now();
+// // console.log(`indexOfSearch ${end - start} ms`);
+
+// // start = performance.now();
+// // for (let el of seekElements) {
+// //     testTree.find(el);
+// // }
+// // end = performance.now();
+// // console.log(`orderedset ${end - start} ms`);
+
+// function binarySearchCmp<T, S>(
+//     sortedArray: T[],
+//     seekElement: S,
+//     cmpFunc: (val1: T, val2: S) => number
+// ): number {
+//     let startIndex = 0;
+//     let endIndex: number = sortedArray.length - 1;
+//     while (startIndex <= endIndex) {
+//         const mid = startIndex + ((endIndex - startIndex) >> 1);
+//         const comparison = cmpFunc(sortedArray[mid], seekElement);
+//         if (comparison === 0) {
+//             return mid;
+//         } else if (comparison > 0) {
+//             endIndex = mid - 1;
+//         } else {
+//             startIndex = mid + 1;
+//         }
+//     }
+
+//     return -1;
+// }
+
+// // function indexOfSearchCmp<T, S>(arr: T[], element: S, cmpFunc: (val1: T, val2: S) => number) {
+// //     return indexOf(element);
+// // }
+
+// const len = 2000;
+// const testArray = [...Array(len).keys()].map((x) => x + 1);
+// const testTree = new OrderedSet<number>(testArray);
+
+// const N = 100000;
+// const seekElements = [...Array(N)].map((k) => Math.floor(Math.random() * len * 1.1));
+
+// const cmpFunc = (val1: number, val2: number) => val1 - val2;
+
+// let start: number, end: number;
+
+// start = performance.now();
+// for (let el of seekElements) {
+//     binarySearchCmp(testArray, el, cmpFunc);
+// }
+// end = performance.now();
+// console.log(`binarySearch ${end - start} ms`);
+
+// start = performance.now();
+// for (let el of seekElements) {
+//     indexOfSearch(testArray, el);
+// }
+// end = performance.now();
+// console.log(`indexOfSearch ${end - start} ms`);
+
+// start = performance.now();
+// for (let el of seekElements) {
+//     testTree.find(el);
+// }
+// end = performance.now();
+// console.log(`orderedset ${end - start} ms`);
+
+// import { Deque, OrderedMap } from "js-sdsl";
+
+// const a = new Deque<number>([]);
+// console.log(a.popBack());
+// // const b = a.eraseElementByValue(3);
+// console.log(a);
+// console.log(b);
+
+// const a = new OrderedMap<number, number>([[1, 1]] as [number, number][]);
+// const it = a.begin();
+// console.log(it.isAccessible());
+// const it2 = it.copy();
+// console.log(it2.next().isAccessible());
+// // console.log(it2.isAccessible());
+// a.setElement(2, 2);
+// console.log(it2.isAccessible());
+// console.log(it.isAccessible());
+// console.log(it.next().isAccessible());
+// console.log(it.pointer[0]);
+// console.log(it2.pre().isAccessible());
+// console.log(it2.pointer[0]);
+
+// const a = new OrderedMap<number, number>();
+// const it = a.begin();
+// a.setElement(1, 1);
+// a.setElement(2, 2);
+// console.log(it.copy().pre().isAccessible());
+// console.log(it.copy().pre().isAccessible());
+// console.log(`A \
+//     B`);
+
+// import Fraction from "fraction.js";
+// const a = new Fraction("3/2");
+// const b = new Fraction("4/5");
+// const c = new Fraction("7/2");
+// console.log(a.add(b));
+// console.log(a.add(b).add(c));
+
+// import { OrderedMap } from "js-sdsl";
+
+// const a = new OrderedMap<number, number>();
+// a.setElement(0, 0);
+// const it = a.begin();
+// a.setElement(1, 1);
+// console.log(it.pointer[0]);
+// it.next();
+// console.log(it.pointer[0]);
+// a.setElement(0.5, 0.5);
+// it.pre();
+// console.log(it.pointer[0]);
 // import abcjs from "abcjs";
 // const abcNotation = `
 // X:1

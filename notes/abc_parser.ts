@@ -241,77 +241,77 @@ export function parseTune(tune: abcjs.TuneObject, voiceNb: number): [NoteInfo[],
 //  z3 | z3 | z ^F A | A z G |
 //  ^F z z | z z D | G, z z | !arpeggio![G,D] z z |]
 // `;
-const danube = `X:1
-T:Untitled score
-C:Composer / arranger
-%%score [ 1 2 ]
-L:1/4
-Q:1/4=160
-M:3/4
-K:C
-%%stretchlast true
-V:1 treble transpose=12 nm="Juggler 1" snm="J1"
-%%MIDI program 112
-V:2 treble transpose=12 nm="Juggler 2" snm="J2"
-%%MIDI program 112
-V:1
- C | C E G | G z z | z3 |
- z z C | C E G | G z z | z3 |
- z z D | D F A | A z z | z3 |
- z z D | D F A | A z z | z3 |
- z z C | C E G | c z z | z3 |
- z z C | C E G | c z z | z3 |
- z z D | D F A | A z z | z3 |
- z3 | z c E | E z z | z3 |
- z z/ C/ C | C z z | z c B | B A A |
- z3 | z3 | z D D | E z D |
- z D D | A z G | z3 | z3 |
- z A B | d c c | z3 | z3 |
- z z/ E/ C/A,/ | E/E/ E z | z3 | !arpeggio![Gdg] z z |]
-V:2
- z | z3 | z z G | G z E |
- E z z | z3 | z z G | G z F |
- F z z | z3 | z z A | A z F |
- F z z | z3 | z z A | A z E |
- E z z | z3 | z z c | c z G |
- G z z | z3 | z z c | c z A |
- A z z | z3 | z3 | z ^F G |
- e z z | z3 | z z D | A z G |
- C z z | z3 | z3 | z3 |
- z A ^G | ^G A A | z3 | z3 |
- z3 | z3 | z c B | B A A |
- z3 | z3 | z ^F A | A z G |
- ^F z z | z z D | G, z z | !arpeggio![G,D] z z |]
-`;
 // const danube = `X:1
 // T:Untitled score
 // C:Composer / arranger
+// %%score [ 1 2 ]
 // L:1/4
-// M:4/4
-// Q:1/2=100
+// Q:1/4=160
+// M:3/4
 // K:C
 // %%stretchlast true
-// V:1 treble nm="Flute" snm="Fl."
-// %%MIDI program 73
+// V:1 treble transpose=12 nm="Juggler 1" snm="J1"
+// %%MIDI program 112
+// V:2 treble transpose=12 nm="Juggler 2" snm="J2"
+// %%MIDI program 112
 // V:1
-//  B- | B c- c z |]
-// `
+//  C | C E G | G z z | z3 |
+//  z z C | C E G | G z z | z3 |
+//  z z D | D F A | A z z | z3 |
+//  z z D | D F A | A z z | z3 |
+//  z z C | C E G | c z z | z3 |
+//  z z C | C E G | c z z | z3 |
+//  z z D | D F A | A z z | z3 |
+//  z3 | z c E | E z z | z3 |
+//  z z/ C/ C | C z z | z c B | B A A |
+//  z3 | z3 | z D D | E z D |
+//  z D D | A z G | z3 | z3 |
+//  z A B | d c c | z3 | z3 |
+//  z z/ E/ C/A,/ | E/E/ E z | z3 | !arpeggio![Gdg] z z |]
+// V:2
+//  z | z3 | z z G | G z E |
+//  E z z | z3 | z z G | G z F |
+//  F z z | z3 | z z A | A z F |
+//  F z z | z3 | z z A | A z E |
+//  E z z | z3 | z z c | c z G |
+//  G z z | z3 | z z c | c z A |
+//  A z z | z3 | z3 | z ^F G |
+//  e z z | z3 | z z D | A z G |
+//  C z z | z3 | z3 | z3 |
+//  z A ^G | ^G A A | z3 | z3 |
+//  z3 | z3 | z c B | B A A |
+//  z3 | z3 | z ^F A | A z G |
+//  ^F z z | z z D | G, z z | !arpeggio![G,D] z z |]
+// `;
+// // const danube = `X:1
+// // T:Untitled score
+// // C:Composer / arranger
+// // L:1/4
+// // M:4/4
+// // Q:1/2=100
+// // K:C
+// // %%stretchlast true
+// // V:1 treble nm="Flute" snm="Fl."
+// // %%MIDI program 73
+// // V:1
+// //  B- | B c- c z |]
+// // `
 
-const tuneObject = abcjs.parseOnly(danube)[0];
-const seq = abcjs.synth.sequence(tuneObject, {});
-console.log(seq);
+// const tuneObject = abcjs.parseOnly(danube)[0];
+// const seq = abcjs.synth.sequence(tuneObject, {});
+// console.log(seq);
 
-// const b = abcjs.synth.flatten(seq);
-// console.log(b);
+// // const b = abcjs.synth.flatten(seq);
+// // console.log(b);
 
-// const tuneObject2 = abcjs.parseOnly(danube2)[0];
-// const seq2 = abcjs.synth.sequence(tuneObject2, {});
-// console.log(seq2);
+// // const tuneObject2 = abcjs.parseOnly(danube2)[0];
+// // const seq2 = abcjs.synth.sequence(tuneObject2, {});
+// // console.log(seq2);
 
-// const b2 = abcjs.synth.flatten(seq2);
-// console.log(b2);
+// // const b2 = abcjs.synth.flatten(seq2);
+// // console.log(b2);
 
-const [notes, measures] = parseTune(tuneObject, 0);
-console.log(notes);
-console.log(measures);
-console.log("Fin");
+// const [notes, measures] = parseTune(tuneObject, 0);
+// console.log(notes);
+// console.log(measures);
+// console.log("Fin");
