@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite --port 8080",
-    "build": "tsc && vite build --minify 1",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier . --write",
@@ -32,5 +32,13 @@
     "fraction.js": "^5.2.1",
     "js-sdsl": "^4.4.2",
     "three": "^0.163.0"
-  }
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "none",
+    "singleQuote": false,
+    "printWidth": 100,
+    "tabWidth": 4,
+    "useTabs": false
+}
 }
