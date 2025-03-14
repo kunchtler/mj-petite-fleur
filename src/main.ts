@@ -5,8 +5,8 @@ import { Ball as PatternBall } from "./tocategorize/mj_parser";
 import { RawPreParserEvent } from "./tocategorize/parser_to_scheduler";
 import {
     formatRawEventInput,
-    theWholeThing,
-    TheWholeThingParams
+    jugglingApp,
+    JugglingAppParams
 } from "./tocategorize/the_whole_thing";
 import { createJugglerCubeGeometry, createJugglerMaterial, Juggler } from "./simulator/Juggler";
 import { Table } from "./simulator/Table";
@@ -22,8 +22,8 @@ import { createControls } from "./simulator/TimeConductorUI";
 //TODO : Inference of the hands content at the beginning ?
 //TODO : The (L!441)^10 in parser
 //TODO : Remove simulator from the whole thing ? and some other things ?
-const params: TheWholeThingParams = {
-    rawJugglers: [
+const params: JugglingAppParams = {
+    jugglers: [
         [
             "Nicolas",
             {
@@ -32,7 +32,7 @@ const params: TheWholeThingParams = {
                     { id: "Re?N", name: "Re", sound: "Re", color: "orange" },
                     { id: "Mi?N", name: "Mi", sound: "Mi", color: "yellow" }
                 ],
-                rawEvents: [
+                events: [
                     [
                         "0",
                         {
@@ -45,7 +45,7 @@ const params: TheWholeThingParams = {
             }
         ]
     ],
-    rawMusicConverter: [[0, { signature: "1", tempo: { note: "1", bpm: 240 } }]]
+    musicConverter: [[0, { signature: "1", tempo: { note: "1", bpm: 240 } }]]
     // rawTable: {
     //     realDimensions?: { height: number; width: number; depth: number };
     //     internalDimensions: [number, number];
@@ -54,7 +54,7 @@ const params: TheWholeThingParams = {
     // }
 };
 
-theWholeThing("#simulator_canvas", params);
+jugglingApp("#simulator_canvas", params);
 
 //TODO : Soft errors everywhere !
 

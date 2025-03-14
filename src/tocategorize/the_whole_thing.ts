@@ -52,18 +52,19 @@ export type RawMusicConverter = [
 //TODO : Soft errors in simulator ! (with error Logger too ?) HECK YEAH !
 //TODO : In Scheduler Ball, rename "name" with "sound" ?
 //TODO : Separate siteswap params from "aesthetic params".
-export interface TheWholeThingParams {
-    rawJugglers: [
+//TODO : Fix Ball buffer not loaded when sound requested to play. (do this whith by default undefined in buffer, and do not worry if not there.)
+export interface JugglingAppParams {
+    jugglers: [
         string,
         {
             //TODO: Make name optional.
             //TODO: Make table optional (wonsider it in scheduler) Can not have swap events.
             balls: { id: string; name: string; sound?: string; color?: string | number }[];
-            rawEvents: [string, RawPreParserEvent][];
+            events: [string, RawPreParserEvent][];
         }
     ][];
-    rawMusicConverter: RawMusicConverter;
-    rawTable?: {
+    musicConverter: RawMusicConverter;
+    table?: {
         realDimensions?: { height: number; width: number; depth: number };
         internalDimensions: [number, number];
         ballsPlacement: [string, [number, number]][];
@@ -85,9 +86,9 @@ interface TableObject {
     upRightCorner: THREE.Object3D;
 }
 
-export function theWholeThing(
+export function jugglingApp(
     canvasName: string,
-    { rawJugglers, rawMusicConverter, rawTable }: TheWholeThingParams
+    { jugglers: rawJugglers, musicConverter: rawMusicConverter, table: rawTable }: JugglingAppParams
 ): void {
     //TODO : Separate in own function.
     //TODO : Sanitize here too ! (different juggler names, etc)
@@ -112,7 +113,7 @@ export function theWholeThing(
         string,
         { balls: { id: string; name: string }[]; events: FracSortedList<PreParserEvent> }
     >();
-    for (const [jugglerName, { balls, rawEvents }] of rawJugglers) {
+    for (const [jugglerName, { balls, events: rawEvents }] of rawJugglers) {
         preParserJugglers.set(jugglerName, {
             balls: balls,
             events: formatRawEventInput(rawEvents, musicConverter)
