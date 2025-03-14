@@ -5,14 +5,41 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/musical_ball_48.ico" type="image/x-icon" />
         <link rel="stylesheet" href="/src/assets/styles.css" />
-        <script type="module" src="/src/main.ts"></script>
+        <!-- <script type="module" src="src/main.ts" async></script> -->
         <title>Petite Fleur</title>
     </head>
     <body>
         <div id="simulator">
             <canvas id="simulator_canvas"></canvas>
         </div>
-
+        <script type="module" async>
+            import { jugglingApp } from "/src/tocategorize/the_whole_thing.ts";
+            jugglingApp("#simulator_canvas", {
+                jugglers: [
+                    [
+                        "Nicolas",
+                        {
+                            balls: [
+                                { id: "Do?N", name: "Do", sound: "Do", color: "red" },
+                                { id: "Re?N", name: "Re", sound: "Re", color: "orange" },
+                                { id: "Mi?N", name: "Mi", sound: "Mi", color: "yellow" }
+                            ],
+                            events: [
+                                [
+                                    "0",
+                                    {
+                                        tempo: "1",
+                                        hands: [["Do", "Re"], ["Mi"]],
+                                        pattern: "L441((441)^3)4450((51)^4)5305511"
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                ],
+                musicConverter: [[0, { signature: "1", tempo: { note: "1", bpm: 240 } }]]
+            });
+        </script>
         <!-- <div class="controls">
             <button class="play-button" id="play_button">
                 <img src="icons/play.svg" class="icon" id="play_icon" />
