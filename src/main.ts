@@ -54,7 +54,7 @@ const params: JugglingAppParams = {
     // }
 };
 
-jugglingApp("#simulator_canvas", params);
+// jugglingApp("#simulator_canvas", params);
 
 //TODO : Soft errors everywhere !
 

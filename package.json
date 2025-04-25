@@ -1,7 +1,16 @@
 {
   "name": "mj-petite-fleur",
+  "description": "Parse, visualise and simulate (musical) juggling patterns.",
   "private": true,
   "version": "0.0.0",
+  "author": {
+    "name": "Léo Kulinski",
+    "email": "leo.kulinski@universite-paris-saclay.fr"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
   "type": "module",
   "engines": {
     "node": ">=16.0.0",
@@ -40,5 +49,5 @@
     "printWidth": 100,
     "tabWidth": 4,
     "useTabs": false
-}
+  }
 }
